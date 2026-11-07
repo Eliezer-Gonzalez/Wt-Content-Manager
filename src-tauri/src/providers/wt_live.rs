@@ -16,7 +16,8 @@ async fn post_form(path: &str, fields: &[(&str, &str)]) -> Result<Value, String>
         .map_err(|error| format!("WT Live devolvió una respuesta inválida: {error}"))
 }
 
-pub async fn recent_camouflages() -> Result<Value, String> {
+pub async fn recent_camouflages(search_string: &str) -> Result<Value, String> {
+    let search_string: String = search_string.trim().chars().take(120).collect();
     let response = post_form(
         "/api/feed/get_regular/",
         &[
@@ -24,7 +25,7 @@ pub async fn recent_camouflages() -> Result<Value, String> {
             ("sort", "date"),
             ("user", ""),
             ("period", ""),
-            ("searchString", ""),
+            ("searchString", &search_string),
             ("page", "0"),
             ("featured", "false"),
             ("subtype", "all"),

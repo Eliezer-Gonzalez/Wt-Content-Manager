@@ -124,12 +124,12 @@ async function post<T>(path: string, body: URLSearchParams, signal?: AbortSignal
   return response.json() as Promise<T>
 }
 
-export async function fetchRecentCamouflages(signal?: AbortSignal): Promise<WtLiveItem[]> {
+export async function fetchRecentCamouflages(signal?: AbortSignal, searchString = ''): Promise<WtLiveItem[]> {
   const result = isDesktop
-    ? await invoke<FeedResponse>('fetch_recent_camouflages')
+    ? await invoke<FeedResponse>('fetch_recent_camouflages', { searchString })
     : await post<FeedResponse>('/api/feed/get_regular/', new URLSearchParams({
     content: 'camouflage', sort: 'date', user: '', period: '',
-    searchString: '', page: '0', featured: 'false', subtype: 'all',
+    searchString, page: '0', featured: 'false', subtype: 'all',
   }), signal)
   if (result.status !== 'OK' || !Array.isArray(result.data?.list)) {
     throw new Error('WT Live devolvió una respuesta que no reconoce el catálogo.')

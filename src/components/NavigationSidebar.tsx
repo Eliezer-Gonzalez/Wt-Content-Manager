@@ -14,6 +14,7 @@ type Props = {
   mobileOpen: boolean
   gameInstall: GameInstall | null
   gameLoading: boolean
+  installedCount: number
   t: (key: string) => string
   onNavigate: (key: string) => void
   onOpenGameSetup: () => void
@@ -21,7 +22,7 @@ type Props = {
   onCloseMobile: () => void
 }
 
-export function NavigationSidebar({ active, mobileOpen, gameInstall, gameLoading, t, onNavigate, onOpenGameSetup, onToggleMobile, onCloseMobile }: Props) {
+export function NavigationSidebar({ active, mobileOpen, gameInstall, gameLoading, installedCount, t, onNavigate, onOpenGameSetup, onToggleMobile, onCloseMobile }: Props) {
   useEffect(() => {
     if (!mobileOpen) return
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -46,7 +47,7 @@ export function NavigationSidebar({ active, mobileOpen, gameInstall, gameLoading
       <nav id="primary-navigation" className={`block flex-1 ${mobileOpen ? 'max-[720px]:mt-5 max-[720px]:block' : 'max-[720px]:hidden'}`}>
         {navigation.map(group => <section key={group.group} className="mb-[26px]">
           <p className="mb-[9px] ml-[10px] text-[10px] tracking-[.13em] text-[#858e81]">{t(group.group)}</p>
-          {group.items.map(([key, Icon]) => <button key={key} className={`flex h-10 w-full items-center gap-[11px] border-l-2 px-[10px] text-left text-[13px] transition-colors ${active === key ? 'border-olive bg-[#293027] text-[#dfe4d2]' : 'border-transparent text-[#b1b7ab] hover:bg-[#252b24] hover:text-[#e7e8df]'}`} onClick={() => { onNavigate(key); onCloseMobile() }}><Icon size={17}/>{t(key)}{key === 'downloads' && <span className="ml-auto text-[11px] text-[#90998a]">0</span>}</button>)}
+          {group.items.map(([key, Icon]) => <button key={key} className={`flex h-10 w-full items-center gap-[11px] border-l-2 px-[10px] text-left text-[13px] transition-colors ${active === key ? 'border-olive bg-[#293027] text-[#dfe4d2]' : 'border-transparent text-[#b1b7ab] hover:bg-[#252b24] hover:text-[#e7e8df]'}`} onClick={() => { onNavigate(key); onCloseMobile() }}><Icon size={17}/>{t(key)}{key === 'downloads' && <span className="ml-auto text-[11px] text-[#90998a]">{installedCount}</span>}</button>)}
         </section>)}
       </nav>
       <div className={`mt-auto ${mobileOpen ? 'max-[720px]:mt-auto max-[720px]:block' : 'max-[720px]:hidden'}`}>

@@ -1,5 +1,6 @@
 import { Download, ExternalLink, LoaderCircle, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
+import { PostDetailSkeleton } from './PostDetailSkeleton'
 import type { WtLiveDetail, WtLiveItem } from '../wtLive'
 
 type Props = {
@@ -26,7 +27,7 @@ export function PostDetailDialog({ item, detail, loading, error, t, canInstall, 
         <p className="flex items-center gap-2 text-[10px] tracking-[.14em] text-[#a0aa8a]"><Shield size={13}/>{t('detailSource')}</p>
         <h2 id="post-detail-title" className="mt-4 font-display text-4xl font-semibold leading-tight text-[#e6e7dd] max-[420px]:text-3xl">{item.title}</h2>
         <p className="mb-5 mt-1.5 text-xs text-[#bdc99e]">{item.fileName ?? t('camouflage')} · {t('by')} {item.author}</p>
-        {loading ? <p className="my-6 text-sm leading-relaxed text-[#b4baae]">{t('detailLoading')}</p> : error ? <p className="my-6 text-sm leading-relaxed text-amber-200" role="alert">{error}</p> : <div className="space-y-4 text-sm leading-7 text-[#c0c5bb]">
+        {loading ? <PostDetailSkeleton label={t('detailLoading')}/> : error ? <p className="my-6 text-sm leading-relaxed text-amber-200" role="alert">{error}</p> : <div className="space-y-4 text-sm leading-7 text-[#c0c5bb]">
           {hasImages ? detail?.description.map((block, index) => block.type === 'image'
             ? <img className="my-3 h-auto max-h-[65vh] w-full object-contain" key={`${block.src}-${index}`} src={block.src} alt={block.alt} loading="lazy"/>
             : <p key={index}>{block.text}</p>)

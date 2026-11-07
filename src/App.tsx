@@ -4,9 +4,13 @@ import { GameSetupModal } from './components/GameSetupModal'
 import { NavigationSidebar } from './components/NavigationSidebar'
 import { PostCard } from './components/PostCard'
 import { PostDetailDialog } from './components/PostDetailDialog'
+import { PostCardSkeleton } from './components/PostCardSkeleton'
+import { InstalledSkinCard } from './components/InstalledSkinCard'
+import { PaginatedGrid } from './components/PaginatedGrid'
 import { Button } from './components/ui/Button'
 import { APP_VERSION } from './lib/appInfo'
 import { useGameInstallation } from './hooks/useGameInstallation'
+import { useLocalLibrary } from './hooks/useLocalLibrary'
 import { isTauriRuntime } from './gameInstall'
 import { useI18n } from './i18n/I18nProvider'
 import { installSkin } from './skins'
@@ -15,18 +19,19 @@ import { fetchPostDetail, fetchRecentCamouflages, type WtLiveDetail, type WtLive
 export default function App() {
   const { t, locale, languages, setLocale } = useI18n()
   const gameSetup = useGameInstallation()
+  const library = useLocalLibrary()
   const [active, setActive] = useState('camouflages')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'recent' | 'popular'>('recent')
   const [items, setItems] = useState<WtLiveItem[]>([])
+  const [feedSearch, setFeedSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<WtLiveItem | null>(null)
   const [detail, setDetail] = useState<WtLiveDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
-  const [saved, setSaved] = useState<number[]>([])
   const [installingSkin, setInstallingSkin] = useState(false)
   const [installError, setInstallError] = useState('')
   const [installedPath, setInstalledPath] = useState('')
@@ -34,12 +39,20 @@ export default function App() {
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setFeedSearch(query.trim()), 300)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
+    if (active === 'favorites' || active === 'downloads') return
     const controller = new AbortController()
-    fetchRecentCamouflages(controller.signal).then(setItems).catch((cause: unknown) => {
+    setLoading(true)
+    setError('')
+    fetchRecentCamouflages(controller.signal, feedSearch).then(setItems).catch((cause: unknown) => {
       if (cause instanceof Error && cause.name !== 'AbortError') setError(cause.message)
-    }).finally(() => setLoading(false))
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [])
+  }, [active, feedSearch])
 
   useEffect(() => {
     if (!selected) { setDetail(null); return }
@@ -53,19 +66,19 @@ export default function App() {
     return () => controller.abort()
   }, [selected])
 
+  const catalog = active === 'favorites' ? library.favorites : items
   const visible = useMemo(() => {
-    const filtered = items.filter(item =>
-      (active !== 'favorites' || saved.includes(item.id)) &&
-      `${item.title} ${item.author} ${item.fileName ?? ''}`.toLowerCase().includes(query.toLowerCase()),
+    const filtered = catalog.filter(item =>
+      `${item.title} ${item.author} ${item.fileName ?? ''} ${item.description}`.toLowerCase().includes(query.toLowerCase()),
     )
     return sort === 'popular'
       ? [...filtered].sort((a, b) => b.likes - a.likes)
       : [...filtered].sort((a, b) => b.createdAt - a.createdAt)
-  }, [active, items, query, saved, sort])
+  }, [catalog, query, sort])
 
-  function toggleSaved(id: number) {
-    setSaved(current => current.includes(id) ? current.filter(itemId => itemId !== id) : [...current, id])
-  }
+  const visibleInstallations = useMemo(() => library.installedSkins.filter(entry =>
+    `${entry.item.title} ${entry.item.author} ${entry.item.fileName ?? ''} ${entry.folderName}`.toLowerCase().includes(query.toLowerCase()),
+  ), [library.installedSkins, query])
 
   async function handleInstallSkin() {
     if (!selected) return
@@ -79,6 +92,7 @@ export default function App() {
     try {
       const result = await installSkin(selected.langGroup, gameSetup.gameInstall.path)
       setInstalledPath(result.path)
+      library.recordInstallation(selected, result)
     } catch (cause) {
       setInstallError(cause instanceof Error ? cause.message : t('skinInstallFailed'))
     } finally {
@@ -86,7 +100,8 @@ export default function App() {
     }
   }
 
-  const titleWords = t('recentTitle').split(' ')
+  const pageTitle = active === 'downloads' ? t('downloads') : active === 'favorites' ? t('favorites') : t('recentTitle')
+  const titleWords = pageTitle.split(' ')
   const titleFirstLine = titleWords.slice(0, -1).join(' ')
   const titleLastWord = titleWords[titleWords.length - 1]
 
@@ -96,6 +111,7 @@ export default function App() {
       mobileOpen={mobileMenuOpen}
       gameInstall={gameSetup.gameInstall}
       gameLoading={gameSetup.loading}
+      installedCount={library.installedSkins.length}
       t={t}
       onNavigate={setActive}
       onOpenGameSetup={gameSetup.openSetup}
@@ -115,7 +131,7 @@ export default function App() {
 
       <div className="mx-auto max-w-[1260px] px-[42px] pb-5 pt-10 max-[1100px]:px-[26px] max-[720px]:px-4 max-[720px]:pt-6">
         <section className="flex min-h-[218px] items-center justify-between border-b border-[#31372f] px-[3px] pb-6 max-[720px]:min-h-[180px]">
-          <div><p className="mb-0 flex items-center gap-2 text-[10px] tracking-[.14em] text-[#a0aa8a]"><span className="h-px w-3.5 bg-[#acb98b]"/>{t('communityContent')}</p><h1 className="mb-3 mt-[18px] font-display text-[54px] font-semibold leading-[.97] tracking-[-.02em] text-[#e6e7dd] max-[720px]:text-[44px]">{titleFirstLine}<br/><em className="not-italic text-[#aeb990]">{titleLastWord}</em></h1><p className="mb-0 max-w-[38ch] text-sm leading-6 text-[#adb3a8]">{t('recentSubtitle')}</p></div>
+          <div><p className="mb-0 flex items-center gap-2 text-[10px] tracking-[.14em] text-[#a0aa8a]"><span className="h-px w-3.5 bg-[#acb98b]"/>{active === 'downloads' || active === 'favorites' ? t('libraryLocal') : t('communityContent')}</p><h1 className="mb-3 mt-[18px] font-display text-[54px] font-semibold leading-[.97] tracking-[-.02em] text-[#e6e7dd] max-[720px]:text-[44px]">{titleFirstLine}<br/><em className="not-italic text-[#aeb990]">{titleLastWord}</em></h1><p className="mb-0 max-w-[38ch] text-sm leading-6 text-[#adb3a8]">{active === 'downloads' || active === 'favorites' ? t('localLibrarySubtitle') : t('recentSubtitle')}</p></div>
           <div className="mr-[8%] flex h-[142px] w-[170px] flex-col items-center justify-center gap-2 border border-[#30382e] bg-gradient-to-br from-[#22281f] to-[#1a1f19] text-center text-[#89927d] max-[1100px]:mr-0 max-[720px]:h-[105px] max-[720px]:w-[100px] max-[420px]:hidden"><Shield size={64} strokeWidth={0.8} className="text-[#59654d] max-[720px]:size-[45px]"/><span className="text-[9px] leading-relaxed tracking-[.18em]">WT LIVE<br/>COMMUNITY FEED</span></div>
         </section>
 
@@ -125,15 +141,21 @@ export default function App() {
         </section>
 
         <div className="flex items-end justify-between gap-4">
-          <div><h2 className="mb-1 text-lg font-medium tracking-tight">{active === 'favorites' ? t('favorites') : t('latestPosts')}</h2><p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{loading ? t('loading') : error ? t('catalogError') : <>{t('updatedFrom')} <span className="inline-block size-1.5 rounded-full bg-[#9cae70]"/></>}</p></div>
+          <div><h2 className="mb-1 text-lg font-medium tracking-tight">{active === 'favorites' ? t('favorites') : active === 'downloads' ? t('downloads') : t('latestPosts')}</h2><p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{active === 'favorites' || active === 'downloads' ? t('libraryLocal') : loading ? t('loading') : error ? t('catalogError') : <>{t('updatedFrom')} <span className="inline-block size-1.5 rounded-full bg-[#9cae70]"/></>}</p></div>
           <div className="flex items-center gap-2 text-xs text-[#a1a99b]">{t('sortBy')}<Button variant="quiet" className="min-h-9 px-2 text-xs" onClick={() => setSort(sort === 'recent' ? 'popular' : 'recent')}>{t(sort)}<ChevronDown size={14}/></Button></div>
         </div>
-        <div className="mb-3.5 mt-5 flex items-center gap-2"><span className="border border-[#414a39] bg-[#2b3328] px-2.5 py-1.5 text-xs text-[#dbe0d1]">{t('all')}</span><span className="ml-auto text-[11px] text-[#929a8e]">{visible.length} {t('posts')}</span></div>
+        <div className="mb-3.5 mt-5 flex items-center gap-2"><span className="border border-[#414a39] bg-[#2b3328] px-2.5 py-1.5 text-xs text-[#dbe0d1]">{t('all')}</span><span className="ml-auto text-[11px] text-[#929a8e]">{active === 'downloads' ? visibleInstallations.length : visible.length} {t('posts')}</span></div>
 
-        {error ? <div className="grid min-h-40 place-items-center text-center"><div><p className="text-sm text-[#c2c8bb]">{error}</p><Button variant="primary" onClick={() => location.reload()}>{t('retry')}</Button></div></div>
-          : loading ? <div className="grid min-h-40 place-items-center text-sm text-[#b1b7ab]">{t('loading')}</div>
+        {active === 'downloads' ? visibleInstallations.length === 0
+          ? <div className="grid min-h-40 place-items-center text-center text-sm text-[#b1b7ab]">{query ? t('notFound') : t('noInstalledSkins')}</div>
+          : <PaginatedGrid items={visibleInstallations} resetKey={`downloads-${query}`} gridClassName="grid grid-cols-2 gap-3 max-[1000px]:grid-cols-1" t={t} getKey={entry => entry.path} renderItem={entry => <InstalledSkinCard entry={entry} locale={locale} t={t} onOpen={setSelected}/>}/>
+          : active === 'favorites' ? visible.length === 0
+            ? <div className="grid min-h-40 place-items-center text-center text-sm text-[#b1b7ab]">{query ? t('notFound') : t('noFavorites')}</div>
+            : <PaginatedGrid items={visible} resetKey={`favorites-${query}`} gridClassName="grid grid-cols-3 gap-3 max-[1100px]:grid-cols-2 max-[720px]:gap-2.5 max-[420px]:grid-cols-1" t={t} getKey={item => String(item.id)} renderItem={item => <PostCard item={item} locale={locale} isSaved onOpen={setSelected} onToggleSaved={library.toggleFavorite} t={t}/>}/>
+          : error ? <div className="grid min-h-40 place-items-center text-center"><div><p className="text-sm text-[#c2c8bb]">{error}</p><Button variant="primary" onClick={() => location.reload()}>{t('retry')}</Button></div></div>
+          : loading ? <PostCardSkeleton label={t('loading')}/>
             : visible.length === 0 ? <div className="grid min-h-40 place-items-center text-sm text-[#b1b7ab]">{t('notFound')}</div>
-              : <div className="grid grid-cols-3 gap-3 max-[1100px]:grid-cols-2 max-[720px]:gap-2.5 max-[420px]:grid-cols-1">{visible.map(item => <PostCard key={item.id} item={item} locale={locale} isSaved={saved.includes(item.id)} t={t} onOpen={setSelected} onToggleSaved={toggleSaved}/>)}</div>}
+              : <div className="grid grid-cols-3 gap-3 max-[1100px]:grid-cols-2 max-[720px]:gap-2.5 max-[420px]:grid-cols-1">{visible.map(item => <PostCard key={item.id} item={item} locale={locale} isSaved={library.favorites.some(saved => saved.id === item.id)} t={t} onOpen={setSelected} onToggleSaved={library.toggleFavorite}/>)}</div>}
 
         <footer className="mt-7 flex justify-between gap-3 border-t border-[#2d342d] px-1 py-3 text-[10px] tracking-[.06em] text-[#8d968a] max-[420px]:flex-col"><span>{t('dataSource')}</span><span>WT CONTENT MANAGER <b className="font-medium text-[#b2baa9]">{APP_VERSION}</b></span></footer>
       </div>

@@ -3,8 +3,8 @@ use serde_json::Value;
 use crate::{game_install, providers::wt_live, skins};
 
 #[tauri::command]
-pub async fn fetch_recent_camouflages() -> Result<Value, String> {
-    wt_live::recent_camouflages().await
+pub async fn fetch_recent_camouflages(search_string: String) -> Result<Value, String> {
+    wt_live::recent_camouflages(&search_string).await
 }
 
 #[tauri::command]

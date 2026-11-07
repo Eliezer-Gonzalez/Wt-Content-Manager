@@ -9,7 +9,7 @@ type Props = {
   isSaved: boolean
   t: (key: string) => string
   onOpen: (item: WtLiveItem) => void
-  onToggleSaved: (id: number) => void
+  onToggleSaved: (item: WtLiveItem) => void
 }
 
 export function PostCard({ item, locale, isSaved, t, onOpen, onToggleSaved }: Props) {
@@ -21,7 +21,7 @@ export function PostCard({ item, locale, isSaved, t, onOpen, onToggleSaved }: Pr
         <span className="absolute left-2.5 top-2.5 bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t('camouflage')}</span>
         <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 text-[11px] text-[#e4e2d4]"><Star size={12} className="text-[#bcc793]" fill="currentColor"/>{item.likes}</span>
       </button>
-      <Button variant="icon" className={`absolute right-2 top-2 size-9 border border-[#596154] bg-[#171c18c9] ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`} onClick={() => onToggleSaved(item.id)} aria-label={isSaved ? t('removeFavorite') : t('addFavorite')} aria-pressed={isSaved}><Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'}/></Button>
+      <Button variant="icon" className={`absolute right-2 top-2 size-9 border border-[#596154] bg-[#171c18c9] ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`} onClick={() => onToggleSaved(item)} aria-label={isSaved ? t('removeFavorite') : t('addFavorite')} aria-pressed={isSaved}><Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'}/></Button>
     </div>
     <button type="button" className="block w-full px-3 pb-3 pt-3 text-left" onClick={() => onOpen(item)}>
       <span className="flex items-start justify-between gap-2"><strong className="line-clamp-2 font-display text-[19px] font-semibold leading-tight text-[#e2e4da]">{item.title}</strong><span className="shrink-0 pt-1 text-[10px] text-[#a1a99b]">{relativeDate(item.createdAt, locale)}</span></span>
