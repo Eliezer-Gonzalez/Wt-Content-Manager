@@ -1,16 +1,16 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WT Content Manager",
-  "version": "0.4.0",
+  "version": "0.8.0",
   "identifier": "dev.wtcontentmanager.app",
   "build": {
-    "beforeDevCommand": "pnpm dev -- --port 5174 --strictPort",
+    "beforeDevCommand": "pnpm dev --port 5174 --strictPort",
     "devUrl": "http://localhost:5174",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "label": "main", "title": "WT Content Manager", "width": 1180, "height": 780, "minWidth": 720, "minHeight": 560 }],
+    "windows": [{ "label": "main", "title": "WT Content Manager", "width": 1180, "height": 780, "minWidth": 720, "minHeight": 560, "decorations": false }],
     "security": {
       "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://live.warthunder.com; img-src 'self' data: asset: https://*.warthunder.com https://images-live.warthunder.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com"
     }

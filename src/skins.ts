@@ -1,4 +1,11 @@
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
+
+export type SkinInstallProgress = {
+  phase: 'preparing' | 'downloading' | 'extracting'
+  downloadedBytes: number
+  totalBytes: number | null
+  paused: boolean
+}
 
 export type SkinInstallResult = {
   folderName: string
@@ -7,6 +14,16 @@ export type SkinInstallResult = {
   sizeBytes: number
 }
 
-export function installSkin(langGroup: number, gamePath: string): Promise<SkinInstallResult> {
-  return invoke<SkinInstallResult>('install_skin', { langGroup, gamePath })
+export function installSkin(langGroup: number, gamePath: string, taskId: string, onProgress: (progress: SkinInstallProgress) => void): Promise<SkinInstallResult> {
+  const channel = new Channel<SkinInstallProgress>()
+  channel.onmessage = onProgress
+  return invoke<SkinInstallResult>('install_skin', { langGroup, gamePath, taskId, onProgress: channel })
+}
+
+export function setSkinDownloadPaused(taskId: string, paused: boolean): Promise<void> {
+  return invoke('set_skin_download_paused', { taskId, paused })
+}
+
+export function cancelSkinDownload(taskId: string): Promise<void> {
+  return invoke('cancel_skin_download', { taskId })
 }

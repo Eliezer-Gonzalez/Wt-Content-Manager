@@ -11,6 +11,7 @@ const navigation = [
 
 type Props = {
   active: string
+  hasCustomTitleBar: boolean
   mobileOpen: boolean
   gameInstall: GameInstall | null
   gameLoading: boolean
@@ -22,7 +23,7 @@ type Props = {
   onCloseMobile: () => void
 }
 
-export function NavigationSidebar({ active, mobileOpen, gameInstall, gameLoading, installedCount, t, onNavigate, onOpenGameSetup, onToggleMobile, onCloseMobile }: Props) {
+export function NavigationSidebar({ active, hasCustomTitleBar, mobileOpen, gameInstall, gameLoading, installedCount, t, onNavigate, onOpenGameSetup, onToggleMobile, onCloseMobile }: Props) {
   useEffect(() => {
     if (!mobileOpen) return
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -32,12 +33,14 @@ export function NavigationSidebar({ active, mobileOpen, gameInstall, gameLoading
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [mobileOpen, onCloseMobile])
 
+  const titleBarOffset = hasCustomTitleBar ? 'top-9' : 'top-0'
+  const mobileTopOffset = hasCustomTitleBar ? 'max-[720px]:top-9' : 'max-[720px]:top-0'
   const mobileLayout = mobileOpen
-    ? 'max-[720px]:fixed max-[720px]:inset-y-0 max-[720px]:left-0 max-[720px]:z-50 max-[720px]:flex max-[720px]:h-dvh max-[720px]:w-[min(300px,88vw)] max-[720px]:flex-col max-[720px]:overflow-y-auto max-[720px]:border-b-0 max-[720px]:px-[17px] max-[720px]:pb-[14px] max-[720px]:pt-[10px] max-[720px]:shadow-2xl'
+    ? `max-[720px]:fixed ${mobileTopOffset} max-[720px]:bottom-0 max-[720px]:left-0 max-[720px]:z-50 max-[720px]:flex max-[720px]:h-auto max-[720px]:w-[min(300px,88vw)] max-[720px]:flex-col max-[720px]:overflow-y-auto max-[720px]:border-b-0 max-[720px]:px-[17px] max-[720px]:pb-[14px] max-[720px]:pt-[10px] max-[720px]:shadow-2xl`
     : 'max-[720px]:static max-[720px]:inset-auto max-[720px]:h-auto max-[720px]:w-full max-[720px]:border-r-0 max-[720px]:border-b max-[720px]:border-[#30372f] max-[720px]:block max-[720px]:px-[15px] max-[720px]:py-[10px]'
   return <>
-    {mobileOpen && <button className="fixed inset-0 z-40 bg-black/70 min-[721px]:hidden" aria-label={t('closeMenu')} onClick={onCloseMobile}/>}
-    <aside className={`fixed inset-y-0 left-0 z-20 flex w-[246px] flex-col border-r border-[#2c332c] bg-[#1c211c] px-[17px] pb-[14px] pt-[25px] transition-[width,transform] duration-200 min-[721px]:max-[1100px]:w-[210px] max-[720px]:transition-none ${mobileLayout}`} aria-label={t('navigation')}>
+    {mobileOpen && <button className={`fixed inset-x-0 bottom-0 z-40 bg-black/70 min-[721px]:hidden ${hasCustomTitleBar ? 'top-9' : 'top-0'}`} aria-label={t('closeMenu')} onClick={onCloseMobile}/>}
+    <aside className={`fixed bottom-0 left-0 z-20 flex w-[246px] flex-col border-r border-[#2c332c] bg-[#1c211c] px-[17px] pb-[14px] pt-[25px] transition-[width,transform] duration-200 min-[721px]:max-[1100px]:w-[210px] max-[720px]:transition-none ${titleBarOffset} ${mobileLayout}`} aria-label={t('navigation')}>
       <div className="flex h-[52px] shrink-0 items-center gap-[11px] px-2 max-[720px]:h-[42px]">
         <div className="grid size-9 shrink-0 place-items-center border border-[#626b51] bg-[#293027] text-[#bcc899]"><Shield size={21}/></div>
         <div><strong className="block text-xs font-bold tracking-[.09em]">WT CONTENT</strong><small className="mt-[3px] block text-[10px] tracking-[.16em] text-[#9ca38f]">MANAGER <i className="ml-1 border border-[#47513e] px-1 text-[9px] not-italic text-[#c2c8ae]">{APP_VERSION}</i></small></div>

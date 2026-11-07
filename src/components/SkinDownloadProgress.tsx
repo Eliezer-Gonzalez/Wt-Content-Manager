@@ -1,0 +1,50 @@
+import { LoaderCircle, Pause, Play, X } from 'lucide-react'
+import type { SkinInstallProgress } from '../skins'
+
+type Props = {
+  progress: SkinInstallProgress | null
+  paused: boolean
+  cancelling: boolean
+  t: (key: string) => string
+  onTogglePause: () => void
+  onCancel: () => void
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function SkinDownloadProgress({ progress, paused, cancelling, t, onTogglePause, onCancel }: Props) {
+  const downloading = progress?.phase === 'downloading'
+  const percentage = downloading && progress.totalBytes ? Math.min(100, Math.floor(progress.downloadedBytes / progress.totalBytes * 100)) : null
+  const status = progress?.phase === 'extracting' ? t('skinExtracting')
+    : progress?.phase === 'preparing' ? t('skinPreparing')
+      : paused ? t('skinDownloadPaused') : t('skinDownloading')
+
+  return <section className="mt-5 border border-[#424c3b] bg-[#20261f] p-4" aria-live="polite" aria-label={t('skinDownloadProgress')}>
+    <div className="flex items-center justify-between gap-3">
+      <p className="mb-0 flex items-center gap-2 text-sm font-medium text-[#d8dfcc]">
+        {progress?.phase === 'extracting' || progress?.phase === 'preparing' ? <LoaderCircle size={15} className="animate-spin text-[#c1ce9f]"/> : <span className={`size-2 rounded-full ${paused ? 'bg-[#a4a995]' : 'bg-[#aabd7c]'}`}/>}
+        {cancelling ? t('skinCancelling') : status}
+      </p>
+      {percentage !== null && <span className="text-xs tabular-nums text-[#d0d9bf]">{percentage}%</span>}
+    </div>
+    <div className="mt-3 h-2 overflow-hidden bg-[#141915]" role="progressbar" aria-label={t('skinDownloadProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage ?? undefined} aria-valuetext={percentage === null ? formatBytes(progress?.downloadedBytes ?? 0) : `${percentage}%`}>
+      <div className={`h-full bg-[#aabd7c] transition-[width] duration-200 ${percentage === null ? 'w-1/3 animate-pulse' : ''}`} style={percentage === null ? undefined : { width: `${percentage}%` }}/>
+    </div>
+    {downloading && <div className="mt-2 flex justify-between text-[11px] text-[#99a18f]">
+      <span>{formatBytes(progress.downloadedBytes)}{progress.totalBytes ? ` / ${formatBytes(progress.totalBytes)}` : ''}</span>
+      <span>{t('skinDownloadSizeNote')}</span>
+    </div>}
+    <div className="mt-4 flex justify-end gap-2">
+      <button type="button" className="inline-flex min-h-9 items-center gap-1.5 border border-[#4c5742] px-3 text-xs text-[#d4dcc8] transition-colors hover:bg-[#30392b] disabled:cursor-not-allowed disabled:opacity-45" disabled={!downloading || cancelling} onClick={onTogglePause}>
+        {paused ? <Play size={14}/> : <Pause size={14}/>}{paused ? t('skinResume') : t('skinPause')}
+      </button>
+      <button type="button" className="inline-flex min-h-9 items-center gap-1.5 border border-[#644b42] px-3 text-xs text-[#e0c1b5] transition-colors hover:bg-[#3a2c27] disabled:cursor-not-allowed disabled:opacity-45" disabled={!downloading || cancelling} onClick={onCancel}>
+        <X size={14}/>{t('skinCancel')}
+      </button>
+    </div>
+  </section>
+}

@@ -47,8 +47,8 @@ export function GameSetupModal({
       onCancel={event => { event.preventDefault(); onClose() }}
     >
       <header className="relative border-b border-[#343b32] px-6 pb-5 pt-7 max-[420px]:px-5">
-        <div className="absolute right-5 top-5 grid size-10 place-items-center border border-[#4d5842] bg-[#293027] text-[#bcc899]"><FolderOpen size={20}/></div>
-        <Button variant="icon" className="absolute right-[68px] top-5" onClick={onClose} aria-label={t('close')}><X size={18}/></Button>
+        <div className="absolute right-[68px] top-5 grid size-10 place-items-center border border-[#4d5842] bg-[#293027] text-[#bcc899]"><FolderOpen size={20}/></div>
+        <Button variant="icon" className="absolute right-5 top-5" onClick={onClose} aria-label={t('close')}><X size={18}/></Button>
         <p className="mb-2 text-[10px] tracking-[.14em] text-[#a0aa8a]">{t('game')}</p>
         <h2 id="game-setup-title" className="max-w-[360px] font-display text-3xl font-semibold leading-tight text-[#e6e7dd] max-[420px]:text-2xl">{t('gameSetupTitle')}</h2>
         <p className="mt-2 max-w-[420px] text-sm leading-6 text-[#b1b7ab]">{t('gameSetupIntro')}</p>

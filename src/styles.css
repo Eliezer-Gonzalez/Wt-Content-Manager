@@ -9,6 +9,15 @@
   --color-olive: #a8b485;
   --font-sans: "DM Sans", sans-serif;
   --font-display: "Barlow Condensed", sans-serif;
+  --animate-hammer-strike: hammer-strike 1.1s ease-in-out infinite;
+
+  @keyframes hammer-strike {
+    0%, 70%, 100% { transform: rotate(0deg); }
+    22% { transform: rotate(-18deg); }
+    41% { transform: rotate(54deg); }
+    46% { transform: rotate(51deg); }
+    54% { transform: rotate(26deg); }
+  }
 }
 
 @layer base {
@@ -16,5 +25,39 @@
   body,
   #root {
     min-height: 100%;
+  }
+
+  html {
+    scrollbar-color: #536048 #171b17;
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #171b17;
+    border-left: 1px solid #2c332c;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    min-height: 38px;
+    border: 3px solid #171b17;
+    border-radius: 2px;
+    background: #536048;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #829065;
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: #a8b485;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: #171b17;
   }
 }
