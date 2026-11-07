@@ -3,7 +3,7 @@ import { Activity, ChevronDown, RefreshCw, Search } from 'lucide-react'
 import { GameSetupModal } from './components/GameSetupModal'
 import { ConfirmUninstallModal } from './components/ConfirmUninstallModal'
 import { NavigationSidebar, type AppSection } from './components/NavigationSidebar'
-import { HeroBanner } from './components/HeroBanner'
+import { SectionHeader } from './components/HeroBanner'
 import { PostCard } from './components/PostCard'
 import { PostDetailDialog } from './components/PostDetailDialog'
 import { PostCardSkeleton } from './components/PostCardSkeleton'
@@ -160,11 +160,15 @@ export default function App() {
           onNavigate={section => { setActive(section); if (section === 'camouflages') feed.loadPage(0) }}
           onOpenGameSetup={gameSetup.openSetup} onRetry={feed.retry}
           onOpen={openPost} onToggleSaved={library.toggleFavorite} onUninstall={library.requestUninstall}
-        /> : <div className="flex w-full flex-1 flex-col px-8 pb-5 pt-10 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
-          <section className={`relative flex items-center justify-between border-b border-[#31372f] px-[3px] pb-6 ${isLocalLibrary ? 'min-h-[150px]' : 'min-h-[218px] max-[720px]:min-h-[180px]'}`}>
-            {active === 'camouflages' && <HeroBanner className="-top-10 inset-x-0 bottom-0" horizontalFade="from-wt-bg/95 via-wt-bg/70 to-wt-bg/15" />}
-            <div className="relative z-10"><p className="mb-0 flex items-center gap-2 text-[10px] tracking-[.14em] text-[#a0aa8a]"><span className="h-px w-3.5 bg-[#acb98b]" />{isLocalLibrary ? t('libraryLocal') : t('communityContent')}</p><h1 className={`mb-2 mt-3 font-display font-semibold leading-[.97] tracking-[-.02em] text-[#e6e7dd] ${isLocalLibrary ? 'text-[48px] max-[720px]:text-[40px]' : 'text-[54px] max-[720px]:text-[44px]'}`}>{titleFirstLine && <>{titleFirstLine}<br /></>}<em className="not-italic text-[#aeb990]">{titleLastWord}</em></h1>{!isLocalLibrary && <p className="mb-0 max-w-[38ch] text-sm leading-6 text-[#adb3a8]">{t('recentSubtitle')}</p>}</div>
-          </section>
+        /> : <div className="flex w-full flex-1 flex-col px-8 pb-5 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
+          <SectionHeader
+            variant={isLocalLibrary ? 'hazard' : 'radar'}
+            size={isLocalLibrary ? 'compact' : 'catalog'}
+            eyebrow={isLocalLibrary ? t('libraryLocal') : t('communityContent')}
+            titlePrefix={titleFirstLine}
+            titleHighlight={titleLastWord}
+            subtitle={!isLocalLibrary ? t('recentSubtitle') : undefined}
+          />
 
           <section className="my-[22px] mb-[31px] flex gap-2.5 max-[720px]:mb-6 max-[720px]:mt-[17px]">
             <label className="flex h-11 max-w-[490px] flex-1 items-center gap-2.5 border border-[#343b32] bg-wt-panel px-3 text-[#a0aa9b] focus-within:border-[#717d5b]"><Search size={17} /><input ref={searchInputRef} className="min-w-0 flex-1 bg-transparent text-sm text-[#e2e5db] outline-none placeholder:text-[#929a8e]" value={query} onChange={event => { setSearch(active, event.target.value); feed.setSearchInput(event.target.value) }} placeholder={t('searchPlaceholder')} /><kbd className="border border-[#41483d] px-1.5 py-0.5 text-[10px] text-[#929a8e] max-[720px]:hidden">{isApple ? '⌘ K' : 'Ctrl K'}</kbd></label>
@@ -173,7 +177,7 @@ export default function App() {
 
           <div className="flex items-end justify-between gap-4">
             <div><h2 className="mb-1 text-lg font-medium tracking-tight">{active === 'favorites' ? t('favorites') : active === 'downloads' ? t('downloads') : t('latestPosts')}</h2>{!isLocalLibrary && <p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{feed.loading ? t('loading') : feed.error ? t('catalogError') : <>{t('updatedFrom')} <span className="inline-block size-1.5 rounded-full bg-[#9cae70]" /></>}</p>}</div>
-            <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-[#a1a99b]">
+            <div className="flex min-h-9 flex-wrap items-center justify-end gap-2 text-xs text-[#a1a99b]">
               {active === 'downloads' && gameSetup.gameInstall && (
                 <Button variant="secondary" size="sm" onClick={() => void library.rescanSkins()} disabled={library.scanning}>
                   <RefreshCw size={13} className={library.scanning ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />

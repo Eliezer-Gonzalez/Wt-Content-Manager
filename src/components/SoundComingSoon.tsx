@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { SectionHeader } from './HeroBanner'
 import { useI18n } from '../i18n/I18nProvider'
 
 const smallSparks = [
@@ -24,9 +25,16 @@ const glowSparks = [
 export function SoundComingSoon() {
   const { t } = useI18n()
   return (
-    <section className="grid flex-1 place-items-center px-6 py-12 text-center">
-      <div className="flex w-full max-w-[560px] flex-col items-center gap-6 text-[#bdc99e]">
-        <div className="relative w-full">
+    <div className="flex w-full flex-1 flex-col px-8 pb-5 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
+      <SectionHeader
+        variant="radar"
+        size="catalog"
+        eyebrow={t('communityContent')}
+        titleHighlight={t('sounds')}
+      />
+      <section className="grid flex-1 place-items-center px-6 py-12 text-center">
+        <div className="flex w-full max-w-[560px] flex-col items-center gap-6 text-[#bdc99e]">
+          <div className="relative w-full">
           <svg
             width="100%"
             viewBox="0 0 680 320"
@@ -193,12 +201,14 @@ export function SoundComingSoon() {
               ))}
             </g>
           </svg>
-        </div>
+          </div>
 
-        <h1 className="m-0 font-display text-4xl font-semibold tracking-wide text-[#e6e7dd]">
-          {t('underConstruction')}
-        </h1>
-      </div>
-    </section>
+          <h1 className="m-0 font-display text-4xl font-semibold tracking-wide text-[#e6e7dd]">
+            {t('underConstruction')}
+          </h1>
+        </div>
+      </section>
+    </div>
   )
 }
+

@@ -6,7 +6,7 @@ import { InstalledSkinCard } from './InstalledSkinCard'
 import { Button } from './ui/Button'
 import type { WtLiveItem } from '../lib/wtLive'
 import type { InstalledSkin } from '../lib/localLibrary'
-import { HeroBanner } from './HeroBanner'
+import { SectionHeader } from './HeroBanner'
 import type { AppSection } from './NavigationSidebar'
 import { formatNumber } from '../lib/format'
 import { useI18n } from '../i18n/I18nProvider'
@@ -57,7 +57,7 @@ function StatusCard({ icon, label, value, onClick }: StatusCardProps) {
   )
 }
 
-function SectionHeader({
+function HomeRowHeader({
   title, subtitle, showLiveDot, sectionKey, onHide, onSeeAll,
 }: {
   title: string; subtitle: string; showLiveDot?: boolean; sectionKey: HomeSectionKey; onHide: (key: HomeSectionKey) => void; onSeeAll: () => void
@@ -114,19 +114,13 @@ export function HomeDashboard({
 
   return (
     <div className="flex-1 px-8 pb-8 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
-      <section className="relative flex min-h-[190px] items-center border-b border-[#31372f] px-[3px] pb-6 max-[720px]:min-h-[165px]">
-        <HeroBanner className="-top-8 right-0 bottom-0 w-[68%] max-[720px]:w-[80%]" horizontalFade="from-wt-bg/95 via-wt-bg/55 to-wt-bg/10" />
-        <div className="relative z-10 max-w-2xl">
-          <p className="mb-0 flex items-center gap-2 text-[10px] tracking-[.14em] text-[#a0aa8a]">
-            <span className="h-px w-3.5 bg-[#acb98b]" />
-            {t('homeOverview')}
-          </p>
-          <h1 className="mb-3 mt-4 font-display text-[48px] font-semibold leading-none tracking-[-.02em] text-[#e6e7dd] max-[720px]:text-[38px]">
-            {t('homeTitle')}
-          </h1>
-          <p className="mb-0 max-w-[42ch] text-sm leading-6 text-[#c0c5bb]">{t('homeSubtitle')}</p>
-        </div>
-      </section>
+      <SectionHeader
+        variant="radar"
+        size="home"
+        eyebrow={t('homeOverview')}
+        title={t('homeTitle')}
+        subtitle={t('homeSubtitle')}
+      />
 
       <section className="mt-5 grid grid-cols-2 gap-3 min-[1500px]:grid-cols-4" aria-label={t('homeQuickAccess')}>
         <StatusCard icon={<Shield size={18} />} label={t('camouflages')} value={t('homeExploreHint')} onClick={() => onNavigate('camouflages')} />
@@ -149,7 +143,7 @@ export function HomeDashboard({
 
       {visibleSections.recent && (
         <section className="mt-8">
-          <SectionHeader
+          <HomeRowHeader
             title={t('homeLatest')}
             subtitle={t('updatedFrom')}
             showLiveDot
@@ -179,7 +173,7 @@ export function HomeDashboard({
 
       {visibleSections.installed && latestInstalled.length > 0 && (
         <section className="mt-8">
-          <SectionHeader
+          <HomeRowHeader
             title={t('homeInstalledTitle')}
             subtitle={t('homeInstalledSubtitle')}
             sectionKey="installed"
@@ -202,7 +196,7 @@ export function HomeDashboard({
 
       {visibleSections.favorites && latestFavorites.length > 0 && (
         <section className="mt-8">
-          <SectionHeader
+          <HomeRowHeader
             title={t('favorites')}
             subtitle={t('homeFavoritesSubtitle')}
             sectionKey="favorites"

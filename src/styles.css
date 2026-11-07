@@ -7,6 +7,9 @@
   --color-wt-panel2: #252b24;
   --color-wt-line: #343b32;
   --color-olive: #a8b485;
+  --color-radar-accent: #B5B76A;
+  --color-radar-blip: #D8D98A;
+  --color-hazard-stripe: #C9A93B;
   --font-sans: "DM Sans", sans-serif;
   --font-display: "Barlow Condensed", sans-serif;
 }
@@ -52,3 +55,143 @@
     background: #171b17;
   }
 }
+
+.radar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-wt-bg, #171916);
+}
+
+.radar__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(181, 183, 106, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(181, 183, 106, 0.09) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(to left, #000 10%, transparent 85%);
+}
+
+.radar__dial {
+  position: absolute;
+  right: 90px;
+  top: 50%;
+  width: 360px;
+  height: 360px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  border: 1px solid rgba(181, 183, 106, 0.4);
+  background: repeating-radial-gradient(circle, transparent 0 44px, rgba(181, 183, 106, 0.28) 44px 45px);
+}
+
+.radar__dial::before,
+.radar__dial::after {
+  content: "";
+  position: absolute;
+  background: rgba(181, 183, 106, 0.28);
+  pointer-events: none;
+}
+
+.radar__dial::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.radar__dial::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.radar__sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 290deg, rgba(181, 183, 106, 0.38) 360deg);
+  animation: radar-sweep 7s linear infinite;
+}
+
+.radar__blip {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-radar-blip, #D8D98A);
+  opacity: 0.08;
+  animation: radar-blip 7s linear infinite;
+}
+
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes radar-blip {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 10px 3px rgba(216, 217, 138, 0.7);
+  }
+  10% {
+    opacity: 0.9;
+    box-shadow: 0 0 0 0 rgba(216, 217, 138, 0);
+  }
+  100% {
+    opacity: 0.08;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar__sweep,
+  .radar__blip {
+    animation: none;
+  }
+  .radar__blip {
+    opacity: 0.7;
+  }
+}
+
+.hazard {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-wt-bg, #171916);
+}
+
+.hazard__stripes {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 8px;
+  width: 63%;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-hazard-stripe, #C9A93B) 0 22px,
+    var(--color-wt-bg, #171916) 22px 44px
+  );
+  opacity: 0.5;
+  mask-image: linear-gradient(to left, #000 0%, rgba(0, 0, 0, 0.6) 45%, transparent 100%);
+}
+
+.hazard__edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-hazard-stripe, #C9A93B) 0 12px,
+    var(--color-wt-bg, #171916) 12px 24px
+  );
+}
+
