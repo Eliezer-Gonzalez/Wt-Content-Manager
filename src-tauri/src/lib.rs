@@ -1,6 +1,7 @@
 mod commands;
 mod game_install;
 mod providers;
+mod skins;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,6 +12,7 @@ pub fn run() {
             commands::fetch_post_detail,
             commands::detect_game_installations,
             commands::validate_game_installation,
+            commands::install_skin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running WT Content Manager");

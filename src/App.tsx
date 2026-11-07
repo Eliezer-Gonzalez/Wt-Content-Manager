@@ -7,7 +7,9 @@ import { PostDetailDialog } from './components/PostDetailDialog'
 import { Button } from './components/ui/Button'
 import { APP_VERSION } from './lib/appInfo'
 import { useGameInstallation } from './hooks/useGameInstallation'
+import { isTauriRuntime } from './gameInstall'
 import { useI18n } from './i18n/I18nProvider'
+import { installSkin } from './skins'
 import { fetchPostDetail, fetchRecentCamouflages, type WtLiveDetail, type WtLiveItem } from './wtLive'
 
 export default function App() {
@@ -25,6 +27,9 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [saved, setSaved] = useState<number[]>([])
+  const [installingSkin, setInstallingSkin] = useState(false)
+  const [installError, setInstallError] = useState('')
+  const [installedPath, setInstalledPath] = useState('')
 
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
 
@@ -60,6 +65,25 @@ export default function App() {
 
   function toggleSaved(id: number) {
     setSaved(current => current.includes(id) ? current.filter(itemId => itemId !== id) : [...current, id])
+  }
+
+  async function handleInstallSkin() {
+    if (!selected) return
+    if (!gameSetup.gameInstall) {
+      gameSetup.openSetup()
+      return
+    }
+    setInstallingSkin(true)
+    setInstallError('')
+    setInstalledPath('')
+    try {
+      const result = await installSkin(selected.langGroup, gameSetup.gameInstall.path)
+      setInstalledPath(result.path)
+    } catch (cause) {
+      setInstallError(cause instanceof Error ? cause.message : t('skinInstallFailed'))
+    } finally {
+      setInstallingSkin(false)
+    }
   }
 
   const titleWords = t('recentTitle').split(' ')
@@ -128,6 +152,6 @@ export default function App() {
       onChooseManual={() => void gameSetup.chooseManual(t('gameSetupPickerTitle'))}
       onClose={gameSetup.closeSetup}
     />
-    {selected && <PostDetailDialog item={selected} detail={detail} loading={detailLoading} error={detailError} t={t} onClose={() => setSelected(null)}/>}
+    {selected && <PostDetailDialog item={selected} detail={detail} loading={detailLoading} error={detailError} t={t} canInstall={isTauriRuntime} installing={installingSkin} installError={installError} installedPath={installedPath} onInstall={() => void handleInstallSkin()} onChooseGame={gameSetup.openSetup} onClose={() => setSelected(null)}/>}
   </div>
 }

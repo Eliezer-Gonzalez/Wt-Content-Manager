@@ -17,11 +17,20 @@ async fn post_form(path: &str, fields: &[(&str, &str)]) -> Result<Value, String>
 }
 
 pub async fn recent_camouflages() -> Result<Value, String> {
-    let response = post_form("/api/feed/get_regular/", &[
-        ("content", "camouflage"), ("sort", "date"), ("user", ""),
-        ("period", ""), ("searchString", ""), ("page", "0"),
-        ("featured", "false"), ("subtype", "all"),
-    ]).await?;
+    let response = post_form(
+        "/api/feed/get_regular/",
+        &[
+            ("content", "camouflage"),
+            ("sort", "date"),
+            ("user", ""),
+            ("period", ""),
+            ("searchString", ""),
+            ("page", "0"),
+            ("featured", "false"),
+            ("subtype", "all"),
+        ],
+    )
+    .await?;
     if response["status"] != "OK" || !response["data"]["list"].is_array() {
         return Err("WT Live devolvió un feed con formato inesperado.".into());
     }
@@ -29,11 +38,27 @@ pub async fn recent_camouflages() -> Result<Value, String> {
 }
 
 pub async fn post_detail(lang_group: u64) -> Result<Value, String> {
-    let response = post_form("/api/posts/get/", &[
-        ("lang_group", &lang_group.to_string()), ("language", "0"),
-    ]).await?;
+    let response = post_form(
+        "/api/posts/get/",
+        &[("lang_group", &lang_group.to_string()), ("language", "0")],
+    )
+    .await?;
     if response["description"].as_str().is_none() {
         return Err("WT Live no devolvió el detalle de esta publicación.".into());
     }
     Ok(response)
+}
+
+pub async fn skin_download_source(lang_group: u64) -> Result<(String, String), String> {
+    let post = post_detail(lang_group).await?;
+    let file = &post["file"];
+    let url = file["link"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "WT Live no publicó un archivo descargable para esta skin.".to_string())?;
+    let name = file["name"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .unwrap_or("skin.zip");
+    Ok((url.to_string(), name.to_string()))
 }

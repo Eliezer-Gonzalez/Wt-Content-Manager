@@ -21,8 +21,8 @@ skills-lock.json
 !.env.example
 
 # Downloaded game content and archives
-downloads/
-skins/
+/downloads/
+/skins/
 *.skin
 *.rar
 *.7z
