@@ -12,9 +12,17 @@ use std::fs::{self, OpenOptions};
 use std::path::Path;
 use unrar_rs::{Limits, RarArchive};
 
-use crate::skins::paths::{safe_archive_path, MAX_ARCHIVE_ENTRIES, MAX_ENTRY_BYTES};
+use super::ExtractStats;
+use crate::skins::paths::{
+    check_archive_entry_allowed, safe_archive_path, ArchiveEntryFilter, MAX_ARCHIVE_ENTRIES,
+    MAX_ENTRY_BYTES,
+};
 
-pub fn extract(archive_path: &Path, destination: &Path, size_limit: u64) -> Result<(), String> {
+pub fn extract(
+    archive_path: &Path,
+    destination: &Path,
+    size_limit: u64,
+) -> Result<ExtractStats, String> {
     let file = fs::File::open(archive_path).map_err(|error| error.to_string())?;
     let mut archive =
         RarArchive::open(file).map_err(|error| format!("No se pudo abrir el RAR: {error}"))?;
@@ -23,7 +31,7 @@ pub fn extract(archive_path: &Path, destination: &Path, size_limit: u64) -> Resu
         max_unpacked_size: MAX_ENTRY_BYTES,
         ..Limits::default()
     });
-    if archive.is_empty() || archive.len() > MAX_ARCHIVE_ENTRIES {
+    if archive.is_empty() {
         return Err("El RAR está vacío o contiene demasiados archivos.".into());
     }
 
@@ -31,6 +39,8 @@ pub fn extract(archive_path: &Path, destination: &Path, size_limit: u64) -> Resu
     let mut total_declared = 0_u64;
     let mut paths = Vec::with_capacity(members.len());
     let mut written_paths = HashSet::new();
+    let mut stats = ExtractStats::default();
+
     for member in &members {
         if member.is_symlink || member.is_hardlink || member.is_file_copy {
             return Err(
@@ -39,23 +49,45 @@ pub fn extract(archive_path: &Path, destination: &Path, size_limit: u64) -> Resu
         }
         let relative = safe_archive_path(&member.name)?;
         if !member.is_directory {
-            let size = member
-                .unpacked_size
-                .ok_or_else(|| "El RAR no declara el tamaño de un archivo.".to_string())?;
-            total_declared = total_declared
-                .checked_add(size)
-                .ok_or_else(|| "El tamaño declarado del RAR no es válido.".to_string())?;
-            if size > MAX_ENTRY_BYTES || total_declared > size_limit {
-                return Err("La skin RAR supera los límites de extracción permitidos.".into());
+            match check_archive_entry_allowed(&relative) {
+                ArchiveEntryFilter::Allowed => {
+                    let size = member
+                        .unpacked_size
+                        .ok_or_else(|| "El RAR no declara el tamaño de un archivo.".to_string())?;
+                    total_declared = total_declared
+                        .checked_add(size)
+                        .ok_or_else(|| "El tamaño declarado del RAR no es válido.".to_string())?;
+                    if size > MAX_ENTRY_BYTES || total_declared > size_limit {
+                        return Err("La skin RAR supera los límites de extracción permitidos.".into());
+                    }
+                    if !written_paths.insert(relative.clone()) {
+                        return Err("El RAR contiene rutas duplicadas o en conflicto.".into());
+                    }
+                    stats.extracted_files += 1;
+                    if stats.extracted_files > MAX_ARCHIVE_ENTRIES {
+                        return Err("La skin RAR supera los límites de extracción permitidos.".into());
+                    }
+                    paths.push((Some(relative), false));
+                }
+                ArchiveEntryFilter::DisallowedExecutable => {
+                    stats.skipped_files += 1;
+                    stats.skipped_executables += 1;
+                    paths.push((None, false));
+                }
+                ArchiveEntryFilter::DisallowedOther => {
+                    stats.skipped_files += 1;
+                    paths.push((None, false));
+                }
             }
-            if !written_paths.insert(relative.clone()) {
-                return Err("El RAR contiene rutas duplicadas o en conflicto.".into());
-            }
+        } else {
+            paths.push((Some(relative), true));
         }
-        paths.push((relative, member.is_directory));
     }
 
-    for (index, (relative, is_directory)) in paths.into_iter().enumerate() {
+    for (index, (relative_opt, is_directory)) in paths.into_iter().enumerate() {
+        let Some(relative) = relative_opt else {
+            continue;
+        };
         let output = destination.join(relative);
         if is_directory {
             fs::create_dir_all(&output).map_err(|error| error.to_string())?;
@@ -76,5 +108,5 @@ pub fn extract(archive_path: &Path, destination: &Path, size_limit: u64) -> Resu
             .copy_to(&mut target)
             .map_err(|error| format!("Falló la extracción del RAR: {error}"))?;
     }
-    Ok(())
+    Ok(stats)
 }

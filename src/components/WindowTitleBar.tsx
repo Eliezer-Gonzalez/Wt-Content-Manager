@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Copy, Minus, Shield, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import type { TranslateFn } from '../i18n/I18nProvider'
 
-type Props = { t: (key: string) => string }
+type Props = { t: TranslateFn }
 
 export function WindowTitleBar({ t }: Props) {
   const [maximized, setMaximized] = useState(false)

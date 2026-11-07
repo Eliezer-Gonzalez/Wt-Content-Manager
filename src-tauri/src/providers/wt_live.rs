@@ -1,9 +1,25 @@
 use serde_json::Value;
+use std::sync::OnceLock;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://live.warthunder.com";
 
+static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn client() -> &'static reqwest::Client {
+    CLIENT.get_or_init(|| {
+        let user_agent = format!("WT-Content-Manager/{}", env!("CARGO_PKG_VERSION"));
+        reqwest::Client::builder()
+            .user_agent(user_agent)
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(25))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
+}
+
 async fn post_form(path: &str, fields: &[(&str, &str)]) -> Result<Value, String> {
-    reqwest::Client::new()
+    client()
         .post(format!("{BASE_URL}{path}"))
         .form(fields)
         .send()

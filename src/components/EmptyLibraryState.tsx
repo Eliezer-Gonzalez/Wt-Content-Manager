@@ -1,7 +1,8 @@
 import { ArrowRight, Bookmark, Download } from 'lucide-react'
 import { Button } from './ui/Button'
+import type { TranslateFn } from '../i18n/I18nProvider'
 
-type Props = { kind: 'favorites' | 'downloads'; t: (key: string) => string; onExplore: () => void }
+type Props = { kind: 'favorites' | 'downloads'; t: TranslateFn; onExplore: () => void }
 
 export function EmptyLibraryState({ kind, t, onExplore }: Props) {
   const isFavorites = kind === 'favorites'
@@ -13,7 +14,7 @@ export function EmptyLibraryState({ kind, t, onExplore }: Props) {
       </div>
       <h3 className="mb-2 text-base font-medium text-[#e3e6dc]">{t(isFavorites ? 'noFavorites' : 'noInstalledSkins')}</h3>
       <p className="mb-5 max-w-sm text-sm leading-6 text-[#a6aea0]">{t(isFavorites ? 'emptyFavoritesHint' : 'emptyDownloadsHint')}</p>
-      <Button variant="secondary" onClick={onExplore}>
+      <Button variant="primary" onClick={onExplore}>
         {t('camouflages')} <ArrowRight size={15} aria-hidden="true" />
       </Button>
     </div>

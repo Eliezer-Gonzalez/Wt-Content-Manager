@@ -4,12 +4,47 @@ use std::path::{Component, Path, PathBuf};
 pub const MAX_ARCHIVE_ENTRIES: usize = 3000;
 pub const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArchiveEntryFilter {
+    Allowed,
+    DisallowedExecutable,
+    DisallowedOther,
+}
+
+pub fn check_archive_entry_allowed(path: &Path) -> ArchiveEntryFilter {
+    let extension = match path.extension().and_then(|ext| ext.to_str()) {
+        Some(ext) => ext.to_ascii_lowercase(),
+        None => return ArchiveEntryFilter::DisallowedOther,
+    };
+
+    const ALLOWED: &[&str] = &[
+        "blk", "dds", "tga", "png", "jpg", "jpeg", "csv", "txt", "md",
+    ];
+    if ALLOWED.contains(&extension.as_str()) {
+        return ArchiveEntryFilter::Allowed;
+    }
+
+    const EXECUTABLE: &[&str] = &[
+        "exe", "dll", "bat", "cmd", "com", "scr", "msi", "lnk", "vbs", "vbe", "js", "jse", "wsf",
+        "ps1", "sh",
+    ];
+    if EXECUTABLE.contains(&extension.as_str()) {
+        return ArchiveEntryFilter::DisallowedExecutable;
+    }
+
+    ArchiveEntryFilter::DisallowedOther
+}
+
 pub fn safe_archive_path(raw: &str) -> Result<PathBuf, String> {
-    if raw.contains('\0') || raw.contains('\\') || raw.contains(':') {
+    if raw.contains('\0') {
         return Err("El archivo comprimido contiene una ruta no permitida.".into());
     }
-    let path = Path::new(raw);
-    if path.is_absolute() {
+    let normalized = raw.replace('\\', "/");
+    if normalized.contains(':') {
+        return Err("El archivo comprimido contiene una ruta no permitida.".into());
+    }
+    let path = Path::new(&normalized);
+    if path.is_absolute() || normalized.starts_with('/') {
         return Err("El archivo comprimido contiene una ruta absoluta.".into());
     }
     let mut safe = PathBuf::new();
@@ -36,12 +71,14 @@ pub fn safe_archive_path(raw: &str) -> Result<PathBuf, String> {
 
 fn is_windows_reserved(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
-    matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || ["COM", "LPT"].iter().any(|prefix| {
-            stem.strip_prefix(prefix).is_some_and(|suffix| {
-                matches!(suffix, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9")
-            })
+    matches!(
+        stem.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) || ["COM", "LPT"].iter().any(|prefix| {
+        stem.strip_prefix(prefix).is_some_and(|suffix| {
+            matches!(suffix, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9")
         })
+    })
 }
 
 pub fn archive_stem(name: &str) -> String {
@@ -161,14 +198,96 @@ fn walk_files(root: &Path) -> Result<Vec<PathBuf>, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{archive_stem, safe_archive_path, select_skin_root};
+    use super::{
+        archive_stem, check_archive_entry_allowed, safe_archive_path, select_skin_root,
+        ArchiveEntryFilter,
+    };
+    use std::path::Path;
 
     #[test]
     fn rejects_archive_traversal_and_device_names() {
         assert!(safe_archive_path("../outside.blk").is_err());
         assert!(safe_archive_path("C:/outside.blk").is_err());
         assert!(safe_archive_path("folder/NUL.txt").is_err());
+        assert!(safe_archive_path("folder/CONIN$.blk").is_err());
+        assert!(safe_archive_path("folder/CONOUT$.dds").is_err());
         assert!(safe_archive_path("folder/texture.blk").is_ok());
+    }
+
+    #[test]
+    fn normalizes_backslashes_in_safe_archive_path() {
+        assert_eq!(
+            safe_archive_path("folder\\file.blk").unwrap(),
+            Path::new("folder/file.blk")
+        );
+        assert!(safe_archive_path("..\\evil.txt").is_err());
+        assert!(safe_archive_path("a\\..\\..\\b").is_err());
+        assert!(safe_archive_path("C:\\x").is_err());
+        assert!(safe_archive_path("/abs/path").is_err());
+        assert!(safe_archive_path("\\abs\\path").is_err());
+    }
+
+    #[test]
+    fn filters_archive_entries_by_extension() {
+        // Allowed files
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("skin.blk")),
+            ArchiveEntryFilter::Allowed
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("textures/diffuse.dds")),
+            ArchiveEntryFilter::Allowed
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("readme.txt")),
+            ArchiveEntryFilter::Allowed
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("info.md")),
+            ArchiveEntryFilter::Allowed
+        );
+
+        // Case-insensitivity (uppercase)
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("SKIN.BLK")),
+            ArchiveEntryFilter::Allowed
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("CAMO.DDS")),
+            ArchiveEntryFilter::Allowed
+        );
+
+        // Executables / scripts
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("payload.exe")),
+            ArchiveEntryFilter::DisallowedExecutable
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("hack.dll")),
+            ArchiveEntryFilter::DisallowedExecutable
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("setup.bat")),
+            ArchiveEntryFilter::DisallowedExecutable
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("script.ps1")),
+            ArchiveEntryFilter::DisallowedExecutable
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("run.SH")),
+            ArchiveEntryFilter::DisallowedExecutable
+        );
+
+        // Disallowed other / no extension
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("LICENSE")),
+            ArchiveEntryFilter::DisallowedOther
+        );
+        assert_eq!(
+            check_archive_entry_allowed(Path::new("unknown.xyz")),
+            ArchiveEntryFilter::DisallowedOther
+        );
     }
 
     #[test]

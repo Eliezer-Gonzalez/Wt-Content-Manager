@@ -45,9 +45,10 @@ pub async fn download_archive(
     if !trusted_download(&parsed) {
         return Err("La descarga de skins solo admite enlaces HTTPS de WT Live.".into());
     }
+    let user_agent = format!("WT-Content-Manager/{}", env!("CARGO_PKG_VERSION"));
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(30))
-        .user_agent("WT Content Manager")
+        .user_agent(user_agent)
         .redirect(Policy::custom(|attempt: Attempt<'_>| {
             if trusted_download(attempt.url()) {
                 attempt.follow()

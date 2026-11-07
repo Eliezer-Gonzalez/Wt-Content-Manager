@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react'
+import type { TranslateFn, TranslationKey } from '../i18n/I18nProvider'
 
 type Period = 0 | 7 | 90 | 180
-type Props = { value: Period; t: (key: string) => string; onChange: (period: Period) => void }
-const options: Array<{ value: Period; label: string }> = [
+type Props = { value: Period; t: TranslateFn; onChange: (period: Period) => void }
+const options: Array<{ value: Period; label: TranslationKey }> = [
   { value: 7, label: 'periodWeek' },
   { value: 90, label: 'periodThreeMonths' },
   { value: 180, label: 'periodSixMonths' },

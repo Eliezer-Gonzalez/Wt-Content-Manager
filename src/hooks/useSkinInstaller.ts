@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { cancelSkinDownload, installSkin, setSkinDownloadPaused, type SkinInstallProgress } from '../skins'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../wtLive'
+import type { TranslateFn } from '../i18n/I18nProvider'
 
 type Options = {
   gamePath?: string
   selectionKey?: number
-  t: (key: string) => string
+  t: TranslateFn
   onInstalled: (item: WtLiveItem, result: Omit<InstalledSkin, 'item' | 'installedAt'>) => void
 }
 
@@ -18,12 +19,14 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
   const [cancelled, setCancelled] = useState(false)
   const [error, setError] = useState('')
   const [installedPath, setInstalledPath] = useState('')
+  const [warning, setWarning] = useState<string | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const cancelRequestedRef = useRef(false)
 
   useEffect(() => {
     setError('')
     setInstalledPath('')
+    setWarning(null)
     setCancelled(false)
   }, [selectionKey])
 
@@ -39,9 +42,11 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     setCancelled(false)
     setError('')
     setInstalledPath('')
+    setWarning(null)
     try {
       const result = await installSkin(item.langGroup, gamePath, taskId, setProgress)
       setInstalledPath(result.path)
+      setWarning(result.warning ?? null)
       onInstalled(item, result)
     } catch (cause) {
       if (cancelRequestedRef.current) setCancelled(true)
@@ -82,5 +87,5 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     }
   }, [t])
 
-  return { installing, progress, paused, cancelling, cancelled, error, installedPath, install, togglePause, cancel }
+  return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, install, togglePause, cancel }
 }
