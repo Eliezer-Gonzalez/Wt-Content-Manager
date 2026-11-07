@@ -51,6 +51,7 @@
   "enlargeImage": "Enlarge image",
   "zoomIn": "Zoom in",
   "zoomOut": "Reset image zoom",
+  "galleryThumbnailAria": "View image {current} of {total}",
   "openLinkFailed": "The link could not be opened in your default browser.",
   "loadMore": "Load more posts",
   "loadingMore": "Loading more posts…",

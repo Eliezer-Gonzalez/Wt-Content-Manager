@@ -24,6 +24,7 @@ export type WtLiveDetail = {
   description: WtLiveBlock[]
   hashtags: string[]
   commentsUrl: string
+  images: string[]
 }
 
 export type WtLiveFeedSort = 'created' | 'rating'
@@ -40,7 +41,14 @@ export class WtLiveError extends Error {
   }
 }
 
-import { getFullResolutionImageUrl, mapPost, parseDescription, type ApiPost } from './wtLiveParser'
+import {
+  extractImageSource,
+  getFullResolutionImageUrl,
+  mapPost,
+  parseDescription,
+  safeImageUrl,
+  type ApiPost,
+} from './wtLiveParser'
 
 export { getFullResolutionImageUrl }
 
@@ -99,10 +107,16 @@ export async function fetchPostDetail(item: WtLiveItem, signal?: AbortSignal): P
         signal,
       )
   const content = parseDescription(result.description)
+  const images = (result.images ?? [])
+    .map(img => extractImageSource(img.orig) || extractImageSource(img.src) || extractImageSource(img.mq))
+    .map(safeImageUrl)
+    .filter((url): url is string => Boolean(url))
+
   return {
     description: content.blocks,
     hashtags: content.hashtags,
     commentsUrl: `https://live.warthunder.com/post/${item.langGroup}/${item.language}/#comments`,
+    images,
   }
 }
 

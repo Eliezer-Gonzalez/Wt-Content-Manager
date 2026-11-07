@@ -23,7 +23,7 @@ export type ApiPost = {
   file?: { name?: string; link?: string }
 }
 
-function extractImageSource(source: ApiImageSource | null | undefined): string | undefined {
+export function extractImageSource(source: ApiImageSource | null | undefined): string | undefined {
   if (!source) return undefined
   if (typeof source === 'string') return source
   return typeof source.src === 'string' ? source.src : undefined

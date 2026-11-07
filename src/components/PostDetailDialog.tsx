@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ExternalLink, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { PostInstallActions } from './PostInstallActions'
 import { PostDetailSkeleton } from './PostDetailSkeleton'
 import { ImageLightbox } from './ImageLightbox'
+import { PostGallery } from './PostGallery'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { getFullResolutionImageUrl, getSafeCommentUrl } from '../lib/wtLive'
 import { isTauriRuntime } from '../lib/gameInstall'
@@ -29,18 +30,8 @@ type Props = {
 }
 
 export function PostDetailDialog({
-  item,
-  detail,
-  loading,
-  error,
-  canInstall,
-  installer,
-  installedEntry,
-  onInstall,
-  onUninstall,
-  onChooseGame,
-  onClose,
-  onSearchHashtag,
+  item, detail, loading, error, canInstall, installer,
+  installedEntry, onInstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
 }: Props) {
   const { t } = useI18n()
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null)
@@ -49,9 +40,13 @@ export function PostDetailDialog({
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const { installing } = installer
   const hasDescription = detail?.description.some(block => block.type === 'text') ?? false
-  const hasInlineImages = detail?.description.some(block => block.type === 'image') ?? false
   const previewImageUrl = item.imageUrl ? getFullResolutionImageUrl(item.imageUrl) : null
   const cleanFallbackDescription = item.description.replace(/#[\p{L}\p{N}_-]+/gu, ' ').replace(/\s+/g, ' ').trim()
+
+  const galleryImages = useMemo(() => {
+    const list = detail?.images?.length ? detail.images : previewImageUrl ? [previewImageUrl] : []
+    return Array.from(new Set(list))
+  }, [detail?.images, previewImageUrl])
 
   useFocusTrap({
     containerRef: dialogRef,
@@ -138,21 +133,11 @@ export function PostDetailDialog({
                     {t('description')}
                   </h3>
                 )}
-                {!hasInlineImages && previewImageUrl && (
-                  <button
-                    type="button"
-                    className="my-3 block w-full cursor-zoom-in"
-                    onClick={() => setZoomedImage({ src: previewImageUrl, alt: item.title || t('postFallbackTitle', { id: item.id }) })}
-                    aria-label={`${t('enlargeImage')}: ${item.title || t('postFallbackTitle', { id: item.id })}`}
-                  >
-                    <img
-                      className="h-auto max-h-[65vh] w-full object-contain"
-                      src={item.imageUrl}
-                      alt={item.title || t('postFallbackTitle', { id: item.id })}
-                      loading="lazy"
-                    />
-                  </button>
-                )}
+                <PostGallery
+                  images={galleryImages}
+                  title={item.title || t('postFallbackTitle', { id: item.id })}
+                  onZoom={setZoomedImage}
+                />
                 {detail?.description.length ? (
                   detail.description.map((block, index) =>
                     block.type === 'image' ? (

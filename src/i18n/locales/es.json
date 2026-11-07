@@ -51,6 +51,7 @@
   "enlargeImage": "Ampliar imagen",
   "zoomIn": "Acercar imagen",
   "zoomOut": "Restablecer zoom",
+  "galleryThumbnailAria": "Ver imagen {current} de {total}",
   "openLinkFailed": "No se pudo abrir el enlace en el navegador predeterminado.",
   "loadMore": "Cargar más publicaciones",
   "loadingMore": "Cargando más publicaciones…",
