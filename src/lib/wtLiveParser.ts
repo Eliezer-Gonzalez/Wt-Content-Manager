@@ -40,10 +40,10 @@ export function mapPost(post: ApiPost): WtLiveItem {
   const image = post.images?.[0]
   const reportedRatio = Number(image?.ratio)
   const imageAspectRatio =
-    reportedRatio > 0
-      ? reportedRatio
-      : image?.width && image.height
-        ? image.width / image.height
+    image?.width && image?.height
+      ? image.width / image.height
+      : reportedRatio > 0
+        ? reportedRatio
         : undefined
   const readableDescription = description.replace(/#[\p{L}\p{N}_-]+/gu, ' ').replace(/\s+/g, ' ').trim()
   const title = readableDescription.split(/[.!?]+(?=\s|$)|\n/, 1)[0]?.trim() || fileName || ''

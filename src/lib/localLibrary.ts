@@ -35,7 +35,9 @@ function storedItem(value: unknown): WtLiveItem | null {
     id: item.id!, langGroup: item.langGroup!, language: typeof item.language === 'string' ? item.language.slice(0, 12) : 'en',
     title: item.title.slice(0, 300), description: typeof item.description === 'string' ? item.description.slice(0, 4000) : '',
     author: item.author.slice(0, 200), createdAt: Number.isFinite(item.createdAt) ? item.createdAt! : 0,
-    imageUrl: safeWtUrl(item.imageUrl), downloadUrl: safeWtUrl(item.downloadUrl),
+    imageUrl: safeWtUrl(item.imageUrl),
+    imageAspectRatio: typeof item.imageAspectRatio === 'number' && Number.isFinite(item.imageAspectRatio) && item.imageAspectRatio > 0 ? item.imageAspectRatio : undefined,
+    downloadUrl: safeWtUrl(item.downloadUrl),
     fileName: typeof item.fileName === 'string' ? item.fileName.slice(0, 260) : undefined,
     likes: Number.isFinite(item.likes) ? item.likes! : 0, downloads: Number.isFinite(item.downloads) ? item.downloads! : 0,
   }
