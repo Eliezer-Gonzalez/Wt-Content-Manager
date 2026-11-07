@@ -1,0 +1,23 @@
+[package]
+name = "wt-content-manager"
+version = "0.1.0"
+description = "Desktop catalog and installer for War Thunder community content"
+authors = []
+edition = "2021"
+
+[lib]
+name = "wt_content_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"

@@ -1,0 +1,29 @@
+# Dependencies and generated build output
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+
+# Local caches, tool data and AI-specific files
+.pnpm-store/
+.tmp/
+.agents/
+.codex/
+skills-lock.json
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Downloaded game content and archives
+downloads/
+skins/
+*.skin
+*.rar
+*.7z
+*.zip
