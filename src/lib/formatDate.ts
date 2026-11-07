@@ -1,1 +1,0 @@
-export { relativeDate } from './format'

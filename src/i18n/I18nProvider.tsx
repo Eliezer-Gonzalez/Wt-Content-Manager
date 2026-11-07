@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import en from './locales/en.json'
 
 type Messages = Record<string, string>
@@ -135,13 +135,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const setLocale = (code: string) => {
+  const setLocale = useCallback((code: string) => {
     if (locales[code]) setLocaleState(code)
-  }
+  }, [])
 
-  const t = (key: TranslationKey, params?: TranslationParams): string => {
-    return resolveTranslationString(locale, key as string, params)
-  }
+  const t = useCallback<TranslateFn>(
+    (key, params) => resolveTranslationString(locale, key as string, params),
+    [locale],
+  )
 
   useEffect(() => {
     try {
@@ -152,7 +153,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = locale
   }, [locale])
 
-  return <Context.Provider value={{ locale, languages, setLocale, t }}>{children}</Context.Provider>
+  const value = useMemo(() => ({ locale, languages, setLocale, t }), [locale, languages, setLocale, t])
+
+  return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
 export function useI18n() {

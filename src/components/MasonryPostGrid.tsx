@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { WtLiveItem } from '../wtLive'
+import type { WtLiveItem } from '../lib/wtLive'
 
 type Props = { items: WtLiveItem[]; renderItem: (item: WtLiveItem) => ReactNode }
 

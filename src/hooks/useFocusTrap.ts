@@ -21,6 +21,8 @@ export function useFocusTrap({
   stopPropagationOnEscape = false,
 }: UseFocusTrapOptions) {
   useEffect(() => {
+    if (!enabled) return
+
     const previousActiveElement = document.activeElement as HTMLElement | null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -31,14 +33,14 @@ export function useFocusTrap({
       document.body.style.overflow = previousOverflow
       previousActiveElement?.focus()
     }
-  }, [initialFocusRef])
+  }, [enabled, initialFocusRef])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!enabled) return
 
       if (event.key === 'Escape') {
-        if (stopPropagationOnEscape) event.stopPropagation()
+        if (stopPropagationOnEscape) event.stopImmediatePropagation()
         if (canEscape && onClose) {
           if (!stopPropagationOnEscape) event.preventDefault()
           onClose()

@@ -9,15 +9,6 @@
   --color-olive: #a8b485;
   --font-sans: "DM Sans", sans-serif;
   --font-display: "Barlow Condensed", sans-serif;
-  --animate-hammer-strike: hammer-strike 1.1s ease-in-out infinite;
-
-  @keyframes hammer-strike {
-    0%, 70%, 100% { transform: rotate(0deg); }
-    22% { transform: rotate(-18deg); }
-    41% { transform: rotate(54deg); }
-    46% { transform: rotate(51deg); }
-    54% { transform: rotate(26deg); }
-  }
 }
 
 @layer base {

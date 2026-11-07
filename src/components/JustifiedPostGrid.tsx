@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { WtLiveItem } from '../wtLive'
+import type { WtLiveItem } from '../lib/wtLive'
 
 type Row = { items: WtLiveItem[]; widths: number[]; imageHeight: number }
 type Props = {

@@ -1,9 +1,10 @@
-import type { WtLiveItem } from '../wtLive'
+import type { ScannedSkin } from './skins'
+import type { WtLiveItem } from './wtLive'
 
 const storageKey = 'wt-content-manager-library-v1'
 
 export type InstalledSkin = {
-  item: WtLiveItem
+  item?: WtLiveItem
   folderName: string
   path: string
   fileCount: number
@@ -48,14 +49,35 @@ export function loadLocalLibrary(): LocalLibrary {
     const installedSkins = Array.isArray(value.installedSkins) ? value.installedSkins.flatMap(entry => {
       if (!entry || typeof entry !== 'object') return []
       const saved = entry as Partial<InstalledSkin>
-      const item = storedItem(saved.item)
-      if (!item || typeof saved.folderName !== 'string' || typeof saved.path !== 'string') return []
+      if (typeof saved.folderName !== 'string' || typeof saved.path !== 'string') return []
+      const item = storedItem(saved.item) ?? undefined
       return [{ item, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1000), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
     }) : []
     return { favorites: [...new Map(favorites.map(item => [item.id, item])).values()], installedSkins }
   } catch { return emptyLibrary }
 }
 
+export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[]): InstalledSkin[] {
+  const storedByFolder = new Map<string, InstalledSkin>()
+  for (const entry of stored) {
+    const key = entry.folderName.toLowerCase()
+    if (!storedByFolder.has(key)) storedByFolder.set(key, entry)
+  }
+  return scanned.map(disk => {
+    const match = storedByFolder.get(disk.folderName.toLowerCase())
+    const fallbackDate = disk.modifiedAtMs ? new Date(disk.modifiedAtMs).toISOString() : ''
+    return {
+      item: match?.item,
+      folderName: disk.folderName,
+      path: disk.path,
+      fileCount: disk.fileCount,
+      sizeBytes: disk.sizeBytes,
+      installedAt: match?.installedAt || fallbackDate,
+    }
+  })
+}
+
 export function saveLocalLibrary(library: LocalLibrary): void {
   try { localStorage.setItem(storageKey, JSON.stringify(library)) } catch { /* Keep the current session usable when storage is unavailable. */ }
 }
+

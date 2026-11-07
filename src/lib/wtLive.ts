@@ -40,20 +40,7 @@ export class WtLiveError extends Error {
   }
 }
 
-export function formatErrorMessage(
-  cause: unknown,
-  t: (key: any, params?: Record<string, string | number>) => string,
-): string {
-  if (cause instanceof WtLiveError) {
-    return t(`errors.${cause.code}`, cause.params)
-  }
-  if (cause instanceof Error) {
-    return cause.message
-  }
-  return t('errors.unknown')
-}
-
-import { getFullResolutionImageUrl, mapPost, parseDescription, type ApiPost } from './lib/wtLiveParser'
+import { getFullResolutionImageUrl, mapPost, parseDescription, type ApiPost } from './wtLiveParser'
 
 export { getFullResolutionImageUrl }
 
@@ -116,6 +103,19 @@ export async function fetchPostDetail(item: WtLiveItem, signal?: AbortSignal): P
     description: content.blocks,
     hashtags: content.hashtags,
     commentsUrl: `https://live.warthunder.com/post/${item.langGroup}/${item.language}/#comments`,
+  }
+}
+
+export function getSafeCommentUrl(commentUrl?: string): string | null {
+  if (!commentUrl) return null
+  try {
+    const url = new URL(commentUrl)
+    if (url.origin !== 'https://live.warthunder.com' || !url.pathname.startsWith('/post/')) {
+      return null
+    }
+    return url.href
+  } catch {
+    return null
   }
 }
 

@@ -1,4 +1,4 @@
-import type { WtLiveBlock, WtLiveItem } from '../wtLive'
+import type { WtLiveBlock, WtLiveItem } from './wtLive'
 
 type ApiImageSource = string | { src?: string }
 
@@ -46,7 +46,7 @@ export function mapPost(post: ApiPost): WtLiveItem {
         ? image.width / image.height
         : undefined
   const readableDescription = description.replace(/#[\p{L}\p{N}_-]+/gu, ' ').replace(/\s+/g, ' ').trim()
-  const title = readableDescription.split(/[.!?\n]/, 1)[0]?.trim() || fileName || ''
+  const title = readableDescription.split(/[.!?]+(?=\s|$)|\n/, 1)[0]?.trim() || fileName || ''
   const rawImageUrl =
     extractImageSource(image?.orig) ||
     extractImageSource(image?.src) ||
@@ -73,7 +73,7 @@ export function mapPost(post: ApiPost): WtLiveItem {
 }
 
 export function getFullResolutionImageUrl(value: string): string {
-  return safeImageUrl(value.replace('_lq/', '/')) ?? value
+  return safeImageUrl(value.replace('_lq/', '/')) ?? ''
 }
 
 export function safeImageUrl(value: string | null | undefined): string | undefined {

@@ -7,7 +7,7 @@ import {
   saveGamePath,
   validateSavedGamePath,
   type GameInstall,
-} from '../gameInstall'
+} from '../lib/gameInstall'
 
 const setupSeenKey = 'wt-content-manager-game-setup-seen'
 

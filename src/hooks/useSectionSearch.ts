@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type SearchState = Record<string, string>
 const storageKey = 'wt-content-manager-searches'
@@ -21,12 +21,12 @@ export function useSectionSearch() {
     const normalized = section === 'camouflages' && value && !value.startsWith('#')
       ? `#${value}`
       : value
-    setSearches(current => {
-      const updated = { ...current, [section]: normalized }
-      try { localStorage.setItem(storageKey, JSON.stringify(updated)) } catch { /* Storage can be unavailable. */ }
-      return updated
-    })
+    setSearches(current => ({ ...current, [section]: normalized }))
   }
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(searches)) } catch { /* Storage can be unavailable. */ }
+  }, [searches])
 
   return { searches, setSearch }
 }
