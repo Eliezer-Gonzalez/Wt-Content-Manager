@@ -55,3 +55,17 @@ pub fn cancel_skin_download(
 ) -> Result<(), AppError> {
     manager.cancel(&task_id)
 }
+
+#[tauri::command]
+pub async fn scan_installed_skins(game_path: String) -> Result<Vec<skins::ScannedSkin>, AppError> {
+    tauri::async_runtime::spawn_blocking(move || skins::scan_installed_skins(&game_path))
+        .await
+        .map_err(|error| AppError::with_detail("skin_scan_interrupted", error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn uninstall_skin(game_path: String, folder_name: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || skins::uninstall_skin(&game_path, &folder_name))
+        .await
+        .map_err(|error| AppError::with_detail("skin_uninstall_interrupted", error.to_string()))?
+}

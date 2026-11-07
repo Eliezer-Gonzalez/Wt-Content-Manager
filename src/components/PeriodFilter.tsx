@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react'
-import type { TranslateFn, TranslationKey } from '../i18n/I18nProvider'
+import { useI18n, type TranslationKey } from '../i18n/I18nProvider'
 
-type Period = 0 | 7 | 90 | 180
-type Props = { value: Period; t: TranslateFn; onChange: (period: Period) => void }
+export type Period = 0 | 7 | 90 | 180
+type Props = { value: Period; onChange: (period: Period) => void }
 const options: Array<{ value: Period; label: TranslationKey }> = [
   { value: 7, label: 'periodWeek' },
   { value: 90, label: 'periodThreeMonths' },
@@ -11,7 +11,8 @@ const options: Array<{ value: Period; label: TranslationKey }> = [
   { value: 0, label: 'periodAll' },
 ]
 
-export function PeriodFilter({ value, t, onChange }: Props) {
+export function PeriodFilter({ value, onChange }: Props) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -37,7 +38,7 @@ export function PeriodFilter({ value, t, onChange }: Props) {
       ref={triggerRef}
       type="button"
       aria-label={t('filters')}
-      aria-haspopup="listbox"
+      aria-haspopup="menu"
       aria-expanded={open}
       onClick={() => setOpen(current => !current)}
       onKeyDown={event => {
@@ -58,7 +59,7 @@ export function PeriodFilter({ value, t, onChange }: Props) {
       <ChevronDown size={15} className={`shrink-0 text-[#a0aa9b] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
     </button>
     {open && <div
-      role="listbox"
+      role="menu"
       aria-label={t('filters')}
       className="absolute right-0 top-[calc(100%+6px)] z-40 min-w-full overflow-hidden border border-[#48523f] bg-[#20261f] p-1 shadow-xl shadow-black/40"
       onKeyDown={event => {
@@ -76,11 +77,11 @@ export function PeriodFilter({ value, t, onChange }: Props) {
           key={option.value}
           ref={element => { optionRefs.current[index] = element }}
           type="button"
-          role="option"
-          aria-selected={selected}
+          role="menuitemradio"
+          aria-checked={selected}
           tabIndex={selected ? 0 : -1}
           onClick={() => { onChange(option.value); setOpen(false); triggerRef.current?.focus() }}
-          className={`flex min-h-10 w-full items-center gap-2 px-2.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-olive ${selected ? 'bg-[#35402f] text-[#e5ebd8]' : 'text-[#c1c8b8] hover:bg-[#2c3429] hover:text-[#eef0e8]'}`}
+          className={`flex min-h-10 w-full items-center gap-2 px-2.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive ${selected ? 'bg-[#35402f] text-[#e5ebd8]' : 'text-[#c1c8b8] hover:bg-[#2c3429] hover:text-[#eef0e8]'}`}
         >
           <span className="flex-1 whitespace-nowrap">{t(option.label)}</span>
           {selected && <Check size={15} className="text-[#b9c995]" aria-hidden="true" />}

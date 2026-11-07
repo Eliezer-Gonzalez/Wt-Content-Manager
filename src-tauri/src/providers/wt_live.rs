@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use crate::AppError;
+use crate::{http::USER_AGENT, AppError};
 
 const BASE_URL: &str = "https://live.warthunder.com";
 
@@ -10,9 +10,8 @@ static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 fn client() -> &'static reqwest::Client {
     CLIENT.get_or_init(|| {
-        let user_agent = format!("WT-Content-Manager/{}", env!("CARGO_PKG_VERSION"));
         reqwest::Client::builder()
-            .user_agent(user_agent)
+            .user_agent(USER_AGENT)
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(25))
             .build()

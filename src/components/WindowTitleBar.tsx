@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Copy, Minus, Shield, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import type { TranslateFn } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nProvider'
 
-type Props = { t: TranslateFn }
-
-export function WindowTitleBar({ t }: Props) {
+export function WindowTitleBar() {
+  const { t } = useI18n()
   const [maximized, setMaximized] = useState(false)
   const appWindow = getCurrentWindow()
 
@@ -42,9 +41,9 @@ export function WindowTitleBar({ t }: Props) {
       aria-hidden="true"
     />
     <div className="flex h-full shrink-0 items-stretch">
-      <button type="button" className="grid w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-olive" onClick={() => void appWindow.minimize()} aria-label={t('minimizeWindow')} title={t('minimizeWindow')}><Minus size={15}/></button>
-      <button type="button" className="grid w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-olive" onClick={() => void toggleMaximize()} aria-label={t(maximized ? 'restoreWindow' : 'maximizeWindow')} title={t(maximized ? 'restoreWindow' : 'maximizeWindow')}>{maximized ? <Copy size={13}/> : <Square size={13}/>}</button>
-      <button type="button" className="grid w-12 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#a83f37] hover:text-white focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-red-300" onClick={() => void appWindow.close()} aria-label={t('closeWindow')} title={t('closeWindow')}><X size={15}/></button>
+      <button type="button" className="grid w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive" onClick={() => void appWindow.minimize()} aria-label={t('minimizeWindow')} title={t('minimizeWindow')}><Minus size={15}/></button>
+      <button type="button" className="grid w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive" onClick={() => void toggleMaximize()} aria-label={t(maximized ? 'restoreWindow' : 'maximizeWindow')} title={t(maximized ? 'restoreWindow' : 'maximizeWindow')}>{maximized ? <Copy size={13}/> : <Square size={13}/>}</button>
+      <button type="button" className="grid w-12 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#a83f37] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-300" onClick={() => void appWindow.close()} aria-label={t('closeWindow')} title={t('closeWindow')}><X size={15}/></button>
     </div>
   </header>
 }

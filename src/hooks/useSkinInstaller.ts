@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { cancelSkinDownload, installSkin, setSkinDownloadPaused, type SkinInstallProgress } from '../skins'
+import { cancelSkinDownload, installSkin, setSkinDownloadPaused, type SkinInstallProgress } from '../lib/skins'
 import type { InstalledSkin } from '../lib/localLibrary'
-import type { WtLiveItem } from '../wtLive'
+import type { WtLiveItem } from '../lib/wtLive'
 import type { TranslateFn } from '../i18n/I18nProvider'
 import { formatAppError } from '../lib/appError'
 
@@ -28,13 +28,32 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
   const [warning, setWarning] = useState<SkinInstallWarning | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const cancelRequestedRef = useRef(false)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      const activeTaskId = taskIdRef.current
+      if (activeTaskId) {
+        cancelRequestedRef.current = true
+        cancelSkinDownload(activeTaskId).catch(() => {
+          /* Best effort: the component is already unmounted. */
+        })
+      }
+    }
+  }, [])
+
+  const resetInstallState = useCallback(() => {
     setError('')
     setInstalledPath('')
     setWarning(null)
     setCancelled(false)
-  }, [selectionKey])
+  }, [])
+
+  useEffect(() => {
+    resetInstallState()
+  }, [selectionKey, resetInstallState])
 
   const install = useCallback(async (item: WtLiveItem) => {
     if (!gamePath) return
@@ -50,7 +69,10 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     setInstalledPath('')
     setWarning(null)
     try {
-      const result = await installSkin(item.langGroup, gamePath, taskId, setProgress)
+      const result = await installSkin(item.langGroup, gamePath, taskId, progressUpdate => {
+        if (mountedRef.current) setProgress(progressUpdate)
+      })
+      if (!mountedRef.current) return
       setInstalledPath(result.path)
       if (result.skippedFiles > 0) {
         setWarning({
@@ -62,6 +84,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
       }
       onInstalled(item, result)
     } catch (cause) {
+      if (!mountedRef.current) return
       if (cancelRequestedRef.current) {
         setCancelled(true)
       } else {
@@ -70,10 +93,12 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
       }
     } finally {
       taskIdRef.current = null
-      setInstalling(false)
-      setProgress(null)
-      setPaused(false)
-      setCancelling(false)
+      if (mountedRef.current) {
+        setInstalling(false)
+        setProgress(null)
+        setPaused(false)
+        setCancelling(false)
+      }
     }
   }, [gamePath, onInstalled, t])
 
@@ -106,5 +131,8 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     }
   }, [t])
 
-  return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, install, togglePause, cancel }
+  return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, install, togglePause, cancel, resetInstallState }
 }
+
+export type SkinInstaller = ReturnType<typeof useSkinInstaller>
+

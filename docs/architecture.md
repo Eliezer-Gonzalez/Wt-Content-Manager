@@ -16,7 +16,7 @@ React UI (src/)
 - `src/App.tsx` composes the app shell, navigation, catalog and local-library views, and detail/setup dialogs. Feature state is delegated to hooks and components.
 - `src/components/` contains focused UI units: post cards and grids, filters, detail and image viewers, the game setup modal, navigation, and download progress.
 - `src/hooks/` owns reusable stateful behavior, including game setup, local library persistence, per-section searches, skin installation UI state, and grid layout preference.
-- `src/wtLive.ts` defines frontend WT Live types, maps feed data, parses post descriptions into text/image blocks, validates image URLs, and selects the browser or Tauri request path.
+- `src/lib/wtLive.ts` defines frontend WT Live types, maps feed data, parses post descriptions into text/image blocks, validates image URLs, and selects the browser or Tauri request path.
 - `src/i18n/` loads locale JSON files dynamically. Add a locale by adding a JSON file with the same message keys; `I18nProvider` discovers locale files at build time.
 - `src/lib/` contains non-UI helpers for local-library persistence, image URL handling, dates, and app metadata.
 - `src/styles.css` and Tailwind utility classes provide the visual system; `src-tauri/tauri.conf.json` configures the frameless desktop window and its content security policy.
@@ -25,17 +25,18 @@ React UI (src/)
 
 - `src-tauri/src/lib.rs` initializes Tauri plugins, shared download-task state, and the IPC command registry.
 - `src-tauri/src/commands.rs` is the IPC boundary. It validates/coordinates command inputs and delegates domain work to modules.
+- `src-tauri/src/http.rs` defines the shared HTTP User-Agent identifier used by outbound requests.
 - `src-tauri/src/providers/wt_live.rs` sends form requests to WT Live and validates feed/detail/download-source responses.
 - `src-tauri/src/game_install.rs` detects known Windows Steam/Gaijin installations and validates a manually selected path.
-- `src-tauri/src/skins/` owns download orchestration, task controls, archive validation/extraction, safe target paths, and installation results.
+- `src-tauri/src/skins/` owns download orchestration, staging lifecycle (`staging.rs`), installed skin scanning/uninstallation (`library.rs`), task controls, archive validation/extraction, safe target paths, and installation results.
 - `src-tauri/capabilities/default.json` declares the Tauri permissions available to the main window.
 
 ## Main data flows
 
 ### Catalog and post details
 
-1. `App` calls `fetchRecentCamouflages` with search, period, page, and sort values.
-2. In Tauri, `src/wtLive.ts` invokes `fetch_recent_camouflages`; the command delegates to the Rust WT Live provider. In browser mode, the frontend sends the corresponding form request.
+1. `useCamouflageFeed` and `usePostDetail` coordinate feed pagination, search debouncing, period filtering, and post detail fetching.
+2. In Tauri, `src/lib/wtLive.ts` invokes `fetch_recent_camouflages`; the command delegates to the Rust WT Live provider. In browser mode, the frontend sends the corresponding form request.
 3. Feed records are mapped to `WtLiveItem` values for cards. Opening a post fetches its details, parsed into ordered text/image blocks and hashtags.
 4. Comments are opened through the original WT Live post URL; comments themselves are not mirrored in the app.
 
@@ -53,7 +54,7 @@ Favorites and installed-skin metadata are serialized in browser `localStorage` (
 
 ## Boundaries and extension points
 
-- Keep React components focused on rendering; put reusable state transitions in hooks and service/data transformations in `src/lib/` or `src/wtLive.ts`.
+- Keep React components focused on rendering; put reusable state transitions in hooks and service/data transformations in `src/lib/`.
 - Keep Tauri command handlers thin. Put game, network, download, and archive logic in their respective Rust modules.
 - Keep frontend/Rust IPC parameter and response shapes aligned. Progress is event-channel data; command completion returns the final installation result or an error.
 - Locale files share keys. Update `en.json` and `es.json` together when adding user-facing text.

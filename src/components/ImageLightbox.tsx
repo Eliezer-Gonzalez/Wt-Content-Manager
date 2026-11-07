@@ -1,19 +1,20 @@
 import { useRef, useState } from 'react'
-import type { MouseEvent, PointerEvent } from 'react'
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react'
 import { X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useI18n } from '../i18n/I18nProvider'
 
 type Props = {
   src: string
   alt: string
-  closeLabel: string
-  zoomInLabel: string
-  zoomOutLabel: string
   onClose: () => void
 }
 
-export function ImageLightbox({ src, alt, closeLabel, zoomInLabel, zoomOutLabel, onClose }: Props) {
+const PAN_STEP = 40
+
+export function ImageLightbox({ src, alt, onClose }: Props) {
+  const { t } = useI18n()
   const [zoomed, setZoomed] = useState(false)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
@@ -56,18 +57,44 @@ export function ImageLightbox({ src, alt, closeLabel, zoomInLabel, zoomOutLabel,
     setDragging(true)
   }
 
-  function movePan(event: PointerEvent<HTMLDivElement>) {
-    const start = dragStartRef.current
+  function getMaxPan() {
     const viewer = viewerRef.current
     const image = imageRef.current
-    if (!start || start.pointerId !== event.pointerId || !viewer || !image || !image.naturalWidth || !image.naturalHeight) return
-
+    if (!viewer || !image || !image.naturalWidth || !image.naturalHeight) return null
     const bounds = viewer.getBoundingClientRect()
     const fit = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight)
     const scaledWidth = image.naturalWidth * fit * 1.5
     const scaledHeight = image.naturalHeight * fit * 1.5
-    const maxX = Math.max(0, (scaledWidth - bounds.width) / 2)
-    const maxY = Math.max(0, (scaledHeight - bounds.height) / 2)
+    return {
+      maxX: Math.max(0, (scaledWidth - bounds.width) / 2),
+      maxY: Math.max(0, (scaledHeight - bounds.height) / 2),
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!zoomed) return
+    const step = event.shiftKey ? PAN_STEP * 3 : PAN_STEP
+    const direction = ({
+      ArrowLeft: { x: step, y: 0 },
+      ArrowRight: { x: -step, y: 0 },
+      ArrowUp: { x: 0, y: step },
+      ArrowDown: { x: 0, y: -step },
+    } as Record<string, { x: number; y: number } | undefined>)[event.key]
+    const max = getMaxPan()
+    if (!direction || !max) return
+    event.preventDefault()
+    setPan(current => ({
+      x: Math.max(-max.maxX, Math.min(max.maxX, current.x + direction.x)),
+      y: Math.max(-max.maxY, Math.min(max.maxY, current.y + direction.y)),
+    }))
+  }
+
+  function movePan(event: PointerEvent<HTMLDivElement>) {
+    const start = dragStartRef.current
+    const max = getMaxPan()
+    if (!start || start.pointerId !== event.pointerId || !max) return
+
+    const { maxX, maxY } = max
     const deltaX = event.clientX - start.x
     const deltaY = event.clientY - start.y
     if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) draggedRef.current = true
@@ -83,6 +110,8 @@ export function ImageLightbox({ src, alt, closeLabel, zoomInLabel, zoomOutLabel,
     setDragging(false)
   }
 
+  const zoomLabel = zoomed ? t('zoomOut') : t('zoomIn')
+
   return (
     <div
       ref={containerRef}
@@ -90,6 +119,7 @@ export function ImageLightbox({ src, alt, closeLabel, zoomInLabel, zoomOutLabel,
       role="dialog"
       aria-modal="true"
       aria-label={alt}
+      onKeyDown={handleKeyDown}
       onClick={event => {
         event.stopPropagation()
         onClose()
@@ -103,7 +133,7 @@ export function ImageLightbox({ src, alt, closeLabel, zoomInLabel, zoomOutLabel,
           event.stopPropagation()
           onClose()
         }}
-        aria-label={closeLabel}
+        aria-label={t('close')}
       >
         <X size={20} />
       </Button>
@@ -132,9 +162,9 @@ export function ImageLightbox({ src, alt, closeLabel, zoomInLabel, zoomOutLabel,
           variant="icon"
           className="absolute bottom-3 right-3 size-11 border border-[#69715e] bg-[#171b17]/90 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
           onClick={toggleButtonZoom}
-          aria-label={zoomed ? zoomOutLabel : zoomInLabel}
+          aria-label={zoomLabel}
           aria-pressed={zoomed}
-          title={zoomed ? zoomOutLabel : zoomInLabel}
+          title={zoomLabel}
         >
           {zoomed ? <ZoomOut size={19} /> : <ZoomIn size={19} />}
         </Button>

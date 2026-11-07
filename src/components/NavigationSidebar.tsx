@@ -1,26 +1,26 @@
 import { useEffect } from 'react'
-import { Bookmark, ChevronDown, Download, Gamepad2, Grid2X2, Headphones, Menu, Settings2, Shield, X } from 'lucide-react'
+import { Bookmark, Download, Gamepad2, Grid2X2, Headphones, Menu, Settings2, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
-import type { GameInstall } from '../gameInstall'
+import type { GameInstall } from '../lib/gameInstall'
 import { APP_VERSION } from '../lib/appInfo'
 import { formatNumber } from '../lib/format'
-import type { TranslationKey, TranslationParams } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nProvider'
 
 const navigation = [
   { group: 'discover', items: [['home', Grid2X2], ['camouflages', Shield], ['sounds', Headphones]] },
   { group: 'library', items: [['favorites', Bookmark], ['downloads', Download]] },
 ] as const
 
+export type AppSection = (typeof navigation)[number]['items'][number][0]
+
 type Props = {
-  active: string
+  active: AppSection
   hasCustomTitleBar: boolean
   mobileOpen: boolean
   gameInstall: GameInstall | null
   gameLoading: boolean
   installedCount: number
-  locale: string
-  t: (key: TranslationKey, params?: TranslationParams) => string
-  onNavigate: (key: string) => void
+  onNavigate: (key: AppSection) => void
   onOpenGameSetup: () => void
   onToggleMobile: () => void
   onCloseMobile: () => void
@@ -33,13 +33,12 @@ export function NavigationSidebar({
   gameInstall,
   gameLoading,
   installedCount,
-  locale,
-  t,
   onNavigate,
   onOpenGameSetup,
   onToggleMobile,
   onCloseMobile,
 }: Props) {
+  const { t, locale } = useI18n()
   useEffect(() => {
     if (!mobileOpen) return
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -59,6 +58,7 @@ export function NavigationSidebar({
     <>
       {mobileOpen && (
         <button
+          type="button"
           className={`fixed inset-x-0 bottom-0 z-40 bg-black/70 min-[721px]:hidden ${hasCustomTitleBar ? 'top-9' : 'top-0'}`}
           aria-label={t('closeMenu')}
           onClick={onCloseMobile}
@@ -73,9 +73,9 @@ export function NavigationSidebar({
             <Shield size={21} />
           </div>
           <div>
-            <strong className="block text-xs font-bold tracking-[.09em]">WT CONTENT</strong>
+            <strong className="block text-xs font-bold tracking-[.09em]">{t('brandName')}</strong>
             <small className="mt-[3px] block text-[10px] tracking-[.16em] text-[#9ca38f]">
-              MANAGER{' '}
+              {t('brandSubtitle')}{' '}
               <i className="ml-1 border border-[#47513e] px-1 text-[9px] not-italic text-[#c2c8ae]">
                 {APP_VERSION}
               </i>
@@ -102,7 +102,7 @@ export function NavigationSidebar({
             <span className="mr-2 inline-block size-1.5 rounded-full bg-[#9cae70]" />
             {t('onlineSource')}
           </span>
-          <span className="text-[#bac49c]">WT LIVE</span>
+          <span className="text-[#bac49c]">{t('sourceName')}</span>
         </div>
 
         <nav
@@ -116,6 +116,7 @@ export function NavigationSidebar({
               </p>
               {group.items.map(([key, Icon]) => (
                 <button
+                  type="button"
                   key={key}
                   aria-current={active === key ? 'page' : undefined}
                   className={`flex h-10 w-full items-center gap-[11px] border-l-2 px-[10px] text-left text-[13px] transition-colors ${
@@ -141,6 +142,7 @@ export function NavigationSidebar({
 
         <div className={`mt-auto ${mobileOpen ? 'max-[720px]:mt-auto max-[720px]:block' : 'max-[720px]:hidden'}`}>
           <button
+            type="button"
             className="relative mb-[13px] flex w-full items-center gap-2.5 border border-[#333b31] bg-[#242a23] p-3 text-left hover:border-[#717d5b]"
             onClick={onOpenGameSetup}
             title={t('chooseGameFolder')}
@@ -162,8 +164,10 @@ export function NavigationSidebar({
           </button>
 
           <button
-            className="flex h-10 w-full items-center gap-[11px] border-l-2 border-transparent px-[10px] text-left text-[13px] text-[#b1b7ab] hover:bg-[#252b24]"
+            className="flex h-10 w-full items-center gap-[11px] border-l-2 border-transparent px-[10px] text-left text-[13px] text-[#b1b7ab] disabled:cursor-not-allowed disabled:opacity-55"
             type="button"
+            disabled
+            aria-disabled="true"
           >
             <Settings2 size={17} />
             {t('settings')}
@@ -177,7 +181,6 @@ export function NavigationSidebar({
               <strong className="block text-xs font-medium">{t('profileLocal')}</strong>
               <small className="mt-1 block text-[10px] text-[#9da596]">{t('libraryLocal')}</small>
             </span>
-            <ChevronDown size={15} className="text-[#879080]" />
           </div>
         </div>
       </aside>

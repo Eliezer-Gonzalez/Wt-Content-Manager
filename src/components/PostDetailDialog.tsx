@@ -1,64 +1,52 @@
 import { useRef, useState } from 'react'
-import { Download, ExternalLink, Shield, X } from 'lucide-react'
+import { ExternalLink, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
-import { SkinDownloadProgress } from './SkinDownloadProgress'
+import { PostInstallActions } from './PostInstallActions'
 import { PostDetailSkeleton } from './PostDetailSkeleton'
 import { ImageLightbox } from './ImageLightbox'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { getFullResolutionImageUrl } from '../wtLive'
+import { getFullResolutionImageUrl, getSafeCommentUrl } from '../lib/wtLive'
+import { isTauriRuntime } from '../lib/gameInstall'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import type { WtLiveDetail, WtLiveItem } from '../wtLive'
-import type { SkinInstallProgress } from '../skins'
-import type { TranslationKey, TranslationParams } from '../i18n/I18nProvider'
-import type { SkinInstallWarning } from '../hooks/useSkinInstaller'
-import { formatNumber } from '../lib/format'
+import { useI18n } from '../i18n/I18nProvider'
+import type { WtLiveDetail, WtLiveItem } from '../lib/wtLive'
+import type { SkinInstaller } from '../hooks/useSkinInstaller'
 
 type Props = {
   item: WtLiveItem
   detail: WtLiveDetail | null
   loading: boolean
   error: string
-  t: (key: TranslationKey, params?: TranslationParams) => string
-  locale: string
   canInstall: boolean
-  installing: boolean
-  installProgress: SkinInstallProgress | null
-  installPaused: boolean
-  installCancelling: boolean
-  installCancelled: boolean
-  installError: string
-  installedPath: string
-  installWarning?: SkinInstallWarning | null
+  installer: SkinInstaller
   onInstall: () => void
-  onPauseDownload: () => void
-  onCancelDownload: () => void
   onChooseGame: () => void
   onClose: () => void
   onSearchHashtag: (hashtag: string) => void
 }
 
 export function PostDetailDialog({
-  item, detail, loading, error, t, locale, canInstall, installing, installProgress, installPaused,
-  installCancelling, installCancelled, installError, installedPath, installWarning,
-  onInstall, onPauseDownload, onCancelDownload, onChooseGame, onClose, onSearchHashtag,
+  item,
+  detail,
+  loading,
+  error,
+  canInstall,
+  installer,
+  onInstall,
+  onChooseGame,
+  onClose,
+  onSearchHashtag,
 }: Props) {
+  const { t } = useI18n()
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null)
   const [commentError, setCommentError] = useState(false)
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const { installing } = installer
   const hasDescription = detail?.description.some(block => block.type === 'text') ?? false
   const hasInlineImages = detail?.description.some(block => block.type === 'image') ?? false
   const previewImageUrl = item.imageUrl ? getFullResolutionImageUrl(item.imageUrl) : null
   const cleanFallbackDescription = item.description.replace(/#[\p{L}\p{N}_-]+/gu, ' ').replace(/\s+/g, ' ').trim()
-
-  const warningMessage = installWarning && installWarning.skippedFiles > 0
-    ? installWarning.skippedExecutables > 0
-      ? t('skinWarningSkippedWithExecutables', {
-          count: installWarning.skippedFiles,
-          executables: formatNumber(installWarning.skippedExecutables, locale),
-        })
-      : t('skinWarningSkipped', { count: installWarning.skippedFiles })
-    : null
 
   useFocusTrap({
     containerRef: dialogRef,
@@ -71,13 +59,14 @@ export function PostDetailDialog({
   async function handleOpenComments() {
     if (!detail?.commentsUrl) return
     setCommentError(false)
+    const safeUrl = getSafeCommentUrl(detail.commentsUrl)
+    if (!safeUrl) {
+      setCommentError(true)
+      return
+    }
     try {
-      const url = new URL(detail.commentsUrl)
-      if (url.origin !== 'https://live.warthunder.com' || !url.pathname.startsWith('/post/')) {
-        throw new Error('Unexpected comments URL')
-      }
-      if (canInstall) await openUrl(url.href)
-      else window.open(url.href, '_blank', 'noopener,noreferrer')
+      if (isTauriRuntime) await openUrl(safeUrl)
+      else window.open(safeUrl, '_blank', 'noopener,noreferrer')
     } catch {
       setCommentError(true)
     }
@@ -121,7 +110,7 @@ export function PostDetailDialog({
             {item.title || t('postFallbackTitle', { id: item.id })}
           </h2>
           <p className="mb-5 mt-1.5 text-xs text-[#bdc99e]">
-            {item.fileName ?? t('camouflage')} · {t('by')} {item.author || t('unknownAuthor')}
+            {t('postMeta', { file: item.fileName ?? t('camouflage'), author: item.author || t('unknownAuthor') })}
           </p>
 
           {loading ? (
@@ -149,7 +138,7 @@ export function PostDetailDialog({
                     type="button"
                     className="my-3 block w-full cursor-zoom-in"
                     onClick={() => setZoomedImage({ src: previewImageUrl, alt: item.title || t('postFallbackTitle', { id: item.id }) })}
-                    aria-label={t('enlargeImage')}
+                    aria-label={`${t('enlargeImage')}: ${item.title || t('postFallbackTitle', { id: item.id })}`}
                   >
                     <img
                       className="h-auto max-h-[65vh] w-full object-contain"
@@ -169,7 +158,7 @@ export function PostDetailDialog({
                         onClick={() =>
                           setZoomedImage({ src: getFullResolutionImageUrl(block.src), alt: block.alt || t('postImageAlt') })
                         }
-                        aria-label={t('enlargeImage')}
+                        aria-label={`${t('enlargeImage')}: ${block.alt || t('postImageAlt')}`}
                       >
                         <img
                           className="h-auto max-h-[65vh] w-full object-contain"
@@ -222,70 +211,13 @@ export function PostDetailDialog({
             {t('likes', { count: item.likes })} · {t('downloadsCount', { count: item.downloads })}
           </p>
 
-          {item.downloadUrl && installing && (
-            <SkinDownloadProgress
-              progress={installProgress}
-              paused={installPaused}
-              cancelling={installCancelling}
-              t={t}
-              locale={locale}
-              onTogglePause={onPauseDownload}
-              onCancel={onCancelDownload}
-            />
-          )}
-
-          {item.downloadUrl && !installing && (
-            <button
-              type="button"
-              className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 bg-olive px-4 py-2 text-sm font-semibold text-[#1c2319] hover:bg-[#bdc99e] disabled:cursor-wait disabled:opacity-60"
-              disabled={!canInstall}
-              onClick={onInstall}
-            >
-              <Download size={16} />
-              {t('installSkin')}
-            </button>
-          )}
-
-          {item.downloadUrl && !canInstall && (
-            <button
-              type="button"
-              className="mt-2 w-full text-center text-xs text-[#bdc99e] hover:text-[#dce5c4]"
-              onClick={onChooseGame}
-            >
-              {t('skinNeedsGamePath')}
-            </button>
-          )}
-
-          {installError && (
-            <p role="alert" className="mt-3 text-sm text-amber-200">
-              {installError}
-            </p>
-          )}
-          {installCancelled && (
-            <p role="status" className="mt-3 border border-[#424c3b] bg-[#252c23] p-3 text-xs text-[#c5cfb0]">
-              {t('skinDownloadCancelled')}
-            </p>
-          )}
-          {installedPath && (
-            <>
-              <p
-                role="status"
-                className="mt-3 break-all border border-[#424c3b] bg-[#252c23] p-3 text-xs leading-5 text-[#d5dfbd]"
-              >
-                {t('skinInstalled')}
-                <br />
-                <span className="text-[#aeb99e]">{installedPath}</span>
-              </p>
-              {warningMessage && (
-                <p
-                  role="status"
-                  className="mt-2 border border-[#4a4731] bg-[#24221a] p-3 text-xs leading-5 text-[#dcd4a8]"
-                >
-                  {warningMessage}
-                </p>
-              )}
-            </>
-          )}
+          <PostInstallActions
+            downloadUrl={item.downloadUrl}
+            canInstall={canInstall}
+            installer={installer}
+            onInstall={onInstall}
+            onChooseGame={onChooseGame}
+          />
 
           {detail?.commentsUrl && (
             <button
@@ -308,9 +240,6 @@ export function PostDetailDialog({
         <ImageLightbox
           src={zoomedImage.src}
           alt={zoomedImage.alt}
-          closeLabel={t('close')}
-          zoomInLabel={t('zoomIn')}
-          zoomOutLabel={t('zoomOut')}
           onClose={() => setZoomedImage(null)}
         />
       )}

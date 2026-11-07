@@ -5,7 +5,7 @@ use tauri::ipc::Channel;
 use tokio::io::AsyncWriteExt;
 
 use super::download_task::{DownloadControl, SkinInstallProgress};
-use crate::AppError;
+use crate::{http::USER_AGENT, AppError};
 
 const MAX_ARCHIVE_BYTES: u64 = 250 * 1024 * 1024;
 const READ_TIMEOUT: Duration = Duration::from_secs(180);
@@ -46,10 +46,9 @@ pub async fn download_archive(
     if !trusted_download(&parsed) {
         return Err(AppError::new("download_untrusted_host"));
     }
-    let user_agent = format!("WT-Content-Manager/{}", env!("CARGO_PKG_VERSION"));
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(30))
-        .user_agent(user_agent)
+        .user_agent(USER_AGENT)
         .redirect(Policy::custom(|attempt: Attempt<'_>| {
             if trusted_download(attempt.url()) {
                 attempt.follow()

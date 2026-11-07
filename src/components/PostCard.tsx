@@ -1,32 +1,28 @@
 import { Bookmark, ExternalLink, Star } from 'lucide-react'
 import { Button } from './ui/Button'
-import { relativeDate } from '../lib/formatDate'
-import { formatNumber } from '../lib/format'
-import type { WtLiveItem } from '../wtLive'
-import type { TranslationKey, TranslationParams } from '../i18n/I18nProvider'
+import { formatNumber, relativeDate } from '../lib/format'
+import type { WtLiveItem } from '../lib/wtLive'
+import { useI18n } from '../i18n/I18nProvider'
 
 type Props = {
   item: WtLiveItem
-  locale: string
   isSaved: boolean
   imageHeight?: number
   masonry?: boolean
   onImageRatio?: (ratio: number) => void
-  t: (key: TranslationKey, params?: TranslationParams) => string
   onOpen: (item: WtLiveItem) => void
   onToggleSaved: (item: WtLiveItem) => void
 }
 
-export function PostCard({ item, locale, isSaved, imageHeight, masonry = false, onImageRatio, t, onOpen, onToggleSaved }: Props) {
+export function PostCard({ item, isSaved, imageHeight, masonry = false, onImageRatio, onOpen, onToggleSaved }: Props) {
+  const { t, locale } = useI18n()
   return (
     <article className={`group flex min-w-0 flex-col border border-[#30372f] bg-wt-panel transition-colors hover:border-[#687354] ${masonry ? 'h-auto' : 'h-full'}`}>
       <div className="relative">
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-hidden="true"
+        {/* Mouse-only shortcut: the title button below is the single keyboard/screen-reader control for opening the post. */}
+        <div
           style={imageHeight ? { height: imageHeight } : undefined}
-          className={`relative block w-full overflow-hidden bg-[#1a201b] text-left ${masonry ? 'min-h-[150px]' : 'h-[190px] max-[720px]:h-[170px] max-[420px]:h-[180px]'}`}
+          className={`relative block w-full cursor-pointer overflow-hidden bg-[#1a201b] text-left ${masonry ? 'min-h-[150px]' : 'h-[190px] max-[720px]:h-[170px] max-[420px]:h-[180px]'}`}
           onClick={() => onOpen(item)}
         >
           {item.imageUrl && (
@@ -48,7 +44,7 @@ export function PostCard({ item, locale, isSaved, imageHeight, masonry = false, 
             <span className="sr-only">{t('likes', { count: item.likes })}</span>
             <span aria-hidden="true">{formatNumber(item.likes, locale)}</span>
           </span>
-        </button>
+        </div>
         <Button
           variant="icon"
           className={`absolute right-2 top-2 size-9 border border-[#596154] bg-[#171c18c9] ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`}
@@ -69,7 +65,7 @@ export function PostCard({ item, locale, isSaved, imageHeight, masonry = false, 
           <strong className="min-w-0 line-clamp-3 break-words font-display text-[19px] font-semibold leading-tight text-[#e2e4da]">{item.title || t('postFallbackTitle', { id: item.id })}</strong>
           <span className="shrink-0 pt-1 text-[10px] text-[#a1a99b]">{relativeDate(item.createdAt, locale)}</span>
         </span>
-        <span className="mb-3 mt-1.5 block truncate text-xs text-[#bdc99e]">{item.fileName ?? t('camouflageForGame')}</span>
+        <span className="mb-3 mt-1.5 block truncate text-xs text-[#bdc99e]">{item.fileName || t('camouflageForGame')}</span>
         <span className="mt-auto flex items-center justify-between gap-2 border-t border-[#333a32] pt-2.5 text-[11px] text-[#a2aa9c]">
           <span className="min-w-0 truncate">{t('by')} <b className="font-medium text-[#bbc1b2]">{item.author || t('unknownAuthor')}</b></span>
           <span className="flex shrink-0 items-center gap-1.5 text-[#bdc99e]">{t('viewPost')} <ExternalLink size={13}/></span>

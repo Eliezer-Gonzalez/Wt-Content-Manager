@@ -1,14 +1,14 @@
 import { Columns3, LayoutGrid } from 'lucide-react'
 import type { PostLayout } from '../hooks/usePostLayout'
-import type { TranslateFn } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nProvider'
 
 type Props = {
   value: PostLayout
   onChange: (layout: PostLayout) => void
-  t: TranslateFn
 }
 
-export function PostLayoutToggle({ value, onChange, t }: Props) {
+export function PostLayoutToggle({ value, onChange }: Props) {
+  const { t } = useI18n()
   return (
     <div className="flex items-center border border-[#343b32] bg-wt-panel p-0.5" role="group" aria-label={t('postLayout')}>
       <button

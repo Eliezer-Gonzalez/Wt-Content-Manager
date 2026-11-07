@@ -1,6 +1,7 @@
 mod commands;
 pub mod error;
 mod game_install;
+pub mod http;
 mod providers;
 mod skins;
 
@@ -20,6 +21,8 @@ pub fn run() {
             commands::install_skin,
             commands::set_skin_download_paused,
             commands::cancel_skin_download,
+            commands::scan_installed_skins,
+            commands::uninstall_skin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running WT Content Manager");
