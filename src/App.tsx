@@ -103,7 +103,26 @@ export default function App() {
     }
     if (active === 'favorites') {
       if (visible.length === 0) return query ? emptyMessage : <EmptyLibraryState kind="favorites" onExplore={() => setActive('camouflages')} />
-      return <PaginatedGrid items={visible} resetKey={`favorites-${query}`} getKey={item => String(item.id)} gridClassName="grid grid-cols-2 gap-3 min-[1400px]:grid-cols-3 min-[1800px]:grid-cols-4 min-[2300px]:grid-cols-5 max-[720px]:gap-2.5 max-[420px]:grid-cols-1" renderItem={item => <PostCard item={item} isSaved isInstalled={installedIds.has(item.id)} masonry={false} onOpen={openPost} onToggleSaved={library.toggleFavorite} />} />
+      return (
+        <PaginatedGrid
+          items={visible}
+          resetKey={`favorites-${query}`}
+          renderGrid={visibleItems => (
+            <MasonryPostGrid
+              items={visibleItems}
+              renderItem={item => (
+                <PostCard
+                  item={item}
+                  isSaved
+                  isInstalled={installedIds.has(item.id)}
+                  onOpen={openPost}
+                  onToggleSaved={library.toggleFavorite}
+                />
+              )}
+            />
+          )}
+        />
+      )
     }
     if (feed.error) return <div className="grid min-h-40 place-items-center text-center"><div><p className="text-sm text-[#c2c8bb]">{feed.error}</p><Button variant="primary" onClick={feed.retry}>{t('retry')}</Button></div></div>
     if (feed.loading) return <PostCardSkeleton label={t('loading')} />

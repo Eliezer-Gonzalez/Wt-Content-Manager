@@ -29,17 +29,25 @@ export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, o
           className={`relative block w-full cursor-pointer overflow-hidden bg-[#1a201b] text-left ${masonry ? '' : 'aspect-[16/10]'}`}
           onClick={() => onOpen(item)}
         >
+          {!masonry && item.imageUrl && (
+            <img
+              src={item.imageUrl}
+              alt=""
+              aria-hidden="true"
+              className={`absolute inset-0 size-full scale-110 object-cover blur-md transition-opacity duration-200 ${imageLoaded ? 'opacity-35' : 'opacity-0'}`}
+            />
+          )}
           {item.imageUrl && (
             <img
               src={item.imageUrl}
               alt=""
-              className={`absolute inset-0 size-full object-cover transition-opacity duration-200 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 size-full ${masonry ? 'object-cover' : 'object-contain'} transition-opacity duration-200 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading="lazy"
               onLoad={() => setLoadedUrl(item.imageUrl ?? null)}
               onError={() => setLoadedUrl(item.imageUrl ?? null)}
             />
           )}
-          <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent"/>
+          <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent"/>
           <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
             <span className="bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t('camouflage')}</span>
             {isInstalled && (
