@@ -1,6 +1,8 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
+use crate::AppError;
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameInstall {
@@ -171,10 +173,10 @@ pub fn detect() -> Vec<GameInstall> {
     found
 }
 
-pub fn validate(path: &str) -> Result<GameInstall, String> {
+pub fn validate(path: &str) -> Result<GameInstall, AppError> {
     let root = PathBuf::from(path);
     if !valid_root(&root) {
-        return Err("No encontré el ejecutable de War Thunder en esa carpeta. Selecciona la raíz de instalación.".into());
+        return Err(AppError::new("game_executable_not_found"));
     }
     let source = if path.to_ascii_lowercase().contains("steamapps") {
         "Steam"

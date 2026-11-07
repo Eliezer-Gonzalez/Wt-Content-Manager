@@ -1,7 +1,10 @@
 mod commands;
+pub mod error;
 mod game_install;
 mod providers;
 mod skins;
+
+pub use error::AppError;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

@@ -10,6 +10,8 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import type { WtLiveDetail, WtLiveItem } from '../wtLive'
 import type { SkinInstallProgress } from '../skins'
 import type { TranslationKey, TranslationParams } from '../i18n/I18nProvider'
+import type { SkinInstallWarning } from '../hooks/useSkinInstaller'
+import { formatNumber } from '../lib/format'
 
 type Props = {
   item: WtLiveItem
@@ -26,7 +28,7 @@ type Props = {
   installCancelled: boolean
   installError: string
   installedPath: string
-  installWarning?: string | null
+  installWarning?: SkinInstallWarning | null
   onInstall: () => void
   onPauseDownload: () => void
   onCancelDownload: () => void
@@ -48,6 +50,15 @@ export function PostDetailDialog({
   const hasInlineImages = detail?.description.some(block => block.type === 'image') ?? false
   const previewImageUrl = item.imageUrl ? getFullResolutionImageUrl(item.imageUrl) : null
   const cleanFallbackDescription = item.description.replace(/#[\p{L}\p{N}_-]+/gu, ' ').replace(/\s+/g, ' ').trim()
+
+  const warningMessage = installWarning && installWarning.skippedFiles > 0
+    ? installWarning.skippedExecutables > 0
+      ? t('skinWarningSkippedWithExecutables', {
+          count: installWarning.skippedFiles,
+          executables: formatNumber(installWarning.skippedExecutables, locale),
+        })
+      : t('skinWarningSkipped', { count: installWarning.skippedFiles })
+    : null
 
   useFocusTrap({
     containerRef: dialogRef,
@@ -265,12 +276,12 @@ export function PostDetailDialog({
                 <br />
                 <span className="text-[#aeb99e]">{installedPath}</span>
               </p>
-              {installWarning && (
+              {warningMessage && (
                 <p
                   role="status"
                   className="mt-2 border border-[#4a4731] bg-[#24221a] p-3 text-xs leading-5 text-[#dcd4a8]"
                 >
-                  {installWarning}
+                  {warningMessage}
                 </p>
               )}
             </>

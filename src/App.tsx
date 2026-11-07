@@ -24,7 +24,8 @@ import { useSectionSearch } from './hooks/useSectionSearch'
 import { usePostLayout } from './hooks/usePostLayout'
 import { isTauriRuntime } from './gameInstall'
 import { useI18n, asTranslationKey } from './i18n/I18nProvider'
-import { fetchPostDetail, fetchRecentCamouflages, formatErrorMessage, type WtLiveDetail, type WtLiveFeedSort, type WtLiveItem } from './wtLive'
+import { fetchPostDetail, fetchRecentCamouflages, type WtLiveDetail, type WtLiveFeedSort, type WtLiveItem } from './wtLive'
+import { formatAppError } from './lib/appError'
 import { WT_LIVE_HEADER_IMAGE } from './lib/wtLiveAssets'
 
 const isApple = typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(navigator.userAgent || navigator.platform || '')
@@ -101,7 +102,8 @@ export default function App() {
     }).catch((cause: unknown) => {
       if (requestId !== fetchRequestIdRef.current) return
       if (cause instanceof Error && cause.name !== 'AbortError') {
-        const message = formatErrorMessage(cause, t)
+        const formatted = formatAppError(cause, t)
+        const message = formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message
         if (isLoadingMore) setLoadMoreError(message)
         else setError(message)
       }
@@ -121,7 +123,10 @@ export default function App() {
     setDetailError('')
     setDetailLoading(true)
     fetchPostDetail(selected, controller.signal).then(setDetail).catch((cause: unknown) => {
-      if (cause instanceof Error && cause.name !== 'AbortError') setDetailError(formatErrorMessage(cause, t))
+      if (cause instanceof Error && cause.name !== 'AbortError') {
+        const formatted = formatAppError(cause, t)
+        setDetailError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+      }
     }).finally(() => setDetailLoading(false))
     return () => controller.abort()
   }, [selected, t])

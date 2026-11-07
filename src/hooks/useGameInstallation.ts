@@ -30,12 +30,12 @@ export function useGameInstallation() {
   const [selected, setSelected] = useState<GameInstall | null>(null)
   const [isOpen, setIsOpen] = useState(() => isTauriRuntime && !hasSeenSetup())
   const [loading, setLoading] = useState(isTauriRuntime)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<unknown>(null)
 
   const scan = useCallback(async () => {
     if (!isTauriRuntime) return
     setLoading(true)
-    setError('')
+    setError(null)
     try {
       const saved = savedGamePath()
       const [preferred, detected] = await Promise.all([
@@ -60,7 +60,7 @@ export function useGameInstallation() {
   }, [scan])
 
   function openSetup() {
-    setError('')
+    setError(null)
     setIsOpen(true)
     void scan()
   }
@@ -78,14 +78,14 @@ export function useGameInstallation() {
   }
 
   async function chooseManual(title: string) {
-    setError('')
+    setError(null)
     try {
       const install = await chooseGameInstallation(title)
       if (!install) return
       setInstallations(current => arrangeInstallations(current, install))
       confirmInstallation(install)
-    } catch {
-      setError('gameSetupInvalidPath')
+    } catch (cause) {
+      setError(cause || 'gameSetupInvalidPath')
     }
   }
 

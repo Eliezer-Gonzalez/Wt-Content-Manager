@@ -1,7 +1,7 @@
 use serde_json::Value;
 use tauri::{ipc::Channel, State};
 
-use crate::{game_install, providers::wt_live, skins};
+use crate::{game_install, providers::wt_live, skins, AppError};
 
 #[tauri::command]
 pub async fn fetch_recent_camouflages(
@@ -9,12 +9,12 @@ pub async fn fetch_recent_camouflages(
     period: u32,
     page: u32,
     sort: String,
-) -> Result<Value, String> {
+) -> Result<Value, AppError> {
     wt_live::recent_camouflages(&search_string, period, page, &sort).await
 }
 
 #[tauri::command]
-pub async fn fetch_post_detail(lang_group: u64) -> Result<Value, String> {
+pub async fn fetch_post_detail(lang_group: u64) -> Result<Value, AppError> {
     wt_live::post_detail(lang_group).await
 }
 
@@ -24,7 +24,7 @@ pub fn detect_game_installations() -> Vec<game_install::GameInstall> {
 }
 
 #[tauri::command]
-pub fn validate_game_installation(path: String) -> Result<game_install::GameInstall, String> {
+pub fn validate_game_installation(path: String) -> Result<game_install::GameInstall, AppError> {
     game_install::validate(&path)
 }
 
@@ -35,7 +35,7 @@ pub async fn install_skin(
     task_id: String,
     on_progress: Channel<skins::download_task::SkinInstallProgress>,
     manager: State<'_, skins::download_task::DownloadManager>,
-) -> Result<skins::InstallResult, String> {
+) -> Result<skins::InstallResult, AppError> {
     skins::install_skin(lang_group, &game_path, &task_id, on_progress, &manager).await
 }
 
@@ -44,7 +44,7 @@ pub fn set_skin_download_paused(
     task_id: String,
     paused: bool,
     manager: State<'_, skins::download_task::DownloadManager>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager.set_paused(&task_id, paused)
 }
 
@@ -52,6 +52,6 @@ pub fn set_skin_download_paused(
 pub fn cancel_skin_download(
     task_id: String,
     manager: State<'_, skins::download_task::DownloadManager>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     manager.cancel(&task_id)
 }

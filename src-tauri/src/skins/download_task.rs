@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 
+use crate::AppError;
+
 const PREPARING: u8 = 0;
 const DOWNLOADING: u8 = 1;
 const EXTRACTING: u8 = 2;
@@ -28,21 +30,21 @@ pub struct SkinInstallProgress {
 }
 
 impl DownloadManager {
-    pub fn register(&self, task_id: &str) -> Result<Arc<DownloadControl>, String> {
+    pub fn register(&self, task_id: &str) -> Result<Arc<DownloadControl>, AppError> {
         if task_id.is_empty()
             || task_id.len() > 64
             || !task_id
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-')
         {
-            return Err("Invalid download task id.".into());
+            return Err(AppError::new("download_task_invalid"));
         }
         let mut tasks = self
             .tasks
             .lock()
-            .map_err(|_| "Download manager unavailable.")?;
+            .map_err(|_| AppError::new("download_manager_unavailable"))?;
         if tasks.contains_key(task_id) {
-            return Err("A download with this id is already running.".into());
+            return Err(AppError::new("download_task_conflict"));
         }
         let control = Arc::new(DownloadControl {
             cancelled: AtomicBool::new(false),
@@ -53,14 +55,14 @@ impl DownloadManager {
         Ok(control)
     }
 
-    pub fn set_paused(&self, task_id: &str, paused: bool) -> Result<(), String> {
+    pub fn set_paused(&self, task_id: &str, paused: bool) -> Result<(), AppError> {
         let control = self.get(task_id)?;
         control.ensure_downloading()?;
         control.paused.store(paused, Ordering::SeqCst);
         Ok(())
     }
 
-    pub fn cancel(&self, task_id: &str) -> Result<(), String> {
+    pub fn cancel(&self, task_id: &str) -> Result<(), AppError> {
         let control = self.get(task_id)?;
         control.ensure_downloading()?;
         control.cancelled.store(true, Ordering::SeqCst);
@@ -74,13 +76,13 @@ impl DownloadManager {
         }
     }
 
-    fn get(&self, task_id: &str) -> Result<Arc<DownloadControl>, String> {
+    fn get(&self, task_id: &str) -> Result<Arc<DownloadControl>, AppError> {
         self.tasks
             .lock()
-            .map_err(|_| "Download manager unavailable.".to_string())?
+            .map_err(|_| AppError::new("download_manager_unavailable"))?
             .get(task_id)
             .cloned()
-            .ok_or_else(|| "Download task not found.".into())
+            .ok_or_else(|| AppError::new("download_task_not_found"))
     }
 }
 
@@ -97,17 +99,17 @@ impl DownloadControl {
         self.paused.load(Ordering::SeqCst)
     }
 
-    pub fn check_cancelled(&self) -> Result<(), String> {
+    pub fn check_cancelled(&self) -> Result<(), AppError> {
         if self.cancelled.load(Ordering::SeqCst) {
-            Err("DOWNLOAD_CANCELLED".into())
+            Err(AppError::new("download_cancelled"))
         } else {
             Ok(())
         }
     }
 
-    fn ensure_downloading(&self) -> Result<(), String> {
+    fn ensure_downloading(&self) -> Result<(), AppError> {
         if self.phase.load(Ordering::SeqCst) != DOWNLOADING {
-            return Err("Download controls are only available during transfer.".into());
+            return Err(AppError::new("download_control_unavailable"));
         }
         Ok(())
     }

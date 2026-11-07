@@ -12,9 +12,8 @@ export type SkinInstallResult = {
   path: string
   fileCount: number
   sizeBytes: number
-  skippedFiles?: number
-  skippedExecutables?: number
-  warning?: string | null
+  skippedFiles: number
+  skippedExecutables: number
 }
 
 export function installSkin(langGroup: number, gamePath: string, taskId: string, onProgress: (progress: SkinInstallProgress) => void): Promise<SkinInstallResult> {

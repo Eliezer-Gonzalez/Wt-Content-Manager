@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react'
 import { Check, FolderOpen, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import type { GameInstall } from '../gameInstall'
-import { asTranslationKey, type TranslateFn } from '../i18n/I18nProvider'
+import type { TranslateFn } from '../i18n/I18nProvider'
+import { formatAppError } from '../lib/appError'
 
 type Props = {
   open: boolean
   loading: boolean
-  error: string
+  error: unknown
   installations: GameInstall[]
   selected: GameInstall | null
   t: TranslateFn
@@ -32,6 +33,7 @@ export function GameSetupModal({
   onClose,
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const errorMessage = error ? formatAppError(error, t).message : ''
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -57,7 +59,7 @@ export function GameSetupModal({
 
       <div className="space-y-4 px-6 py-5 max-[420px]:px-5" aria-live="polite">
         {loading && <p className="flex items-center gap-2.5 text-sm text-[#bdc99e]"><LoaderCircle className="animate-spin motion-reduce:animate-none" size={17}/>{t('gameSetupSearching')}</p>}
-        {!loading && error && <p className="border border-amber-800/60 bg-amber-950/30 px-3 py-2.5 text-sm leading-relaxed text-amber-100" role="alert">{t(asTranslationKey(error))}</p>}
+        {!loading && errorMessage && <p className="border border-amber-800/60 bg-amber-950/30 px-3 py-2.5 text-sm leading-relaxed text-amber-100" role="alert">{errorMessage}</p>}
         {installations.length > 0 && <div role="radiogroup" aria-label={t('gameSetupFound')}>
           <p className="mb-2.5 text-xs font-semibold text-[#c9cebf]">{t('gameSetupFound')}</p>
           <div className="space-y-2">

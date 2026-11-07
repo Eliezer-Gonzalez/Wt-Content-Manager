@@ -5,6 +5,7 @@ use tauri::ipc::Channel;
 use tokio::io::AsyncWriteExt;
 
 use super::download_task::{DownloadControl, SkinInstallProgress};
+use crate::AppError;
 
 const MAX_ARCHIVE_BYTES: u64 = 250 * 1024 * 1024;
 const READ_TIMEOUT: Duration = Duration::from_secs(180);
@@ -23,7 +24,7 @@ fn report_progress(
     downloaded: u64,
     total: Option<u64>,
     paused: bool,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     channel
         .send(SkinInstallProgress {
             phase: "downloading",
@@ -31,7 +32,7 @@ fn report_progress(
             total_bytes: total,
             paused,
         })
-        .map_err(|error| format!("No se pudo actualizar el progreso de descarga: {error}"))
+        .map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))
 }
 
 pub async fn download_archive(
@@ -39,11 +40,11 @@ pub async fn download_archive(
     path: &Path,
     control: &DownloadControl,
     channel: &Channel<SkinInstallProgress>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let parsed =
-        reqwest::Url::parse(url).map_err(|_| "WT Live devolvió una URL inválida.".to_string())?;
+        reqwest::Url::parse(url).map_err(|_| AppError::new("download_invalid_url"))?;
     if !trusted_download(&parsed) {
-        return Err("La descarga de skins solo admite enlaces HTTPS de WT Live.".into());
+        return Err(AppError::new("download_untrusted_host"));
     }
     let user_agent = format!("WT-Content-Manager/{}", env!("CARGO_PKG_VERSION"));
     let client = reqwest::Client::builder()
@@ -57,24 +58,24 @@ pub async fn download_archive(
             }
         }))
         .build()
-        .map_err(|error| format!("No se pudo preparar la conexión de descarga: {error}"))?;
+        .map_err(|error| AppError::with_detail("download_client_error", error.to_string()))?;
     let mut response = tokio::time::timeout(READ_TIMEOUT, client.get(parsed).send())
         .await
-        .map_err(|_| "WT Live tardó demasiado en iniciar la descarga.".to_string())?
-        .map_err(|error| format!("No se pudo descargar la skin desde WT Live: {error}"))?;
+        .map_err(|_| AppError::new("download_timeout"))?
+        .map_err(|error| AppError::with_detail("download_connection_failed", error.to_string()))?;
     control.check_cancelled()?;
     if !response.status().is_success() {
-        return Err(format!(
-            "WT Live respondió con HTTP {} al descargar la skin.",
-            response.status()
-        ));
+        return Err(AppError::new("download_http_error")
+            .with_param("status", response.status().as_u16())
+            .set_detail(format!("HTTP {}", response.status())));
     }
     if !trusted_download(response.url()) {
-        return Err("WT Live redirigió la descarga a un dominio que no es de confianza.".into());
+        return Err(AppError::new("download_redirect_untrusted"));
     }
     let total = response.content_length();
     if total.is_some_and(|size| size > MAX_ARCHIVE_BYTES) {
-        return Err("La descarga supera el límite de tamaño permitido para una skin.".into());
+        return Err(AppError::new("download_size_exceeded")
+            .with_param("max_bytes", MAX_ARCHIVE_BYTES));
     }
 
     let mut output = tokio::fs::OpenOptions::new()
@@ -82,7 +83,13 @@ pub async fn download_archive(
         .create_new(true)
         .open(path)
         .await
-        .map_err(|error| format!("No se pudo crear el archivo temporal: {error}"))?;
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::PermissionDenied {
+                AppError::with_detail("game_permission_denied", error.to_string())
+            } else {
+                AppError::with_detail("io_error", error.to_string())
+            }
+        })?;
     let mut downloaded = 0_u64;
     let mut active_started = Instant::now();
     let mut active_elapsed = Duration::ZERO;
@@ -98,29 +105,30 @@ pub async fn download_archive(
             active_started = Instant::now();
         }
         if active_elapsed + active_started.elapsed() >= READ_TIMEOUT {
-            return Err("La descarga tardó demasiado en completarse.".into());
+            return Err(AppError::new("download_timeout"));
         }
         let chunk = tokio::select! {
-            result = response.chunk() => result.map_err(|error| format!("Falló la descarga de la skin: {error}"))?,
+            result = response.chunk() => result.map_err(|error| AppError::with_detail("download_stream_failed", error.to_string()))?,
             _ = tokio::time::sleep(POLL_INTERVAL) => continue,
         };
         let Some(chunk) = chunk else { break };
         downloaded = downloaded.saturating_add(chunk.len() as u64);
         if downloaded > MAX_ARCHIVE_BYTES || total.is_some_and(|size| downloaded > size) {
-            return Err("La descarga supera el tamaño permitido o declarado.".into());
+            return Err(AppError::new("download_size_exceeded")
+                .with_param("max_bytes", MAX_ARCHIVE_BYTES));
         }
         output
             .write_all(&chunk)
             .await
-            .map_err(|error| format!("No se pudo guardar la descarga temporal: {error}"))?;
+            .map_err(|error| AppError::with_detail("io_error", error.to_string()))?;
         report_progress(channel, downloaded, total, false)?;
     }
     if downloaded == 0 {
-        return Err("WT Live devolvió un archivo vacío.".into());
+        return Err(AppError::new("download_empty_file"));
     }
     if total.is_some_and(|size| downloaded != size) {
-        return Err("La descarga quedó incompleta; inténtalo nuevamente.".into());
+        return Err(AppError::new("download_incomplete"));
     }
-    output.sync_all().await.map_err(|error| error.to_string())?;
+    output.sync_all().await.map_err(|error| AppError::with_detail("io_error", error.to_string()))?;
     Ok(())
 }

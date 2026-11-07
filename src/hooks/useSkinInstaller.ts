@@ -3,6 +3,12 @@ import { cancelSkinDownload, installSkin, setSkinDownloadPaused, type SkinInstal
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../wtLive'
 import type { TranslateFn } from '../i18n/I18nProvider'
+import { formatAppError } from '../lib/appError'
+
+export type SkinInstallWarning = {
+  skippedFiles: number
+  skippedExecutables: number
+}
 
 type Options = {
   gamePath?: string
@@ -19,7 +25,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
   const [cancelled, setCancelled] = useState(false)
   const [error, setError] = useState('')
   const [installedPath, setInstalledPath] = useState('')
-  const [warning, setWarning] = useState<string | null>(null)
+  const [warning, setWarning] = useState<SkinInstallWarning | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const cancelRequestedRef = useRef(false)
 
@@ -46,11 +52,22 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     try {
       const result = await installSkin(item.langGroup, gamePath, taskId, setProgress)
       setInstalledPath(result.path)
-      setWarning(result.warning ?? null)
+      if (result.skippedFiles > 0) {
+        setWarning({
+          skippedFiles: result.skippedFiles,
+          skippedExecutables: result.skippedExecutables,
+        })
+      } else {
+        setWarning(null)
+      }
       onInstalled(item, result)
     } catch (cause) {
-      if (cancelRequestedRef.current) setCancelled(true)
-      else setError(cause instanceof Error ? cause.message : t('skinInstallFailed'))
+      if (cancelRequestedRef.current) {
+        setCancelled(true)
+      } else {
+        const formatted = formatAppError(cause, t)
+        setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+      }
     } finally {
       taskIdRef.current = null
       setInstalling(false)
@@ -69,7 +86,8 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
       await setSkinDownloadPaused(taskId, nextPaused)
     } catch (cause) {
       setPaused(!nextPaused)
-      setError(cause instanceof Error ? cause.message : t('skinInstallFailed'))
+      const formatted = formatAppError(cause, t)
+      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
     }
   }, [paused, t])
 
@@ -83,7 +101,8 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     } catch (cause) {
       cancelRequestedRef.current = false
       setCancelling(false)
-      setError(cause instanceof Error ? cause.message : t('skinInstallFailed'))
+      const formatted = formatAppError(cause, t)
+      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
     }
   }, [t])
 

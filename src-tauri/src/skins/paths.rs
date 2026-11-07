@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+use crate::AppError;
+
 pub const MAX_ARCHIVE_ENTRIES: usize = 3000;
 pub const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
 
@@ -35,17 +37,17 @@ pub fn check_archive_entry_allowed(path: &Path) -> ArchiveEntryFilter {
     ArchiveEntryFilter::DisallowedOther
 }
 
-pub fn safe_archive_path(raw: &str) -> Result<PathBuf, String> {
+pub fn safe_archive_path(raw: &str) -> Result<PathBuf, AppError> {
     if raw.contains('\0') {
-        return Err("El archivo comprimido contiene una ruta no permitida.".into());
+        return Err(AppError::new("archive_invalid_path"));
     }
     let normalized = raw.replace('\\', "/");
     if normalized.contains(':') {
-        return Err("El archivo comprimido contiene una ruta no permitida.".into());
+        return Err(AppError::new("archive_invalid_path"));
     }
     let path = Path::new(&normalized);
     if path.is_absolute() || normalized.starts_with('/') {
-        return Err("El archivo comprimido contiene una ruta absoluta.".into());
+        return Err(AppError::new("archive_absolute_path"));
     }
     let mut safe = PathBuf::new();
     for component in path.components() {
@@ -53,18 +55,16 @@ pub fn safe_archive_path(raw: &str) -> Result<PathBuf, String> {
             Component::Normal(value) => {
                 let value = value.to_string_lossy();
                 if value.ends_with([' ', '.']) || is_windows_reserved(&value) {
-                    return Err(
-                        "El archivo comprimido contiene un nombre de archivo no permitido.".into(),
-                    );
+                    return Err(AppError::new("archive_invalid_filename"));
                 }
                 safe.push(value.as_ref());
             }
             Component::CurDir => {}
-            _ => return Err("El archivo comprimido intenta salir de su carpeta.".into()),
+            _ => return Err(AppError::new("archive_path_escape")),
         }
     }
     if safe.as_os_str().is_empty() {
-        return Err("El archivo comprimido contiene una ruta vacía.".into());
+        return Err(AppError::new("archive_empty_path"));
     }
     Ok(safe)
 }
@@ -109,28 +109,22 @@ pub fn sanitize_folder_name(name: &str) -> String {
     }
 }
 
-pub fn select_skin_root(payload: &Path, archive_name: &str) -> Result<(PathBuf, String), String> {
-    let entries = fs::read_dir(payload)
-        .map_err(|error| error.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string())?;
+pub fn select_skin_root(payload: &Path, archive_name: &str) -> Result<(PathBuf, String), AppError> {
+    let entries = fs::read_dir(payload)?
+        .collect::<Result<Vec<_>, _>>()?;
     if entries.len() == 1
         && entries[0]
-            .file_type()
-            .map_err(|error| error.to_string())?
+            .file_type()?
             .is_dir()
     {
         let outer = entries[0].path();
         let outer_name = entries[0].file_name().to_string_lossy().to_string();
         if outer_name.eq_ignore_ascii_case("UserSkins") {
-            let inner = fs::read_dir(&outer)
-                .map_err(|error| error.to_string())?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|error| error.to_string())?;
+            let inner = fs::read_dir(&outer)?
+                .collect::<Result<Vec<_>, _>>()?;
             if inner.len() == 1
                 && inner[0]
-                    .file_type()
-                    .map_err(|error| error.to_string())?
+                    .file_type()?
                     .is_dir()
             {
                 let name = sanitize_folder_name(&inner[0].file_name().to_string_lossy());
@@ -143,7 +137,7 @@ pub fn select_skin_root(payload: &Path, archive_name: &str) -> Result<(PathBuf, 
     Ok((payload.to_path_buf(), archive_stem(archive_name)))
 }
 
-pub fn unique_folder_name(root: &Path, desired: &str) -> Result<String, String> {
+pub fn unique_folder_name(root: &Path, desired: &str) -> Result<String, AppError> {
     let desired = sanitize_folder_name(desired);
     if !root.join(&desired).exists() {
         return Ok(desired);
@@ -154,42 +148,42 @@ pub fn unique_folder_name(root: &Path, desired: &str) -> Result<String, String> 
             return Ok(candidate);
         }
     }
-    Err("Ya hay demasiadas skins con ese nombre en UserSkins.".into())
+    Err(AppError::new("skin_name_collision_limit"))
 }
 
-pub fn count_files(root: &Path) -> Result<usize, String> {
+pub fn count_files(root: &Path) -> Result<usize, AppError> {
     Ok(walk_files(root)?.len())
 }
 
-pub fn total_size(root: &Path) -> Result<u64, String> {
+pub fn total_size(root: &Path) -> Result<u64, AppError> {
     walk_files(root)?.iter().try_fold(0_u64, |total, file| {
-        let size = file.metadata().map_err(|error| error.to_string())?.len();
+        let size = file.metadata()?.len();
         total
             .checked_add(size)
-            .ok_or_else(|| "El tamaño extraído no es válido.".to_string())
+            .ok_or_else(|| AppError::new("archive_size_overflow"))
     })
 }
 
-pub fn contains_skin_definition(root: &Path) -> Result<bool, String> {
+pub fn contains_skin_definition(root: &Path) -> Result<bool, AppError> {
     Ok(walk_files(root)?.iter().any(|file| {
         file.extension()
             .is_some_and(|extension| extension.eq_ignore_ascii_case("blk"))
     }))
 }
 
-fn walk_files(root: &Path) -> Result<Vec<PathBuf>, String> {
+fn walk_files(root: &Path) -> Result<Vec<PathBuf>, AppError> {
     let mut pending = vec![root.to_path_buf()];
     let mut files = Vec::new();
     while let Some(directory) = pending.pop() {
-        for entry in fs::read_dir(directory).map_err(|error| error.to_string())? {
-            let entry = entry.map_err(|error| error.to_string())?;
-            let kind = entry.file_type().map_err(|error| error.to_string())?;
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
             if kind.is_dir() {
                 pending.push(entry.path());
             } else if kind.is_file() {
                 files.push(entry.path());
             } else {
-                return Err("La skin contiene un tipo de archivo no permitido.".into());
+                return Err(AppError::new("archive_disallowed_entry_type"));
             }
         }
     }

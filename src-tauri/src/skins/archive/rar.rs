@@ -17,22 +17,23 @@ use crate::skins::paths::{
     check_archive_entry_allowed, safe_archive_path, ArchiveEntryFilter, MAX_ARCHIVE_ENTRIES,
     MAX_ENTRY_BYTES,
 };
+use crate::AppError;
 
 pub fn extract(
     archive_path: &Path,
     destination: &Path,
     size_limit: u64,
-) -> Result<ExtractStats, String> {
-    let file = fs::File::open(archive_path).map_err(|error| error.to_string())?;
+) -> Result<ExtractStats, AppError> {
+    let file = fs::File::open(archive_path)?;
     let mut archive =
-        RarArchive::open(file).map_err(|error| format!("No se pudo abrir el RAR: {error}"))?;
+        RarArchive::open(file).map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
     archive.set_limits(Limits {
         max_data_segment: MAX_ENTRY_BYTES,
         max_unpacked_size: MAX_ENTRY_BYTES,
         ..Limits::default()
     });
     if archive.is_empty() {
-        return Err("El RAR está vacío o contiene demasiados archivos.".into());
+        return Err(AppError::new("archive_empty_or_too_many_entries"));
     }
 
     let members = archive.entries().collect::<Vec<_>>();
@@ -43,9 +44,7 @@ pub fn extract(
 
     for member in &members {
         if member.is_symlink || member.is_hardlink || member.is_file_copy {
-            return Err(
-                "La skin RAR contiene enlaces de archivo y se rechazó por seguridad.".into(),
-            );
+            return Err(AppError::new("archive_symlink_rejected"));
         }
         let relative = safe_archive_path(&member.name)?;
         if !member.is_directory {
@@ -53,19 +52,19 @@ pub fn extract(
                 ArchiveEntryFilter::Allowed => {
                     let size = member
                         .unpacked_size
-                        .ok_or_else(|| "El RAR no declara el tamaño de un archivo.".to_string())?;
+                        .ok_or_else(|| AppError::new("archive_missing_size"))?;
                     total_declared = total_declared
                         .checked_add(size)
-                        .ok_or_else(|| "El tamaño declarado del RAR no es válido.".to_string())?;
+                        .ok_or_else(|| AppError::new("archive_size_overflow"))?;
                     if size > MAX_ENTRY_BYTES || total_declared > size_limit {
-                        return Err("La skin RAR supera los límites de extracción permitidos.".into());
+                        return Err(AppError::new("archive_limits_exceeded"));
                     }
                     if !written_paths.insert(relative.clone()) {
-                        return Err("El RAR contiene rutas duplicadas o en conflicto.".into());
+                        return Err(AppError::new("archive_duplicate_paths"));
                     }
                     stats.extracted_files += 1;
                     if stats.extracted_files > MAX_ARCHIVE_ENTRIES {
-                        return Err("La skin RAR supera los límites de extracción permitidos.".into());
+                        return Err(AppError::new("archive_limits_exceeded"));
                     }
                     paths.push((Some(relative), false));
                 }
@@ -90,23 +89,23 @@ pub fn extract(
         };
         let output = destination.join(relative);
         if is_directory {
-            fs::create_dir_all(&output).map_err(|error| error.to_string())?;
+            fs::create_dir_all(&output)?;
             continue;
         }
         let parent = output
             .parent()
-            .ok_or_else(|| "Ruta RAR no válida.".to_string())?;
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+            .ok_or_else(|| AppError::new("archive_invalid_path"))?;
+        fs::create_dir_all(parent)?;
         let mut target = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&output)
-            .map_err(|error| format!("No se pudo extraer un archivo de la skin: {error}"))?;
+            .map_err(|error| AppError::with_detail("archive_extract_file_failed", error.to_string()))?;
         archive
             .by_index(index)
-            .map_err(|error| format!("No se pudo leer un archivo del RAR: {error}"))?
+            .map_err(|error| AppError::with_detail("archive_entry_read_failed", error.to_string()))?
             .copy_to(&mut target)
-            .map_err(|error| format!("Falló la extracción del RAR: {error}"))?;
+            .map_err(|error| AppError::with_detail("archive_extract_file_failed", error.to_string()))?;
     }
     Ok(stats)
 }

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use tauri::ipc::Channel;
 use tempfile::TempDir;
 
-use crate::{game_install, providers::wt_live};
+use crate::{game_install, providers::wt_live, AppError};
 use download_task::{DownloadControl, DownloadManager, SkinInstallProgress};
 
 const MAX_SKIN_BYTES: u64 = 1024 * 1024 * 1024;
@@ -22,7 +22,6 @@ pub struct InstallResult {
     pub size_bytes: u64,
     pub skipped_files: usize,
     pub skipped_executables: usize,
-    pub warning: Option<String>,
 }
 
 pub const STAGING_PREFIX: &str = ".wtcm-staging-";
@@ -115,7 +114,7 @@ pub async fn install_skin(
     task_id: &str,
     on_progress: Channel<SkinInstallProgress>,
     manager: &DownloadManager,
-) -> Result<InstallResult, String> {
+) -> Result<InstallResult, AppError> {
     let control = manager.register(task_id)?;
     let result = async {
         on_progress
@@ -125,7 +124,7 @@ pub async fn install_skin(
                 total_bytes: None,
                 paused: false,
             })
-            .map_err(|error| format!("No se pudo iniciar la descarga: {error}"))?;
+            .map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))?;
         game_install::validate(game_path)?;
         let (download_url, archive_name) = wt_live::skin_download_source(lang_group).await?;
         control.check_cancelled()?;
@@ -143,10 +142,10 @@ pub async fn install_skin(
                 total_bytes: None,
                 paused: false,
             })
-            .map_err(|error| format!("No se pudo actualizar el estado de instalación: {error}"))?;
+            .map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))?;
         tauri::async_runtime::spawn_blocking(move || staging.extract_and_install(&archive_name))
             .await
-            .map_err(|error| format!("La instalación de la skin se interrumpió: {error}"))?
+            .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))?
     }
     .await;
     manager.finish(task_id);
@@ -166,18 +165,18 @@ impl Drop for InstallStaging {
 }
 
 impl InstallStaging {
-    pub fn new(game_path: &str) -> Result<Self, String> {
+    pub fn new(game_path: &str) -> Result<Self, AppError> {
         let game_root = Path::new(game_path);
         if !game_root.is_dir() {
-            return Err("La carpeta del juego no existe o no es válida.".into());
+            return Err(AppError::new("game_folder_not_found"));
         }
 
         let userskins = game_root.join("UserSkins");
         if let Err(error) = std::fs::create_dir_all(&userskins) {
             if error.kind() == std::io::ErrorKind::PermissionDenied {
-                return Err("No se tienen permisos de escritura en la carpeta del juego.".into());
+                return Err(AppError::with_detail("game_permission_denied", error.to_string()));
             }
-            return Err(format!("No se pudo crear la carpeta UserSkins: {error}"));
+            return Err(AppError::with_detail("userskins_create_failed", error.to_string()));
         }
 
         cleanup_orphans(game_root);
@@ -188,9 +187,9 @@ impl InstallStaging {
             .tempdir_in(game_root)
             .map_err(|error| {
                 if error.kind() == std::io::ErrorKind::PermissionDenied {
-                    "No se tienen permisos de escritura en la carpeta del juego.".to_string()
+                    AppError::with_detail("game_permission_denied", error.to_string())
                 } else {
-                    format!("No se pudo preparar la instalación: {error}")
+                    AppError::with_detail("staging_prepare_failed", error.to_string())
                 }
             })?;
         let staging_path = staging.path().to_path_buf();
@@ -208,46 +207,24 @@ impl InstallStaging {
         url: &str,
         control: &DownloadControl,
         channel: &Channel<SkinInstallProgress>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         download::download_archive(url, &self.archive_path, control, channel).await
     }
 
-    pub fn extract_and_install(self, archive_name: &str) -> Result<InstallResult, String> {
+    pub fn extract_and_install(self, archive_name: &str) -> Result<InstallResult, AppError> {
         let payload = self.staging_dir.path().join("payload");
-        std::fs::create_dir(&payload).map_err(|error| error.to_string())?;
+        std::fs::create_dir(&payload)?;
         let stats = archive::extract(&self.archive_path, archive_name, &payload, MAX_SKIN_BYTES)?;
         let (source, folder_name) = paths::select_skin_root(&payload, archive_name)?;
         let file_count = paths::count_files(&source)?;
         if file_count == 0 || !paths::contains_skin_definition(&source)? {
-            return Err(
-                "El archivo descargado no parece contener una skin válida de War Thunder.".into(),
-            );
+            return Err(AppError::new("archive_no_skin_definition"));
         }
         let size_bytes = paths::total_size(&source)?;
         let folder_name = paths::unique_folder_name(&self.userskins, &folder_name)?;
         let destination = self.userskins.join(&folder_name);
         std::fs::rename(&source, &destination)
-            .map_err(|error| format!("No se pudo guardar la skin en UserSkins: {error}"))?;
-
-        let warning = if stats.skipped_files > 0 {
-            if stats.skipped_executables > 0 {
-                Some(format!(
-                    "Se omitieron {} archivos no permitidos (incluyendo {} ejecutables o scripts).",
-                    stats.skipped_files, stats.skipped_executables
-                ))
-            } else {
-                Some(format!(
-                    "Se omitieron {} archivos no permitidos.",
-                    stats.skipped_files
-                ))
-            }
-        } else {
-            None
-        };
-
-        if let Some(ref warn_msg) = warning {
-            eprintln!("[Install Warning] {warn_msg}");
-        }
+            .map_err(|error| AppError::with_detail("skin_save_failed", error.to_string()))?;
 
         Ok(InstallResult {
             folder_name,
@@ -256,7 +233,6 @@ impl InstallStaging {
             size_bytes,
             skipped_files: stats.skipped_files,
             skipped_executables: stats.skipped_executables,
-            warning,
         })
     }
 }
