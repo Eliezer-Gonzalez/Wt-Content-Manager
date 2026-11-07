@@ -1,15 +1,18 @@
-import { Download } from 'lucide-react'
+import { Check, Download, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { SkinDownloadProgress } from './SkinDownloadProgress'
 import { useI18n } from '../i18n/I18nProvider'
 import { formatNumber } from '../lib/format'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
+import type { InstalledSkin } from '../lib/localLibrary'
 
 type Props = {
   downloadUrl?: string
   canInstall: boolean
   installer: SkinInstaller
+  installedEntry?: InstalledSkin | null
   onInstall: () => void
+  onUninstall?: (entry: InstalledSkin) => void
   onChooseGame: () => void
 }
 
@@ -17,7 +20,9 @@ export function PostInstallActions({
   downloadUrl,
   canInstall,
   installer,
+  installedEntry,
   onInstall,
+  onUninstall,
   onChooseGame,
 }: Props) {
   const { t, locale } = useI18n()
@@ -56,16 +61,54 @@ export function PostInstallActions({
         />
       )}
 
+      {installedEntry && !installing && (
+        <div className="mt-5 flex items-start gap-2.5 border border-[#4d5b3d] bg-[#1e261cf0] p-3 text-xs">
+          <Check size={16} className="mt-0.5 shrink-0 text-[#a9ce6b]" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <strong className="block font-medium text-[#dce7cb]">{t('skinAlreadyInstalled')}</strong>
+            <span className="mt-0.5 block truncate text-[11px] text-[#9baa87]" title={installedEntry.path}>
+              {installedEntry.folderName || installedEntry.path}
+            </span>
+          </div>
+        </div>
+      )}
+
       {downloadUrl && !installing && (
-        <Button
-          variant="primary"
-          className="mt-5 w-full"
-          disabled={!canInstall}
-          onClick={onInstall}
-        >
-          <Download size={16} />
-          {t('installSkin')}
-        </Button>
+        <div className={installedEntry ? 'mt-3 flex flex-col gap-2' : 'mt-5'}>
+          <Button
+            variant={installedEntry ? 'secondary' : 'primary'}
+            className="w-full"
+            disabled={!canInstall}
+            onClick={onInstall}
+          >
+            {installedEntry ? <RefreshCw size={16} /> : <Download size={16} />}
+            {t(installedEntry ? 'reinstallSkin' : 'installSkin')}
+          </Button>
+
+          {installedEntry && onUninstall && (
+            <Button
+              variant="danger"
+              className="w-full"
+              onClick={() => onUninstall(installedEntry)}
+            >
+              <Trash2 size={14} />
+              {t('uninstallFromGame')}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {installedEntry && !downloadUrl && !installing && onUninstall && (
+        <div className="mt-3">
+          <Button
+            variant="danger"
+            className="w-full"
+            onClick={() => onUninstall(installedEntry)}
+          >
+            <Trash2 size={14} />
+            {t('uninstallFromGame')}
+          </Button>
+        </div>
       )}
 
       {downloadUrl && !canInstall && (

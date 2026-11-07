@@ -106,7 +106,14 @@ export function HomeDashboard({
     <div className="grid grid-cols-1 gap-3 min-[600px]:grid-cols-2 min-[1050px]:grid-cols-3 min-[1400px]:grid-cols-4 min-[1800px]:grid-cols-5">
       {list.map((item, index) => (
         <div key={item.id} className={FIVE_CARD_VISIBILITY[index] ?? ''}>
-          <PostCard item={item} isSaved={isSaved(item)} onOpen={onOpen} onToggleSaved={onToggleSaved} />
+          <PostCard
+            item={item}
+            isSaved={isSaved(item)}
+            isInstalled={installedSkins.some(s => s.item?.id === item.id)}
+            masonry={false}
+            onOpen={onOpen}
+            onToggleSaved={onToggleSaved}
+          />
         </div>
       ))}
     </div>

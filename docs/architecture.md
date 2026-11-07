@@ -15,7 +15,7 @@ React UI (src/)
 
 - `src/App.tsx` composes the app shell, navigation, catalog and local-library views, and detail/setup dialogs. Feature state is delegated to hooks and components.
 - `src/components/` contains focused UI units: post cards and grids, filters, detail and image viewers, the game setup modal, navigation, and download progress.
-- `src/hooks/` owns reusable stateful behavior, including game setup, local library persistence, per-section searches, skin installation UI state, and grid layout preference.
+- `src/hooks/` owns reusable stateful behavior, including game setup, local library persistence, per-section searches, and skin installation UI state.
 - `src/lib/wtLive.ts` defines frontend WT Live types, maps feed data, parses post descriptions into text/image blocks, validates image URLs, and selects the browser or Tauri request path.
 - `src/i18n/` loads locale JSON files dynamically. Add a locale by adding a JSON file with the same message keys; `I18nProvider` discovers locale files at build time.
 - `src/lib/` contains non-UI helpers for local-library persistence, image URL handling, dates, and app metadata.
@@ -50,7 +50,7 @@ React UI (src/)
 
 ### Local preferences and library
 
-Favorites and installed-skin metadata are serialized in browser `localStorage` (`wt-content-manager-library-v1`). The game path, language, layout, searches, and first-run setup flag use separate local storage keys. The installed files remain in the War Thunder directory; localStorage records metadata and paths, not the skin archive.
+Favorites and installed-skin metadata are serialized in browser `localStorage` (`wt-content-manager-library-v1`). The game path, language, searches, and first-run setup flag use separate local storage keys. The installed files remain in the War Thunder directory; localStorage records metadata and paths, not the skin archive.
 
 ## Boundaries and extension points
 

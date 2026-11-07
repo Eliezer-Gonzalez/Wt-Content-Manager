@@ -1,4 +1,5 @@
-import { Bookmark, ExternalLink, Star } from 'lucide-react'
+import { useState } from 'react'
+import { Bookmark, Check, ExternalLink, Star } from 'lucide-react'
 import { Button } from './ui/Button'
 import { formatNumber, relativeDate } from '../lib/format'
 import type { WtLiveItem } from '../lib/wtLive'
@@ -7,38 +8,47 @@ import { useI18n } from '../i18n/I18nProvider'
 type Props = {
   item: WtLiveItem
   isSaved: boolean
-  imageHeight?: number
+  isInstalled?: boolean
   masonry?: boolean
-  onImageRatio?: (ratio: number) => void
   onOpen: (item: WtLiveItem) => void
   onToggleSaved: (item: WtLiveItem) => void
 }
 
-export function PostCard({ item, isSaved, imageHeight, masonry = false, onImageRatio, onOpen, onToggleSaved }: Props) {
+export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
+  const imageLoaded = Boolean(item.imageUrl && loadedUrl === item.imageUrl)
+  const aspectRatio = Math.max(0.45, Math.min(2.5, item.imageAspectRatio ?? 1.6))
+
   return (
-    <article className={`group flex min-w-0 flex-col border border-[#30372f] bg-wt-panel transition-colors hover:border-[#687354] ${masonry ? 'h-auto' : 'h-full'}`}>
+    <article className={`group flex min-w-0 flex-col border border-[#30372f] bg-wt-panel transition-colors hover:border-[#687354] ${masonry ? '' : 'h-full'}`}>
       <div className="relative">
         {/* Mouse-only shortcut: the title button below is the single keyboard/screen-reader control for opening the post. */}
         <div
-          style={imageHeight ? { height: imageHeight } : undefined}
-          className={`relative block w-full cursor-pointer overflow-hidden bg-[#1a201b] text-left ${masonry ? 'min-h-[150px]' : 'h-[190px] max-[720px]:h-[170px] max-[420px]:h-[180px]'}`}
+          style={masonry ? { aspectRatio } : undefined}
+          className={`relative block w-full cursor-pointer overflow-hidden bg-[#1a201b] text-left ${masonry ? '' : 'aspect-[16/10]'}`}
           onClick={() => onOpen(item)}
         >
           {item.imageUrl && (
             <img
               src={item.imageUrl}
               alt=""
-              className={masonry ? 'relative block h-auto max-h-[440px] w-full object-contain' : 'absolute inset-0 size-full object-contain'}
+              className={`absolute inset-0 size-full object-cover transition-opacity duration-200 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading="lazy"
-              onLoad={event => {
-                const { naturalWidth, naturalHeight } = event.currentTarget
-                if (naturalWidth > 0 && naturalHeight > 0) onImageRatio?.(naturalWidth / naturalHeight)
-              }}
+              onLoad={() => setLoadedUrl(item.imageUrl ?? null)}
+              onError={() => setLoadedUrl(item.imageUrl ?? null)}
             />
           )}
           <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent"/>
-          <span className="absolute left-2.5 top-2.5 bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t('camouflage')}</span>
+          <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+            <span className="bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t('camouflage')}</span>
+            {isInstalled && (
+              <span className="flex items-center gap-1 border border-[#6f8252] bg-[#1e271be8] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882] shadow-sm backdrop-blur-xs">
+                <Check size={11} strokeWidth={3} aria-hidden="true" />
+                {t('installedBadge')}
+              </span>
+            )}
+          </div>
           <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 text-[11px] text-[#e4e2d4]">
             <Star size={12} className="text-[#bcc793]" fill="currentColor"/>
             <span className="sr-only">{t('likes', { count: item.likes })}</span>

@@ -11,6 +11,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { useI18n } from '../i18n/I18nProvider'
 import type { WtLiveDetail, WtLiveItem } from '../lib/wtLive'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
+import type { InstalledSkin } from '../lib/localLibrary'
 
 type Props = {
   item: WtLiveItem
@@ -19,7 +20,9 @@ type Props = {
   error: string
   canInstall: boolean
   installer: SkinInstaller
+  installedEntry?: InstalledSkin | null
   onInstall: () => void
+  onUninstall?: (entry: InstalledSkin) => void
   onChooseGame: () => void
   onClose: () => void
   onSearchHashtag: (hashtag: string) => void
@@ -32,7 +35,9 @@ export function PostDetailDialog({
   error,
   canInstall,
   installer,
+  installedEntry,
   onInstall,
+  onUninstall,
   onChooseGame,
   onClose,
   onSearchHashtag,
@@ -215,7 +220,9 @@ export function PostDetailDialog({
             downloadUrl={item.downloadUrl}
             canInstall={canInstall}
             installer={installer}
+            installedEntry={installedEntry}
             onInstall={onInstall}
+            onUninstall={onUninstall}
             onChooseGame={onChooseGame}
           />
 

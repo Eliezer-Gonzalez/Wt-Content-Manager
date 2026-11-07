@@ -9,9 +9,7 @@ import { PostDetailDialog } from './components/PostDetailDialog'
 import { PostCardSkeleton } from './components/PostCardSkeleton'
 import { InstalledSkinCard } from './components/InstalledSkinCard'
 import { PaginatedGrid } from './components/PaginatedGrid'
-import { JustifiedPostGrid } from './components/JustifiedPostGrid'
 import { MasonryPostGrid } from './components/MasonryPostGrid'
-import { PostLayoutToggle } from './components/PostLayoutToggle'
 import { SoundComingSoon } from './components/SoundComingSoon'
 import { PeriodFilter } from './components/PeriodFilter'
 import { EmptyLibraryState } from './components/EmptyLibraryState'
@@ -23,7 +21,6 @@ import { useGameInstallation } from './hooks/useGameInstallation'
 import { useLocalLibrary } from './hooks/useLocalLibrary'
 import { useSkinInstaller } from './hooks/useSkinInstaller'
 import { useSectionSearch } from './hooks/useSectionSearch'
-import { usePostLayout } from './hooks/usePostLayout'
 import { useAutoLoadMore } from './hooks/useAutoLoadMore'
 import { useCamouflageFeed } from './hooks/useCamouflageFeed'
 import { usePostDetail } from './hooks/usePostDetail'
@@ -38,7 +35,6 @@ export default function App() {
   const gameSetup = useGameInstallation()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
   const [active, setActive] = useState<AppSection>('camouflages')
-  const [postLayout, setPostLayout] = usePostLayout()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { searches, setSearch } = useSectionSearch()
   const query = searches[active] ?? ''
@@ -75,6 +71,11 @@ export default function App() {
     `${entry.item?.title ?? ''} ${entry.item?.author ?? ''} ${entry.item?.fileName ?? ''} ${entry.folderName}`.toLowerCase().includes(query.toLowerCase()),
   ), [library.installedSkins, query])
 
+  const installedIds = useMemo(
+    () => new Set(library.installedSkins.flatMap(s => (s.item?.id != null ? [s.item.id] : []))),
+    [library.installedSkins],
+  )
+
   const feedLoadMoreRef = useAutoLoadMore({
     enabled: active === 'camouflages' && feed.hasNext && !feed.loading && !feed.loadingMore && !feed.loadMoreError && visible.length > 0 && visible.length % 150 !== 0,
     onLoadMore: feed.loadMore,
@@ -102,7 +103,7 @@ export default function App() {
     }
     if (active === 'favorites') {
       if (visible.length === 0) return query ? emptyMessage : <EmptyLibraryState kind="favorites" onExplore={() => setActive('camouflages')} />
-      return <PaginatedGrid items={visible} resetKey={`favorites-${query}`} getKey={item => String(item.id)} gridClassName="grid grid-cols-2 gap-3 min-[1400px]:grid-cols-3 min-[1800px]:grid-cols-4 min-[2300px]:grid-cols-5 max-[720px]:gap-2.5 max-[420px]:grid-cols-1" renderItem={item => <PostCard item={item} isSaved onOpen={openPost} onToggleSaved={library.toggleFavorite} />} />
+      return <PaginatedGrid items={visible} resetKey={`favorites-${query}`} getKey={item => String(item.id)} gridClassName="grid grid-cols-2 gap-3 min-[1400px]:grid-cols-3 min-[1800px]:grid-cols-4 min-[2300px]:grid-cols-5 max-[720px]:gap-2.5 max-[420px]:grid-cols-1" renderItem={item => <PostCard item={item} isSaved isInstalled={installedIds.has(item.id)} masonry={false} onOpen={openPost} onToggleSaved={library.toggleFavorite} />} />
     }
     if (feed.error) return <div className="grid min-h-40 place-items-center text-center"><div><p className="text-sm text-[#c2c8bb]">{feed.error}</p><Button variant="primary" onClick={feed.retry}>{t('retry')}</Button></div></div>
     if (feed.loading) return <PostCardSkeleton label={t('loading')} />
@@ -111,11 +112,18 @@ export default function App() {
     const isItemSaved = (item: WtLiveItem) => library.favorites.some(saved => saved.id === item.id)
     return (
       <>
-        {postLayout === 'justified' ? (
-          <JustifiedPostGrid items={visible} renderItem={(item, imageHeight, onImageRatio) => <PostCard item={item} imageHeight={imageHeight} onImageRatio={onImageRatio} isSaved={isItemSaved(item)} onOpen={openPost} onToggleSaved={library.toggleFavorite} />} />
-        ) : (
-          <MasonryPostGrid items={visible} renderItem={item => <PostCard item={item} masonry isSaved={isItemSaved(item)} onOpen={openPost} onToggleSaved={library.toggleFavorite} />} />
-        )}
+        <MasonryPostGrid
+          items={visible}
+          renderItem={item => (
+            <PostCard
+              item={item}
+              isSaved={isItemSaved(item)}
+              isInstalled={installedIds.has(item.id)}
+              onOpen={openPost}
+              onToggleSaved={library.toggleFavorite}
+            />
+          )}
+        />
         {feed.loadMoreError && <p className="mt-4 text-center text-sm text-amber-200" role="alert">{feed.loadMoreError}</p>}
         {(feed.hasNext || feed.loadingMore) && (
           <div ref={feedLoadMoreRef} className="mt-5 flex justify-center">
@@ -132,6 +140,7 @@ export default function App() {
   const titleFirstLine = isLocalLibrary ? '' : t('recentTitlePrefix')
   const titleLastWord = active === 'downloads' ? t('downloads') : active === 'favorites' ? t('favorites') : t('recentTitleHighlight')
   const selectedPeriodLabel = feed.period === 7 ? 'periodWeek' : feed.period === 90 ? 'periodThreeMonths' : feed.period === 180 ? 'periodSixMonths' : 'periodAll'
+  const selectedInstalledSkin = selected ? library.installedSkins.find(s => s.item?.id === selected.id) : null
 
   return <div className={`${isTauriRuntime ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-wt-bg font-sans text-[#e3e4dc]`} onContextMenu={event => event.preventDefault()}>
     {isTauriRuntime && <WindowTitleBar />}
@@ -184,7 +193,6 @@ export default function App() {
                   <span>{t('rescanSkins')}</span>
                 </Button>
               )}
-              {active === 'camouflages' && <PostLayoutToggle value={postLayout} onChange={setPostLayout} />}
               {active !== 'downloads' && <>{t('sortBy')}<Button variant="quiet" className="min-h-9 px-2 text-xs" onClick={() => {
                 setSort(current => current === 'recent' ? 'popular' : 'recent')
                 if (active === 'camouflages') feed.loadPage(0)
@@ -215,7 +223,10 @@ export default function App() {
       <PostDetailDialog
         item={selected} detail={detail} loading={detailLoading} error={detailError}
         canInstall={isTauriRuntime} installer={skinInstaller}
-        onInstall={() => void handleInstallSkin()} onChooseGame={gameSetup.openSetup}
+        installedEntry={selectedInstalledSkin}
+        onInstall={() => void handleInstallSkin()}
+        onUninstall={entry => { closePost(); library.requestUninstall(entry); }}
+        onChooseGame={gameSetup.openSetup}
         onSearchHashtag={handleSearchHashtag} onClose={closePost}
       />
     )}
