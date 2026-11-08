@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Check, Download, RefreshCw, Trash2 } from 'lucide-react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { Button } from './ui/Button'
 import { SkinDownloadProgress } from './SkinDownloadProgress'
 import { ConfirmReinstallModal } from './ConfirmReinstallModal'
 import { useI18n } from '../i18n/I18nProvider'
 import { formatNumber } from '../lib/format'
+import { isTauriRuntime } from '../lib/gameInstall'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
 import type { InstalledSkin } from '../lib/localLibrary'
 
@@ -30,6 +32,7 @@ export function PostInstallActions({
   onChooseGame,
 }: Props) {
   const [reinstallTarget, setReinstallTarget] = useState<InstalledSkin | null>(null)
+  const [referenceLinkError, setReferenceLinkError] = useState(false)
   const { t, locale } = useI18n()
   const {
     installing,
@@ -44,15 +47,32 @@ export function PostInstallActions({
     cancel,
   } = installer
 
-  const warningMessage =
-    warning && warning.skippedFiles > 0
-      ? warning.skippedExecutables > 0
+  const warningMessages = warning ? [
+    ...(warning.skippedFiles > 0
+      ? [warning.skippedExecutables > 0
         ? t('skinWarningSkippedWithExecutables', {
             count: warning.skippedFiles,
             executables: formatNumber(warning.skippedExecutables, locale),
           })
-        : t('skinWarningSkipped', { count: warning.skippedFiles })
-      : null
+        : t('skinWarningSkipped', { count: warning.skippedFiles })]
+      : []),
+    ...(warning.missingTextureCount > 0
+      ? [t('skinWarningMissingTextures', {
+          count: formatNumber(warning.missingTextureCount, locale),
+          files: warning.missingTextureNames.join(', '),
+        })]
+      : []),
+  ] : []
+
+  async function openReference(url: string) {
+    setReferenceLinkError(false)
+    try {
+      if (isTauriRuntime) await openUrl(url)
+      else window.open(url, '_blank', 'noopener,noreferrer')
+    } catch {
+      setReferenceLinkError(true)
+    }
+  }
 
   return (
     <>
@@ -144,13 +164,26 @@ export function PostInstallActions({
             <br />
             <span className="text-[#aeb99e]">{installedPath}</span>
           </p>
-          {warningMessage && (
+          {warningMessages.map((warningMessage, index) => (
             <p
+              key={`${index}-${warningMessage}`}
               role="status"
               className="mt-2 border border-[#4a4731] bg-[#24221a] p-3 text-xs leading-5 text-[#dcd4a8]"
             >
               {warningMessage}
             </p>
+          ))}
+          {warning && warning.missingTextureCount > 0 && (
+            <div className="mt-2 border border-[#4a4731] bg-[#24221a] p-3 text-xs leading-5 text-[#dcd4a8]">
+              <span className="mr-2">{t('skinWarningReferences')}:</span>
+              <button type="button" className="mr-3 underline underline-offset-2 hover:text-[#f0d98e]" onClick={() => void openReference('https://wiki.warthunder.com/cdk/creation_camo')}>
+                {t('skinWarningGuideLink')}
+              </button>
+              <button type="button" className="underline underline-offset-2 hover:text-[#f0d98e]" onClick={() => void openReference('https://live.warthunder.com/rules/')}>
+                {t('skinWarningRulesLink')}
+              </button>
+              {referenceLinkError && <span className="mt-1 block text-amber-200" role="alert">{t('settingsAboutLinkFailed')}</span>}
+            </div>
           )}
         </>
       )}

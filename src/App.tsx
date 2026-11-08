@@ -228,7 +228,7 @@ export default function App() {
               {active === 'downloads' && gameSetup.gameInstall && (
                 <Button variant="secondary" size="sm" onClick={() => void library.rescanSkins()} disabled={library.scanning}>
                   <RefreshCw size={13} className={library.scanning ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />
-                  <span>{t('rescanSkins')}</span>
+                  <span>{t(library.scanning ? 'scanningSkins' : 'rescanSkins')}</span>
                 </Button>
               )}
               {active !== 'downloads' && <>{t('sortBy')}<Button variant="quiet" className="min-h-9 px-2 text-xs" onClick={() => {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { isTauriRuntime } from '../lib/gameInstall'
 import { loadLocalLibrary, mergeScannedSkins, saveLocalLibrary, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
 import { scanInstalledSkins, uninstallSkin } from '../lib/skins'
+import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 import { formatAppError } from '../lib/appError'
 import type { TranslateFn } from '../i18n/I18nProvider'
 import type { WtLiveItem } from '../lib/wtLive'
@@ -26,6 +27,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
 
   const rescanSkins = useCallback(async () => {
     if (!isTauriRuntime || !gamePath) return
+    const startedAt = Date.now()
     setScanning(true)
     try {
       const scanned = await scanInstalledSkins(gamePath)
@@ -36,6 +38,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     } catch {
       /* Keep current installed list if scan fails. */
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setScanning(false)
     }
   }, [gamePath])

@@ -161,7 +161,7 @@ pub fn contains_skin_definition(root: &Path) -> Result<bool, AppError> {
     }))
 }
 
-fn walk_files(root: &Path) -> Result<Vec<PathBuf>, AppError> {
+pub(super) fn walk_files(root: &Path) -> Result<Vec<PathBuf>, AppError> {
     let mut pending = vec![root.to_path_buf()];
     let mut files = Vec::new();
     while let Some(directory) = pending.pop() {

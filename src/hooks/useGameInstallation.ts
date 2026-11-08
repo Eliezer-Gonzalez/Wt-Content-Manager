@@ -8,6 +8,7 @@ import {
   validateSavedGamePath,
   type GameInstall,
 } from '../lib/gameInstall'
+import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 
 const setupSeenKey = 'wt-content-manager-game-setup-seen'
 
@@ -34,6 +35,7 @@ export function useGameInstallation() {
 
   const scan = useCallback(async () => {
     if (!isTauriRuntime) return
+    const startedAt = Date.now()
     setLoading(true)
     setError(null)
     try {
@@ -50,6 +52,7 @@ export function useGameInstallation() {
     } catch {
       setError('gameSetupScanFailed')
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setLoading(false)
     }
   }, [])

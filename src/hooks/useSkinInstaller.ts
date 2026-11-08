@@ -8,6 +8,8 @@ import { formatAppError } from '../lib/appError'
 export type SkinInstallWarning = {
   skippedFiles: number
   skippedExecutables: number
+  missingTextureCount: number
+  missingTextureNames: string[]
 }
 
 type Options = {
@@ -74,15 +76,18 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
       }, replaceFolderName)
       if (!mountedRef.current) return
       setInstalledPath(result.path)
-      if (result.skippedFiles > 0) {
+      if (result.skippedFiles > 0 || result.missingTextureCount > 0) {
         setWarning({
           skippedFiles: result.skippedFiles,
           skippedExecutables: result.skippedExecutables,
+          missingTextureCount: result.missingTextureCount,
+          missingTextureNames: result.missingTextureNames,
         })
       } else {
         setWarning(null)
       }
-      onInstalled(item, result)
+      const { missingTextureCount: _missingCount, missingTextureNames: _missingNames, ...installedSkin } = result
+      onInstalled(item, installedSkin)
     } catch (cause) {
       if (!mountedRef.current) return
       if (cancelRequestedRef.current) {

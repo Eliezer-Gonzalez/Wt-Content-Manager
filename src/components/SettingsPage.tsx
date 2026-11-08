@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Copy, FileText, FolderOpen, Gamepad2, LoaderCircle, ShieldCheck } from 'lucide-react'
 import { SectionHeader } from './HeroBanner'
 import { Button } from './ui/Button'
@@ -24,23 +24,7 @@ type Props = {
 export function SettingsPage({ gameInstall, gameLoading, diagnostics, onOpenGameSetup, onRescanGame, onViewLegalNotice }: Props) {
   const { t } = useI18n()
   const diagnosticsEnabled = diagnostics.settings?.enabled ?? diagnostics.supported
-  const [showRescanFeedback, setShowRescanFeedback] = useState(false)
   const [userSkinsError, setUserSkinsError] = useState(false)
-  const rescanFeedbackTimer = useRef<number | null>(null)
-
-  useEffect(() => () => {
-    if (rescanFeedbackTimer.current !== null) window.clearTimeout(rescanFeedbackTimer.current)
-  }, [])
-
-  function handleRescanGame() {
-    if (rescanFeedbackTimer.current !== null) window.clearTimeout(rescanFeedbackTimer.current)
-    setShowRescanFeedback(true)
-    rescanFeedbackTimer.current = window.setTimeout(() => {
-      setShowRescanFeedback(false)
-      rescanFeedbackTimer.current = null
-    }, 900)
-    onRescanGame()
-  }
 
   async function handleOpenUserSkins() {
     if (!gameInstall) return
@@ -78,7 +62,7 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, onOpenGame
             <div>
               <p className="mb-1 text-xs text-[#969f92]">{t('settingsGamePath')}</p>
               <p className="mb-0 break-all border border-[#30372e] bg-[#171c17] px-3 py-2.5 text-xs leading-5 text-[#c9d0bf]">
-                {showRescanFeedback ? (
+                {gameLoading ? (
                   <span className="flex items-center gap-2 text-[#bdc99e]">
                     <LoaderCircle size={14} className="shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                     {t('gameSetupSearching')}
@@ -91,8 +75,9 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, onOpenGame
               <Button variant="secondary" size="sm" onClick={onOpenGameSetup}>
                 <FolderOpen size={14} />{t(gameInstall ? 'settingsChangeGamePath' : 'settingsChooseGamePath')}
               </Button>
-              <Button variant="quiet" size="sm" onClick={handleRescanGame} disabled={gameLoading}>
-                {t('gameSetupRescan')}
+              <Button variant="quiet" size="sm" onClick={onRescanGame} disabled={gameLoading}>
+                {gameLoading && <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+                {t(gameLoading ? 'gameSetupSearching' : 'gameSetupRescan')}
               </Button>
               <Button variant="secondary" size="sm" onClick={() => void handleOpenUserSkins()} disabled={!gameInstall}>
                 <FolderOpen size={14} aria-hidden="true" />{t('settingsOpenUserSkins')}

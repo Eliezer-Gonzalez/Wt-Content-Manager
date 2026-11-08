@@ -4,6 +4,7 @@ pub mod download_task;
 pub mod library;
 mod paths;
 mod staging;
+mod texture_validation;
 
 pub use library::{scan_installed_skins, uninstall_skin, ScannedSkin};
 pub use staging::{
@@ -31,6 +32,8 @@ pub struct InstallResult {
     pub size_bytes: u64,
     pub skipped_files: usize,
     pub skipped_executables: usize,
+    pub missing_texture_count: usize,
+    pub missing_texture_names: Vec<String>,
 }
 
 pub async fn install_skin(
@@ -176,6 +179,7 @@ impl InstallStaging {
             std::fs::rename(&source, &destination)
                 .map_err(|error| AppError::with_detail("skin_save_failed", error.to_string()))?;
         }
+        let missing_textures = texture_validation::find_missing_references(&destination);
 
         Ok(InstallResult {
             folder_name,
@@ -184,6 +188,8 @@ impl InstallStaging {
             size_bytes,
             skipped_files: stats.skipped_files,
             skipped_executables: stats.skipped_executables,
+            missing_texture_count: missing_textures.count,
+            missing_texture_names: missing_textures.names,
         })
     }
 }

@@ -14,6 +14,8 @@ export type SkinInstallResult = {
   sizeBytes: number
   skippedFiles: number
   skippedExecutables: number
+  missingTextureCount: number
+  missingTextureNames: string[]
 }
 
 export type ScannedSkin = {

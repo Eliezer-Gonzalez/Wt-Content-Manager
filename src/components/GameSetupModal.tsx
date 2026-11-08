@@ -120,7 +120,10 @@ export function GameSetupModal({
 
         <footer className="space-y-3 border-t border-[#343b32] px-6 py-4 max-[420px]:px-5">
           <div className="flex flex-wrap gap-2">
-            <Button className="border-[#4c5844] bg-[#242b22] hover:bg-[#2e372b]" onClick={onRescan} disabled={loading}><RefreshCw size={15}/>{t('gameSetupRescan')}</Button>
+            <Button className="border-[#4c5844] bg-[#242b22] hover:bg-[#2e372b]" onClick={onRescan} disabled={loading}>
+              {loading ? <LoaderCircle size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true"/> : <RefreshCw size={15}/>}
+              {t(loading ? 'gameSetupSearching' : 'gameSetupRescan')}
+            </Button>
             <Button className="border-[#4c5844] bg-[#242b22] hover:bg-[#2e372b]" onClick={onChooseManual}><FolderOpen size={15}/>{t('gameSetupManual')}</Button>
           </div>
           <div className="flex flex-col gap-2 min-[421px]:flex-row min-[421px]:items-center min-[421px]:justify-between">
