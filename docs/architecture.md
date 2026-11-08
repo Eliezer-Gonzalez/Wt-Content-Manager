@@ -48,7 +48,7 @@ React UI (src/)
 1. The frontend invokes `install_skin` and listens on a Tauri channel for phase and byte progress.
 2. Rust validates the game path, obtains the archive URL from the post detail, creates temporary staging under the game's `UserSkins`, and streams the archive to a temporary file.
 3. The download manager accepts pause/cancel controls only during transfer. Cancellation/error cleanup removes temporary download/staging data.
-4. Once transfer completes, Rust validates and extracts ZIP/RAR content on a blocking worker, rejects unsafe archive paths/oversized inputs, and places the skin in `UserSkins`. Extraction is not currently interruptible from the UI.
+4. Once transfer completes, Rust checks the file signature, accepts ZIP archives only, and extracts them on a blocking worker. It rejects unsafe archive paths and oversized inputs before placing the skin in `UserSkins`. Extraction is not currently interruptible from the UI.
 5. The frontend records a successful installation in its local library.
 
 ### Local preferences and library

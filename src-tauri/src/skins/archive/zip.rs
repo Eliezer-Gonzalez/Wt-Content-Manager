@@ -103,7 +103,7 @@ pub fn extract(
 #[cfg(test)]
 mod tests {
     use super::extract;
-    use crate::skins::paths::contains_skin_definition;
+    use crate::skins::{archive, paths::contains_skin_definition};
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
@@ -166,5 +166,30 @@ mod tests {
         assert_eq!(stats.skipped_files, 3);
         assert_eq!(stats.skipped_executables, 2);
         assert!(!contains_skin_definition(dest.path()).unwrap());
+    }
+
+    #[test]
+    fn rejects_non_zip_content_regardless_of_extension() {
+        let archive_file = tempfile::Builder::new().suffix(".zip").tempfile().unwrap();
+        std::fs::write(archive_file.path(), b"not a zip archive").unwrap();
+        let dest = tempdir().unwrap();
+
+        let error =
+            archive::extract(archive_file.path(), dest.path(), 10 * 1024 * 1024).unwrap_err();
+
+        assert_eq!(error.code, "archive_unsupported_format");
+    }
+
+    #[test]
+    fn extracts_zip_content_regardless_of_extension() {
+        let zip_file = build_test_zip(&[("skin.blk", b"set_skin {}")]);
+        let archive_file = tempfile::Builder::new().suffix(".rar").tempfile().unwrap();
+        std::fs::copy(zip_file.path(), archive_file.path()).unwrap();
+        let dest = tempdir().unwrap();
+
+        let stats = archive::extract(archive_file.path(), dest.path(), 10 * 1024 * 1024).unwrap();
+
+        assert_eq!(stats.extracted_files, 1);
+        assert!(dest.path().join("skin.blk").is_file());
     }
 }

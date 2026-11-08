@@ -149,7 +149,7 @@ impl InstallStaging {
     pub fn extract_and_install(self, archive_name: &str) -> Result<InstallResult, AppError> {
         let payload = self.staging_dir.path().join("payload");
         std::fs::create_dir(&payload)?;
-        let stats = archive::extract(&self.archive_path, archive_name, &payload, MAX_SKIN_BYTES)?;
+        let stats = archive::extract(&self.archive_path, &payload, MAX_SKIN_BYTES)?;
         let (source, folder_name) = paths::select_skin_root(&payload, archive_name)?;
         let file_count = paths::count_files(&source)?;
         if file_count == 0 || !paths::contains_skin_definition(&source)? {

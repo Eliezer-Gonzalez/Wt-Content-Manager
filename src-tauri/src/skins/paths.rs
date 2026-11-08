@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn derives_folder_from_archive_filename() {
-        assert_eq!(archive_stem("Z33 chocolate.rar"), "Z33 chocolate");
+        assert_eq!(archive_stem("Z33 chocolate.zip"), "Z33 chocolate");
     }
 
     #[test]

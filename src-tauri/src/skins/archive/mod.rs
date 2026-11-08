@@ -1,6 +1,7 @@
-mod rar;
 mod zip;
 
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 
 use crate::AppError;
@@ -12,22 +13,17 @@ pub struct ExtractStats {
     pub skipped_executables: usize,
 }
 
-pub fn extract(
-    archive: &Path,
-    archive_name: &str,
-    destination: &Path,
-    limit: u64,
-) -> Result<ExtractStats, AppError> {
-    let stats = match archive_name
-        .rsplit('.')
-        .next()
-        .unwrap_or("")
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "zip" => zip::extract(archive, destination, limit)?,
-        "rar" => rar::extract(archive, destination, limit)?,
-        _ => return Err(AppError::new("archive_unsupported_format")),
-    };
-    Ok(stats)
+pub fn extract(archive: &Path, destination: &Path, limit: u64) -> Result<ExtractStats, AppError> {
+    let mut file = File::open(archive)?;
+    let mut signature = [0; 4];
+    let bytes_read = file.read(&mut signature)?;
+    let is_zip = bytes_read == signature.len()
+        && matches!(
+            signature,
+            [b'P', b'K', 3, 4] | [b'P', b'K', 5, 6] | [b'P', b'K', 7, 8]
+        );
+    if !is_zip {
+        return Err(AppError::new("archive_unsupported_format"));
+    }
+    zip::extract(archive, destination, limit)
 }

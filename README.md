@@ -6,7 +6,7 @@ An independent Windows desktop tool for finding and managing community-made War 
 
 ## Why this project exists
 
-Managing a user camouflage through the usual manual flow can mean finding a post on War Thunder Live, downloading a ZIP or RAR archive, opening the game folder, extracting and moving files into `UserSkins`, and then cleaning up the archive. This project began as a personal tool to make that routine easier. It is public in case it is useful to other players.
+Managing a user camouflage through the usual manual flow can mean finding a post on War Thunder Live, downloading a ZIP archive, opening the game folder, extracting and moving files into `UserSkins`, and then cleaning up the archive. This project began as a personal tool to make that routine easier. It is public in case it is useful to other players.
 
 ## Current scope
 

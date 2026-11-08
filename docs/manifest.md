@@ -21,7 +21,7 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 - View post descriptions, images, hashtags, and the original post/comments link.
 - Switch between Masonry and Justified catalog layouts.
 - Save favorites, record installed skins, and remember the selected game path and UI preferences locally.
-- Detect/select a War Thunder installation and install supported ZIP/RAR skin archives into its `UserSkins` directory.
+- Detect/select a War Thunder installation and install supported ZIP skin archives into its `UserSkins` directory.
 - Show download progress and allow pause, resume, or cancellation while bytes are downloading. Archive extraction/installation follows after transfer and is not pausable.
 - Configure the War Thunder path and local diagnostic logging in Settings.
 - Store bounded diagnostic logs locally by default, with an opt-out; provide controls to copy recent logs or open their folder. No telemetry or automatic upload is used.
