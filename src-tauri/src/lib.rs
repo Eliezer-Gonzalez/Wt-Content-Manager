@@ -4,6 +4,7 @@ mod game_install;
 pub mod http;
 mod logging;
 mod providers;
+mod settings;
 mod skins;
 
 use tauri::Manager;
@@ -48,6 +49,9 @@ pub fn run() {
             commands::write_diagnostic,
             commands::read_recent_diagnostics,
             commands::open_diagnostics_folder,
+            settings::get_orphan_temporary_files,
+            settings::cleanup_orphan_temporary_files,
+            settings::open_user_skins_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running WT Content Manager");

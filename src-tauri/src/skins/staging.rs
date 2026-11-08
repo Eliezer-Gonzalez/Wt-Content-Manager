@@ -1,4 +1,22 @@
+use serde::Serialize;
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporaryFileReport {
+    pub directory_count: usize,
+    pub total_bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporaryCleanupOutcome {
+    pub removed_directories: usize,
+    pub freed_bytes: u64,
+    pub failed_directories: usize,
+}
 
 pub const STAGING_PREFIX: &str = ".wtcm-staging-";
 pub const STAGING_SUFFIX_LEN: usize = 16;
@@ -44,9 +62,60 @@ pub fn cleanup_orphans(game_root: &Path) {
 }
 
 pub fn cleanup_orphans_with_threshold(game_root: &Path, age_threshold: std::time::Duration) {
-    let Ok(entries) = std::fs::read_dir(game_root) else {
-        return;
-    };
+    let _ = cleanup_orphan_staging_with_threshold(game_root, age_threshold);
+}
+
+pub fn inspect_orphan_staging(game_root: &Path) -> io::Result<TemporaryFileReport> {
+    inspect_orphan_staging_with_threshold(game_root, DEFAULT_ORPHAN_AGE_THRESHOLD)
+}
+
+pub fn inspect_orphan_staging_with_threshold(
+    game_root: &Path,
+    age_threshold: std::time::Duration,
+) -> io::Result<TemporaryFileReport> {
+    let directories = eligible_orphan_staging_dirs(game_root, age_threshold)?;
+    let mut report = TemporaryFileReport::default();
+    for directory in directories {
+        report.total_bytes = report
+            .total_bytes
+            .saturating_add(directory_size(&directory)?);
+        report.directory_count += 1;
+    }
+    Ok(report)
+}
+
+pub fn cleanup_orphan_staging(game_root: &Path) -> io::Result<TemporaryCleanupOutcome> {
+    cleanup_orphan_staging_with_threshold(game_root, DEFAULT_ORPHAN_AGE_THRESHOLD)
+}
+
+pub fn cleanup_orphan_staging_with_threshold(
+    game_root: &Path,
+    age_threshold: std::time::Duration,
+) -> io::Result<TemporaryCleanupOutcome> {
+    let directories = eligible_orphan_staging_dirs(game_root, age_threshold)?;
+    let mut outcome = TemporaryCleanupOutcome::default();
+    for directory in directories {
+        let Ok(bytes) = directory_size(&directory) else {
+            outcome.failed_directories += 1;
+            continue;
+        };
+        match fs::remove_dir_all(&directory) {
+            Ok(()) => {
+                outcome.removed_directories += 1;
+                outcome.freed_bytes = outcome.freed_bytes.saturating_add(bytes);
+            }
+            Err(_) => outcome.failed_directories += 1,
+        }
+    }
+    Ok(outcome)
+}
+
+fn eligible_orphan_staging_dirs(
+    game_root: &Path,
+    age_threshold: std::time::Duration,
+) -> io::Result<Vec<PathBuf>> {
+    let entries = std::fs::read_dir(game_root)?;
+    let mut directories = Vec::new();
     for entry in entries.flatten() {
         let Ok(file_type) = entry.file_type() else {
             continue;
@@ -66,130 +135,37 @@ pub fn cleanup_orphans_with_threshold(game_root: &Path, age_threshold: std::time
             continue;
         }
 
-        if let Ok(metadata) = entry.metadata() {
-            if let Ok(modified) = metadata.modified() {
-                match modified.elapsed() {
-                    Ok(elapsed) if elapsed < age_threshold => {
-                        continue;
-                    }
-                    Err(_) => {
-                        continue;
-                    }
-                    _ => {}
-                }
+        let Ok(modified) = entry.metadata().and_then(|metadata| metadata.modified()) else {
+            continue;
+        };
+        let Ok(elapsed) = modified.elapsed() else {
+            continue;
+        };
+        if elapsed < age_threshold {
+            continue;
+        }
+        directories.push(entry_path);
+    }
+    Ok(directories)
+}
+
+fn directory_size(root: &Path) -> io::Result<u64> {
+    let mut pending = vec![root.to_path_buf()];
+    let mut total = 0_u64;
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() {
+                total = total.saturating_add(entry.metadata()?.len());
             }
         }
-
-        let _ = std::fs::remove_dir_all(&entry_path);
     }
+    Ok(total)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        cleanup_orphans_with_threshold, is_orphan_staging_dir, register_active_staging,
-        unregister_active_staging,
-    };
-    use std::fs;
-    use std::time::Duration;
-
-    #[test]
-    fn prefix_matching_strictly_identifies_app_staging_dirs() {
-        // Exactly prefix + 16 alphanumeric characters
-        assert!(is_orphan_staging_dir(".wtcm-staging-1234567890abcdef"));
-        assert!(is_orphan_staging_dir(".wtcm-staging-ABCDEFGHIJKLMNOP"));
-
-        // Wrong suffix length
-        assert!(!is_orphan_staging_dir(".wtcm-staging-abc123"));
-        assert!(!is_orphan_staging_dir(
-            ".wtcm-staging-1234567890abcdeftoolong"
-        ));
-        assert!(!is_orphan_staging_dir(".wtcm-staging-"));
-
-        // Invalid characters (e.g. symbols, underscores)
-        assert!(!is_orphan_staging_dir(".wtcm-staging-1234567890abcde_"));
-        assert!(!is_orphan_staging_dir(".wtcm-staging-1234567890abcde-"));
-
-        // Unrelated folders
-        assert!(!is_orphan_staging_dir("wtcm-my-skin"));
-        assert!(!is_orphan_staging_dir("wtcm-12345"));
-        assert!(!is_orphan_staging_dir("UserSkins"));
-        assert!(!is_orphan_staging_dir("content"));
-    }
-
-    #[test]
-    fn cleanup_orphans_respects_active_age_and_strict_naming() {
-        let temp = tempfile::tempdir().unwrap();
-        let game_root = temp.path().join("game");
-        let userskins = game_root.join("UserSkins");
-        fs::create_dir_all(&userskins).unwrap();
-
-        // 1. Unrelated folders
-        let content_dir = game_root.join("content");
-        fs::create_dir(&content_dir).unwrap();
-        let my_skin_dir = userskins.join("MySkin");
-        fs::create_dir(&my_skin_dir).unwrap();
-
-        // 2. Skin folder named like "wtcm-my-skin" (in UserSkins and game_root)
-        let wtcm_skin_in_userskins = userskins.join("wtcm-my-skin");
-        fs::create_dir(&wtcm_skin_in_userskins).unwrap();
-        let wtcm_dir_in_game_root = game_root.join("wtcm-my-skin");
-        fs::create_dir(&wtcm_dir_in_game_root).unwrap();
-
-        // 3. Staging dir matching strict format (.wtcm-staging-1234567890abcdef)
-        let old_orphan = game_root.join(".wtcm-staging-1234567890abcdef");
-        fs::create_dir(&old_orphan).unwrap();
-
-        // 4. Fresh matching dir
-        let fresh_staging = game_root.join(".wtcm-staging-abcdef1234567890");
-        fs::create_dir(&fresh_staging).unwrap();
-
-        // 5. Active registered staging dir
-        let active_staging = game_root.join(".wtcm-staging-active1234567890");
-        fs::create_dir(&active_staging).unwrap();
-        register_active_staging(active_staging.clone());
-
-        // First pass: with 10-minute threshold
-        // - fresh_staging was just created, elapsed < 10m -> NOT deleted
-        // - active_staging is registered -> NOT deleted
-        // - old_orphan was just created, elapsed < 10m -> NOT deleted
-        cleanup_orphans_with_threshold(&game_root, Duration::from_secs(600));
-        assert!(
-            fresh_staging.exists(),
-            "fresh matching dir should not be deleted"
-        );
-        assert!(
-            active_staging.exists(),
-            "active staging dir should not be deleted"
-        );
-        assert!(
-            old_orphan.exists(),
-            "young dir should not be deleted with 10m threshold"
-        );
-
-        // Second pass: with Duration::ZERO (simulating old age >= threshold)
-        // - old_orphan is matching and not active -> DELETED
-        // - active_staging is registered -> NOT deleted even with threshold 0
-        // - wtcm-my-skin, content, UserSkins, MySkin -> NOT deleted
-        cleanup_orphans_with_threshold(&game_root, Duration::ZERO);
-        assert!(!old_orphan.exists(), "old matching dir should be deleted");
-        assert!(
-            active_staging.exists(),
-            "active staging dir must stay even with 0 threshold"
-        );
-        assert!(
-            wtcm_skin_in_userskins.exists(),
-            "wtcm-my-skin in UserSkins must stay"
-        );
-        assert!(
-            wtcm_dir_in_game_root.exists(),
-            "wtcm-my-skin in game_root must stay"
-        );
-        assert!(content_dir.exists(), "content dir must stay");
-        assert!(userskins.exists(), "UserSkins dir must stay");
-        assert!(my_skin_dir.exists(), "MySkin in UserSkins must stay");
-
-        // Clean up active registry
-        unregister_active_staging(&active_staging);
-    }
-}
+#[path = "staging/tests.rs"]
+mod tests;

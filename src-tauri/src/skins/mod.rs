@@ -7,8 +7,9 @@ mod staging;
 
 pub use library::{scan_installed_skins, uninstall_skin, ScannedSkin};
 pub use staging::{
-    cleanup_orphans, is_orphan_staging_dir, register_active_staging, unregister_active_staging,
-    STAGING_PREFIX, STAGING_SUFFIX_LEN,
+    cleanup_orphan_staging, cleanup_orphans, inspect_orphan_staging, is_orphan_staging_dir,
+    register_active_staging, unregister_active_staging, TemporaryCleanupOutcome,
+    TemporaryFileReport, STAGING_PREFIX, STAGING_SUFFIX_LEN,
 };
 
 use serde::Serialize;

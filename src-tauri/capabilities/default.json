@@ -12,7 +12,10 @@
     "dialog:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://live.warthunder.com/**" }]
+      "allow": [
+        { "url": "https://live.warthunder.com/**" },
+        { "url": "https://github.com/Eliezer-Gonzalez/Wt-Download/**" }
+      ]
     }
   ]
 }

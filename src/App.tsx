@@ -3,6 +3,7 @@ import { Activity, ChevronDown, RefreshCw, Search } from 'lucide-react'
 import { GameSetupModal } from './components/GameSetupModal'
 import { ConfirmUninstallModal } from './components/ConfirmUninstallModal'
 import { ConfirmRemoveFavoriteModal } from './components/ConfirmRemoveFavoriteModal'
+import { LegalNoticeDialog } from './components/LegalNoticeDialog'
 import { NavigationSidebar, type AppSection } from './components/NavigationSidebar'
 import { SectionHeader } from './components/HeroBanner'
 import { PostCard } from './components/PostCard'
@@ -27,6 +28,7 @@ import { useAutoLoadMore } from './hooks/useAutoLoadMore'
 import { useCamouflageFeed } from './hooks/useCamouflageFeed'
 import { usePostDetail } from './hooks/usePostDetail'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
+import { useLegalNotice } from './hooks/useLegalNotice'
 import { isTauriRuntime } from './lib/gameInstall'
 import { useI18n, asTranslationKey } from './i18n/I18nProvider'
 import type { WtLiveFeedSort, WtLiveItem } from './lib/wtLive'
@@ -37,6 +39,7 @@ export default function App() {
   const { t, locale, languages, setLocale } = useI18n()
   const gameSetup = useGameInstallation()
   const diagnostics = useDiagnosticsSettings()
+  const legalNotice = useLegalNotice()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
   const [active, setActive] = useState<AppSection>('camouflages')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -195,6 +198,7 @@ export default function App() {
           diagnostics={diagnostics}
           onOpenGameSetup={gameSetup.openSetup}
           onRescanGame={() => void gameSetup.scan()}
+          onViewLegalNotice={legalNotice.openNotice}
         /> : active === 'sounds' ? <SoundComingSoon /> : active === 'home' ? <HomeDashboard
           items={feed.items} favorites={library.favorites} installedSkins={library.installedSkins}
           favoritesCount={library.favorites.length} installedCount={library.installedSkins.length}
@@ -238,11 +242,11 @@ export default function App() {
           {renderActiveSection()}
         </div>}
       </div>
-      <footer className="mx-8 mt-auto flex justify-between gap-3 border-t border-[#2d342d] px-1 py-3 text-[10px] tracking-[.06em] text-[#8d968a] max-[1100px]:mx-6 max-[720px]:mx-4 max-[420px]:flex-col"><span>{t('dataSource')}</span><span>{t('brandManager')} <b className="font-medium text-[#b2baa9]">{APP_VERSION}</b></span></footer>
+      <footer className="sticky bottom-0 z-20 mx-8 mt-auto flex shrink-0 justify-between gap-3 border-t border-[#2d342d] bg-wt-bg px-1 py-3 text-[10px] tracking-[.06em] text-[#8d968a] max-[1100px]:mx-6 max-[720px]:mx-4 max-[420px]:flex-col"><span>{t('dataSource')}</span><span>{t('brandManager')} <b className="font-medium text-[#b2baa9]">{APP_VERSION}</b></span></footer>
     </main>
 
     <GameSetupModal
-      open={gameSetup.isOpen} loading={gameSetup.loading} error={gameSetup.error}
+      open={gameSetup.isOpen && !legalNotice.isOpen} loading={gameSetup.loading} error={gameSetup.error}
       installations={gameSetup.installations} selected={gameSetup.selected}
       onSelect={gameSetup.selectInstallation} onConfirm={gameSetup.confirmInstallation}
       onRescan={() => void gameSetup.scan()} onChooseManual={() => void gameSetup.chooseManual(t('gameSetupPickerTitle'))}
@@ -261,6 +265,13 @@ export default function App() {
         library.toggleFavorite(favoriteToRemove)
         setFavoriteToRemove(null)
       }}
+    />
+    <LegalNoticeDialog
+      open={legalNotice.isOpen}
+      required={legalNotice.isRequired}
+      keepWindowControlsVisible={isTauriRuntime}
+      onAcknowledge={legalNotice.acknowledge}
+      onClose={legalNotice.closeNotice}
     />
     {selected && (
       <PostDetailDialog
