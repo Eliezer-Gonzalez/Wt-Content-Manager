@@ -1,4 +1,4 @@
-import type { WtLiveBlock, WtLiveItem } from './wtLive'
+import type { WtLiveBlock, WtLiveImage, WtLiveItem } from './wtLive'
 
 type ApiImageSource = string | { src?: string }
 
@@ -27,6 +27,41 @@ export function extractImageSource(source: ApiImageSource | null | undefined): s
   if (!source) return undefined
   if (typeof source === 'string') return source
   return typeof source.src === 'string' ? source.src : undefined
+}
+
+function positiveDimension(value: unknown): number | undefined {
+  const dimension = Number(value)
+  return Number.isFinite(dimension) && dimension > 0 ? Math.round(dimension) : undefined
+}
+
+function imageRatio(width?: number, height?: number, reported?: unknown): number | undefined {
+  const ratio = width && height ? width / height : Number(reported)
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : undefined
+}
+
+export function mapPostImages(post: ApiPost): WtLiveImage[] {
+  return (post.images ?? []).flatMap(image => {
+    const original = safeImageUrl(
+      extractImageSource(image.orig) || extractImageSource(image.src) || extractImageSource(image.mq),
+    )
+    const display = safeImageUrl(
+      extractImageSource(image.src) || extractImageSource(image.mq) || extractImageSource(image.orig),
+    )
+    if (!display) return []
+
+    const width = positiveDimension(image.width)
+    const height = positiveDimension(image.height)
+    return [{
+      src: display,
+      fullResolutionSrc: getFullResolutionImageUrl(original || display),
+      thumbnailSrc: safeImageUrl(
+        extractImageSource(image.mq) || extractImageSource(image.src) || extractImageSource(image.orig),
+      ) || display,
+      width,
+      height,
+      aspectRatio: imageRatio(width, height, image.ratio),
+    }]
+  })
 }
 
 export function plainText(markup = ''): string {
@@ -147,7 +182,19 @@ export function parseDescription(markup = ''): { blocks: WtLiveBlock[]; hashtags
         .map(safeImageUrl)
         .find((value): value is string => Boolean(value))
       const src = (linkLooksLikeImage ? linkedSrc : undefined) ?? directSrc
-      if (src) blocks.push({ type: 'image', src, alt: node.getAttribute('alt') || '' })
+      if (src) {
+        const width = positiveDimension(node.getAttribute('width') ?? node.getAttribute('data-width'))
+        const height = positiveDimension(node.getAttribute('height') ?? node.getAttribute('data-height'))
+        blocks.push({
+          type: 'image',
+          src,
+          fullResolutionSrc: getFullResolutionImageUrl(src),
+          alt: node.getAttribute('alt') || '',
+          width,
+          height,
+          aspectRatio: imageRatio(width, height),
+        })
+      }
       return
     }
     if (node.tagName === 'BR') {

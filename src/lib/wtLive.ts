@@ -1,6 +1,15 @@
+export type WtLiveImage = {
+  src: string
+  fullResolutionSrc?: string
+  thumbnailSrc?: string
+  width?: number
+  height?: number
+  aspectRatio?: number
+}
+
 export type WtLiveBlock =
   | { type: 'text'; text: string }
-  | { type: 'image'; src: string; alt: string }
+  | ({ type: 'image'; alt: string } & WtLiveImage)
 
 import { invoke } from '@tauri-apps/api/core'
 
@@ -24,7 +33,7 @@ export type WtLiveDetail = {
   description: WtLiveBlock[]
   hashtags: string[]
   commentsUrl: string
-  images: string[]
+  images: WtLiveImage[]
 }
 
 export type WtLiveFeedSort = 'created' | 'rating'
@@ -42,11 +51,10 @@ export class WtLiveError extends Error {
 }
 
 import {
-  extractImageSource,
   getFullResolutionImageUrl,
+  mapPostImages,
   mapPost,
   parseDescription,
-  safeImageUrl,
   type ApiPost,
 } from './wtLiveParser'
 
@@ -106,14 +114,22 @@ export async function fetchPostDetail(item: WtLiveItem, signal?: AbortSignal): P
         new URLSearchParams({ lang_group: String(item.langGroup), language: '0' }),
         signal,
       )
+  const images = mapPostImages(result)
+  const imageByUrl = new Map<string, WtLiveImage>()
+  for (const image of images) {
+    for (const url of [image.src, image.fullResolutionSrc, image.thumbnailSrc]) {
+      if (url) imageByUrl.set(getFullResolutionImageUrl(url), image)
+    }
+  }
   const content = parseDescription(result.description)
-  const images = (result.images ?? [])
-    .map(img => extractImageSource(img.orig) || extractImageSource(img.src) || extractImageSource(img.mq))
-    .map(safeImageUrl)
-    .filter((url): url is string => Boolean(url))
+  const description = content.blocks.map(block => {
+    if (block.type !== 'image') return block
+    const metadata = imageByUrl.get(getFullResolutionImageUrl(block.src))
+    return metadata ? { ...block, ...metadata, alt: block.alt } : block
+  })
 
   return {
-    description: content.blocks,
+    description,
     hashtags: content.hashtags,
     commentsUrl: `https://live.warthunder.com/post/${item.langGroup}/${item.language}/#comments`,
     images,

@@ -5,12 +5,13 @@ import { PostInstallActions } from './PostInstallActions'
 import { PostDetailSkeleton } from './PostDetailSkeleton'
 import { ImageLightbox } from './ImageLightbox'
 import { PostGallery } from './PostGallery'
+import { PostImage } from './PostImage'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { getFullResolutionImageUrl, getSafeCommentUrl } from '../lib/wtLive'
 import { isTauriRuntime } from '../lib/gameInstall'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { useI18n } from '../i18n/I18nProvider'
-import type { WtLiveDetail, WtLiveItem } from '../lib/wtLive'
+import type { WtLiveDetail, WtLiveImage, WtLiveItem } from '../lib/wtLive'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
 import type { InstalledSkin } from '../lib/localLibrary'
 
@@ -40,13 +41,42 @@ export function PostDetailDialog({
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const { installing } = installer
   const hasDescription = detail?.description.some(block => block.type === 'text') ?? false
-  const previewImageUrl = item.imageUrl ? getFullResolutionImageUrl(item.imageUrl) : null
+  const previewImage = useMemo(() => item.imageUrl
+    ? {
+        src: item.imageUrl,
+        fullResolutionSrc: getFullResolutionImageUrl(item.imageUrl),
+        aspectRatio: item.imageAspectRatio,
+      }
+    : null, [item.imageUrl, item.imageAspectRatio])
   const cleanFallbackDescription = item.description.replace(/#[\p{L}\p{N}_-]+/gu, ' ').replace(/\s+/g, ' ').trim()
 
   const galleryImages = useMemo(() => {
-    const list = detail?.images?.length ? detail.images : previewImageUrl ? [previewImageUrl] : []
-    return Array.from(new Set(list))
-  }, [detail?.images, previewImageUrl])
+    const detailedImages = detail?.images ?? []
+    const images: WtLiveImage[] = detailedImages.length
+      ? previewImage
+        ? [
+            {
+              ...detailedImages[0],
+              src: previewImage.src,
+              fullResolutionSrc: detailedImages[0].fullResolutionSrc || previewImage.fullResolutionSrc,
+              aspectRatio: previewImage.aspectRatio || detailedImages[0].aspectRatio,
+              width: detailedImages[0].width,
+              height: detailedImages[0].height,
+            },
+            ...detailedImages.slice(1),
+          ]
+        : detailedImages
+      : previewImage
+        ? [previewImage]
+        : []
+    const seen = new Set<string>()
+    return images.filter(image => {
+      const key = image.fullResolutionSrc || image.src
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [detail?.images, previewImage])
 
   useFocusTrap({
     containerRef: dialogRef,
@@ -81,7 +111,7 @@ export function PostDetailDialog({
     >
       <section
         ref={dialogRef}
-        className="relative max-h-[90dvh] w-full max-w-[620px] overflow-y-auto border border-[#46503f] bg-wt-panel"
+        className="relative max-h-[90dvh] w-full max-w-[620px] overflow-y-auto [scrollbar-gutter:stable] border border-[#46503f] bg-wt-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="post-detail-title"
@@ -145,14 +175,15 @@ export function PostDetailDialog({
                         type="button"
                         className="my-3 block w-full cursor-zoom-in"
                         key={`${block.src}-${index}`}
-                        onClick={() =>
-                          setZoomedImage({ src: getFullResolutionImageUrl(block.src), alt: block.alt || t('postImageAlt') })
-                        }
+                        onClick={() => setZoomedImage({
+                          src: block.fullResolutionSrc || getFullResolutionImageUrl(block.src),
+                          alt: block.alt || t('postImageAlt'),
+                        })}
                         aria-label={`${t('enlargeImage')}: ${block.alt || t('postImageAlt')}`}
                       >
-                        <img
+                        <PostImage
                           className="h-auto max-h-[65vh] w-full object-contain"
-                          src={block.src}
+                          image={block}
                           alt={block.alt || t('postImageAlt')}
                           loading="lazy"
                         />
