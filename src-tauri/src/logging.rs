@@ -230,13 +230,53 @@ fn sanitize(value: &str, max_chars: usize) -> String {
 }
 
 fn redact_user_directory(value: &str) -> String {
-    ["USERPROFILE", "HOME"]
+    let redacted = ["USERPROFILE", "HOME"]
         .iter()
         .filter_map(|key| std::env::var(key).ok())
         .filter(|home| !home.is_empty())
         .fold(value.to_string(), |message, home| {
-            message.replace(&home, "%USERPROFILE%")
-        })
+            let normalized = home.replace('/', "\\");
+            let forward = home.replace('\\', "/");
+            message
+                .replace(&home, "%USERPROFILE%")
+                .replace(&normalized, "%USERPROFILE%")
+                .replace(&forward, "%USERPROFILE%")
+        });
+
+    redact_windows_users_segments(&redacted)
+}
+
+fn redact_windows_users_segments(value: &str) -> String {
+    let lower = value.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut output = String::with_capacity(value.len());
+    let mut copied_until = 0;
+    let mut search_from = 0;
+
+    while let Some(relative) = lower[search_from..].find("users") {
+        let start = search_from + relative;
+        let end = start + "users".len();
+        let starts_component = start == 0 || matches!(bytes[start - 1], b'/' | b'\\');
+        let separator = bytes.get(end).copied();
+        if starts_component && matches!(separator, Some(b'/' | b'\\')) {
+            let user_start = end + 1;
+            let user_end = value[user_start..]
+                .find(['/', '\\'])
+                .map(|offset| user_start + offset)
+                .unwrap_or(value.len());
+            if user_end > user_start {
+                output.push_str(&value[copied_until..user_start]);
+                output.push_str("%USERPROFILE%");
+                copied_until = user_end;
+                search_from = user_end;
+                continue;
+            }
+        }
+        search_from = end;
+    }
+
+    output.push_str(&value[copied_until..]);
+    output
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@
   "app": {
     "windows": [{ "label": "main", "title": "WT Content Manager", "width": 1180, "height": 780, "minWidth": 720, "minHeight": 560, "decorations": false }],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://live.warthunder.com; img-src 'self' data: asset: https://*.warthunder.com https://images-live.warthunder.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://live.warthunder.com; img-src 'self' data: asset: https://*.warthunder.com https://images-live.warthunder.com; style-src 'self' 'unsafe-inline'; font-src 'self'"
     }
   },
   "bundle": { "active": false }

@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use crate::AppError;
 
 pub const MAX_ARCHIVE_ENTRIES: usize = 3000;
+pub const MAX_ARCHIVE_DEPTH: usize = 8;
 pub const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,9 +51,14 @@ pub fn safe_archive_path(raw: &str) -> Result<PathBuf, AppError> {
         return Err(AppError::new("archive_absolute_path"));
     }
     let mut safe = PathBuf::new();
+    let mut depth = 0;
     for component in path.components() {
         match component {
             Component::Normal(value) => {
+                depth += 1;
+                if depth > MAX_ARCHIVE_DEPTH {
+                    return Err(AppError::new("archive_limits_exceeded"));
+                }
                 let value = value.to_string_lossy();
                 if value.ends_with([' ', '.']) || is_windows_reserved(&value) {
                     return Err(AppError::new("archive_invalid_filename"));
@@ -69,14 +75,22 @@ pub fn safe_archive_path(raw: &str) -> Result<PathBuf, AppError> {
     Ok(safe)
 }
 
-fn is_windows_reserved(name: &str) -> bool {
-    let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
+pub(super) fn is_windows_reserved(name: &str) -> bool {
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or("")
+        .trim_end_matches([' ', '.'])
+        .to_ascii_uppercase();
     matches!(
         stem.as_str(),
         "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
     ) || ["COM", "LPT"].iter().any(|prefix| {
         stem.strip_prefix(prefix).is_some_and(|suffix| {
-            matches!(suffix, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9")
+            matches!(
+                suffix,
+                "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+            )
         })
     })
 }
@@ -199,6 +213,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_case_insensitive_reserved_names_and_trailing_dot_or_space() {
+        for path in [
+            "NUL .blk",
+            "nUl.txt",
+            "COM¹.blk",
+            "lpt³.dds",
+            "skin.",
+            "skin ",
+        ] {
+            assert!(safe_archive_path(path).is_err(), "accepted {path}");
+        }
+    }
+
+    #[test]
     fn normalizes_backslashes_in_safe_archive_path() {
         assert_eq!(
             safe_archive_path("folder\\file.blk").unwrap(),
@@ -209,6 +237,11 @@ mod tests {
         assert!(safe_archive_path("C:\\x").is_err());
         assert!(safe_archive_path("/abs/path").is_err());
         assert!(safe_archive_path("\\abs\\path").is_err());
+    }
+
+    #[test]
+    fn rejects_archive_paths_deeper_than_supported() {
+        assert!(safe_archive_path("a/b/c/d/e/f/g/h/i/skin.blk").is_err());
     }
 
     #[test]

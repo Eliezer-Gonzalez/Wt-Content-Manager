@@ -250,6 +250,8 @@
   "errors.wt_live_unreachable": "Could not connect to WT Live.",
   "errors.wt_live_http_error": "WT Live responded with HTTP {status}.",
   "errors.wt_live_invalid_response": "WT Live returned an invalid response.",
+  "errors.wt_live_response_too_large": "WT Live returned a response larger than the allowed limit.",
+  "errors.wt_live_client_error": "Could not configure the secure WT Live connection.",
   "errors.wt_live_invalid_feed": "WT Live returned a response not recognized by the catalog.",
   "errors.wt_live_post_not_found": "WT Live could not find details for this post.",
   "errors.wt_live_no_download": "WT Live did not provide a downloadable file for this skin.",

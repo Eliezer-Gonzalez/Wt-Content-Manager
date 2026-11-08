@@ -45,6 +45,23 @@ fn records_are_local_json_lines_with_user_directory_redacted() {
 }
 
 #[test]
+fn redacts_windows_profile_paths_with_different_case_and_separators() {
+    let value = r"C:/UsErS/Alice/AppData and c:\users\alice\Documents";
+    let redacted = super::redact_user_directory(value);
+
+    assert!(!redacted.to_ascii_lowercase().contains("alice"));
+    assert_eq!(redacted.matches("%USERPROFILE%").count(), 2);
+}
+
+#[test]
+fn redacts_short_windows_profile_aliases() {
+    let redacted = super::redact_user_directory(r"C:\Users\ALICE~1\AppData\Local\crash.log");
+
+    assert!(!redacted.to_ascii_lowercase().contains("alice~1"));
+    assert_eq!(redacted, r"C:\Users\%USERPROFILE%\AppData\Local\crash.log");
+}
+
+#[test]
 fn rotates_logs_at_the_configured_size_and_keeps_two_backups() {
     let directory = tempfile::tempdir().unwrap();
     let logger = DiagnosticLogger::default();

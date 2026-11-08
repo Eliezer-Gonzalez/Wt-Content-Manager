@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::{Component, Path};
 use std::time::UNIX_EPOCH;
 
-use super::paths::{contains_skin_definition, count_files, total_size};
+use super::paths::{contains_skin_definition, count_files, is_windows_reserved, total_size};
 use crate::{game_install, AppError};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -87,6 +87,9 @@ fn validate_skin_folder_name(folder_name: &str) -> Result<(), AppError> {
         || folder_name.starts_with('.')
         || super::is_orphan_staging_dir(folder_name)
         || folder_name.contains(['/', '\\', ':', '\0'])
+        || folder_name.ends_with([' ', '.'])
+        || folder_name.chars().count() > 120
+        || is_windows_reserved(folder_name)
     {
         return Err(AppError::new("skin_invalid_folder"));
     }
@@ -299,6 +302,11 @@ mod tests {
             "C:skin",
             ".hidden",
             ".wtcm-staging-1234567890abcdef",
+            "Skin.",
+            "Skin ",
+            "CON",
+            "NUL .blk",
+            "COM¹",
         ] {
             let err = uninstall_skin(game_str, invalid).unwrap_err();
             assert_eq!(

@@ -19,7 +19,7 @@ pub fn extract(
     let file = fs::File::open(archive_path)?;
     let mut archive = ZipArchive::new(file)
         .map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
-    if archive.is_empty() {
+    if archive.is_empty() || archive.len() > MAX_ARCHIVE_ENTRIES {
         return Err(AppError::new("archive_empty_or_too_many_entries"));
     }
 
@@ -48,7 +48,6 @@ pub fn extract(
         let relative = safe_archive_path(&raw_name)?;
         let output = destination.join(&relative);
         if entry.is_dir() {
-            fs::create_dir_all(&output)?;
             continue;
         }
 
@@ -74,7 +73,7 @@ pub fn extract(
         if expected > MAX_ENTRY_BYTES || total_written.saturating_add(expected) > size_limit {
             return Err(AppError::new("archive_limits_exceeded"));
         }
-        if !written_paths.insert(output.clone()) {
+        if !written_paths.insert(relative.to_string_lossy().to_lowercase()) {
             return Err(AppError::new("archive_duplicate_paths"));
         }
         let parent = output
@@ -103,7 +102,10 @@ pub fn extract(
 #[cfg(test)]
 mod tests {
     use super::extract;
-    use crate::skins::{archive, paths::contains_skin_definition};
+    use crate::skins::{
+        archive,
+        paths::{contains_skin_definition, select_skin_root, MAX_ARCHIVE_ENTRIES},
+    };
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
@@ -153,6 +155,17 @@ mod tests {
     }
 
     #[test]
+    fn rejects_duplicate_paths_case_insensitively() {
+        let zip_file = build_test_zip(&[
+            ("MetalCrab/skin.blk", b"first"),
+            ("metalcrab/SKIN.BLK", b"second"),
+        ]);
+        let destination = tempdir().unwrap();
+        let error = extract(zip_file.path(), destination.path(), 10_000).unwrap_err();
+        assert_eq!(error.code, "archive_duplicate_paths");
+    }
+
+    #[test]
     fn archive_with_only_disallowed_files_has_no_skin_definition() {
         let zip_file = build_test_zip(&[
             ("malicious.exe", b"exe data"),
@@ -191,5 +204,44 @@ mod tests {
 
         assert_eq!(stats.extracted_files, 1);
         assert!(dest.path().join("skin.blk").is_file());
+    }
+
+    #[test]
+    fn rejects_archive_with_too_many_directory_entries_before_writing() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let mut zip = ZipWriter::new(File::create(file.path()).unwrap());
+        let options = SimpleFileOptions::default();
+        zip.start_file("MySkin/skin.blk", options).unwrap();
+        zip.write_all(b"name:t=\"user\"").unwrap();
+        for index in 0..MAX_ARCHIVE_ENTRIES {
+            zip.add_directory(format!("empty-{index}/"), options)
+                .unwrap();
+        }
+        zip.finish().unwrap();
+
+        let dest = tempdir().unwrap();
+        let error = extract(file.path(), dest.path(), 10 * 1024 * 1024).unwrap_err();
+
+        assert_eq!(error.code, "archive_empty_or_too_many_entries");
+        assert_eq!(std::fs::read_dir(dest.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn ignores_empty_directory_entries_when_selecting_skin_root() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let mut zip = ZipWriter::new(File::create(file.path()).unwrap());
+        let options = SimpleFileOptions::default();
+        zip.add_directory("__MACOSX/", options).unwrap();
+        zip.start_file("MySkin/skin.blk", options).unwrap();
+        zip.write_all(b"name:t=\"user\"").unwrap();
+        zip.finish().unwrap();
+
+        let payload = tempdir().unwrap();
+        extract(file.path(), payload.path(), 10 * 1024 * 1024).unwrap();
+        let (skin_root, folder_name) = select_skin_root(payload.path(), "skin.zip").unwrap();
+
+        assert_eq!(folder_name, "MySkin");
+        assert_eq!(skin_root, payload.path().join("MySkin"));
+        assert!(!payload.path().join("__MACOSX").exists());
     }
 }

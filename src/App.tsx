@@ -50,7 +50,7 @@ export default function App() {
   const [favoriteToRemove, setFavoriteToRemove] = useState<WtLiveItem | null>(null)
   const feedSort: WtLiveFeedSort = active === 'camouflages' && sort === 'popular' ? 'rating' : 'created'
   const feedEnabled = active !== 'favorites' && active !== 'downloads' && active !== 'sounds' && active !== 'settings'
-  const feed = useCamouflageFeed({ enabled: feedEnabled, query, sort: feedSort })
+  const feed = useCamouflageFeed({ enabled: feedEnabled && !legalNotice.isRequired, query, sort: feedSort })
   const skinInstaller = useSkinInstaller({ gamePath: gameSetup.gameInstall?.path, t, onInstalled: library.recordInstallation })
   const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail({
     onResetInstallState: skinInstaller.resetInstallState,
