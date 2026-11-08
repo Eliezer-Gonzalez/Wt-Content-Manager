@@ -9,6 +9,8 @@ import { asTranslationKey, useI18n } from '../i18n/I18nProvider'
 import { SettingsAboutCard } from './SettingsAboutCard'
 import { TemporaryFilesCard } from './TemporaryFilesCard'
 import { ResetLocalDataCard } from './ResetLocalDataCard'
+import { ImageQualitySettingsCard } from './ImageQualitySettingsCard'
+import type { ImageQualityMode } from '../lib/imageQuality'
 
 type DiagnosticsState = ReturnType<typeof useDiagnosticsSettings>
 
@@ -16,12 +18,14 @@ type Props = {
   gameInstall: GameInstall | null
   gameLoading: boolean
   diagnostics: DiagnosticsState
+  imageQuality: ImageQualityMode
+  onChangeImageQuality: (quality: ImageQualityMode) => void
   onOpenGameSetup: () => void
   onRescanGame: () => void
   onViewLegalNotice: () => void
 }
 
-export function SettingsPage({ gameInstall, gameLoading, diagnostics, onOpenGameSetup, onRescanGame, onViewLegalNotice }: Props) {
+export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice }: Props) {
   const { t } = useI18n()
   const diagnosticsEnabled = diagnostics.settings?.enabled ?? diagnostics.supported
   const [userSkinsError, setUserSkinsError] = useState(false)
@@ -130,6 +134,7 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, onOpenGame
           </div>
         </section>
 
+        <ImageQualitySettingsCard value={imageQuality} onChange={onChangeImageQuality} />
         <div className="min-w-0 xl:col-span-2"><TemporaryFilesCard gameInstall={gameInstall} /></div>
         <div className="min-w-0 xl:col-span-2">
           <SettingsAboutCard onViewLegalNotice={onViewLegalNotice} />

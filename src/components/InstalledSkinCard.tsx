@@ -28,7 +28,7 @@ export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
     </div>
     <dl className="mb-0 mt-4 grid grid-cols-2 gap-3 border-t border-[#333a32] pt-3 text-xs">
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FolderOpen size={13}/>{t('installedFolder')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]" title={entry.folderName}>{entry.folderName}</dd></div>
-      <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><CalendarDays size={13}/>{t('installedDate')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]" title={date}>{date}</dd></div>
+      <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><CalendarDays size={13}/>{t(entry.item ? 'installedDate' : 'modifiedDate')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]" title={date}>{date}</dd></div>
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FileArchive size={13}/>{t('files')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{t('installedFiles', { count: entry.fileCount })}</dd></div>
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><HardDriveDownload size={13}/>{t('installedSize')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{formatFileSize(entry.sizeBytes, locale)}</dd></div>
     </dl>

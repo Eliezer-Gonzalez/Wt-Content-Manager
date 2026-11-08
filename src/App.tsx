@@ -4,12 +4,14 @@ import { GameSetupModal } from './components/GameSetupModal'
 import { ConfirmUninstallModal } from './components/ConfirmUninstallModal'
 import { ConfirmRemoveFavoriteModal } from './components/ConfirmRemoveFavoriteModal'
 import { LegalNoticeDialog } from './components/LegalNoticeDialog'
+import { ImageQualitySetupDialog } from './components/ImageQualitySetupDialog'
 import { NavigationSidebar, type AppSection } from './components/NavigationSidebar'
 import { SectionHeader } from './components/HeroBanner'
 import { PostCard } from './components/PostCard'
 import { PostDetailDialog } from './components/PostDetailDialog'
 import { PostCardSkeleton } from './components/PostCardSkeleton'
 import { InstalledSkinCard } from './components/InstalledSkinCard'
+import { DownloadsLibraryControls } from './components/DownloadsLibraryControls'
 import { PaginatedGrid } from './components/PaginatedGrid'
 import { MasonryPostGrid } from './components/MasonryPostGrid'
 import { SoundComingSoon } from './components/SoundComingSoon'
@@ -29,6 +31,8 @@ import { useCamouflageFeed } from './hooks/useCamouflageFeed'
 import { usePostDetail } from './hooks/usePostDetail'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useLegalNotice } from './hooks/useLegalNotice'
+import { useImageQualityPreference } from './hooks/useImageQualityPreference'
+import { filterAndSortInstalledSkins, type DownloadOriginFilter, type DownloadSortOrder } from './lib/downloadLibrary'
 import { isTauriRuntime } from './lib/gameInstall'
 import { useI18n, asTranslationKey } from './i18n/I18nProvider'
 import type { WtLiveFeedSort, WtLiveItem } from './lib/wtLive'
@@ -40,6 +44,7 @@ export default function App() {
   const gameSetup = useGameInstallation()
   const diagnostics = useDiagnosticsSettings()
   const legalNotice = useLegalNotice()
+  const imageQuality = useImageQualityPreference()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
   const [active, setActive] = useState<AppSection>('camouflages')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -47,10 +52,12 @@ export default function App() {
   const query = searches[active] ?? ''
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [sort, setSort] = useState<'recent' | 'popular'>('recent')
+  const [downloadsOrigin, setDownloadsOrigin] = useState<DownloadOriginFilter>('all')
+  const [downloadsSort, setDownloadsSort] = useState<DownloadSortOrder>('recent')
   const [favoriteToRemove, setFavoriteToRemove] = useState<WtLiveItem | null>(null)
   const feedSort: WtLiveFeedSort = active === 'camouflages' && sort === 'popular' ? 'rating' : 'created'
   const feedEnabled = active !== 'favorites' && active !== 'downloads' && active !== 'sounds' && active !== 'settings'
-  const feed = useCamouflageFeed({ enabled: feedEnabled && !legalNotice.isRequired, query, sort: feedSort })
+  const feed = useCamouflageFeed({ enabled: feedEnabled && !legalNotice.isRequired && !imageQuality.isSetupRequired, query, sort: feedSort })
   const skinInstaller = useSkinInstaller({ gamePath: gameSetup.gameInstall?.path, t, onInstalled: library.recordInstallation })
   const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail({
     onResetInstallState: skinInstaller.resetInstallState,
@@ -75,9 +82,14 @@ export default function App() {
     return sort === 'popular' ? [...filtered].sort((a, b) => b.likes - a.likes) : [...filtered].sort((a, b) => b.createdAt - a.createdAt)
   }, [active, catalog, query, sort])
 
-  const visibleInstallations = useMemo(() => library.installedSkins.filter(entry =>
-    `${entry.item?.title ?? ''} ${entry.item?.author ?? ''} ${entry.item?.fileName ?? ''} ${entry.folderName}`.toLowerCase().includes(query.toLowerCase()),
-  ), [library.installedSkins, query])
+  const visibleInstallations = useMemo(
+    () => filterAndSortInstalledSkins(library.installedSkins, query, downloadsOrigin, downloadsSort),
+    [library.installedSkins, query, downloadsOrigin, downloadsSort],
+  )
+  const installedSkinsTotalBytes = useMemo(
+    () => library.installedSkins.reduce((total, entry) => total + entry.sizeBytes, 0),
+    [library.installedSkins],
+  )
 
   const installedIds = useMemo(
     () => new Set(library.installedSkins.flatMap(s => (s.item?.id != null ? [s.item.id] : []))),
@@ -106,8 +118,8 @@ export default function App() {
   function renderActiveSection() {
     const emptyMessage = <div className="grid min-h-40 place-items-center text-center text-sm text-[#b1b7ab]">{t('notFound')}</div>
     if (active === 'downloads') {
-      if (visibleInstallations.length === 0) return query ? emptyMessage : <EmptyLibraryState kind="downloads" onExplore={() => setActive('camouflages')} />
-      return <PaginatedGrid items={visibleInstallations} resetKey={`downloads-${query}`} getKey={entry => entry.path} gridClassName="grid grid-cols-2 gap-3 min-[1600px]:grid-cols-3 min-[2300px]:grid-cols-4 max-[720px]:grid-cols-1" renderItem={entry => <InstalledSkinCard entry={entry} onOpen={openPost} onUninstall={library.requestUninstall} />} />
+      if (visibleInstallations.length === 0) return library.installedSkins.length > 0 ? <div className="grid min-h-40 place-items-center text-center text-sm text-[#b1b7ab]">{t('noMatchingDownloads')}</div> : <EmptyLibraryState kind="downloads" onExplore={() => setActive('camouflages')} />
+      return <PaginatedGrid items={visibleInstallations} resetKey={`downloads-${query}-${downloadsOrigin}-${downloadsSort}`} getKey={entry => entry.path} gridClassName="grid grid-cols-2 gap-3 min-[1600px]:grid-cols-3 min-[2300px]:grid-cols-4 max-[720px]:grid-cols-1" renderItem={entry => <InstalledSkinCard entry={entry} onOpen={openPost} onUninstall={library.requestUninstall} />} />
     }
     if (active === 'favorites') {
       if (visible.length === 0) return query ? emptyMessage : <EmptyLibraryState kind="favorites" onExplore={() => setActive('camouflages')} />
@@ -195,7 +207,7 @@ export default function App() {
         {active === 'settings' ? <SettingsPage
           gameInstall={gameSetup.gameInstall}
           gameLoading={gameSetup.loading}
-          diagnostics={diagnostics}
+          diagnostics={diagnostics} imageQuality={imageQuality.quality} onChangeImageQuality={imageQuality.setQuality}
           onOpenGameSetup={gameSetup.openSetup}
           onRescanGame={() => void gameSetup.scan()}
           onViewLegalNotice={legalNotice.openNotice}
@@ -237,7 +249,16 @@ export default function App() {
               }}>{t(sort)}<ChevronDown size={14} /></Button></>}
             </div>
           </div>
-          <div className="mb-3.5 mt-5 flex items-center gap-2">{active === 'camouflages' && <span className="border border-[#414a39] bg-[#2b3328] px-2.5 py-1.5 text-xs text-[#dbe0d1]">{t(selectedPeriodLabel)}</span>}<span className="ml-auto text-[11px] text-[#929a8e]">{t('posts', { count: active === 'downloads' ? visibleInstallations.length : visible.length })}</span></div>
+          {active === 'downloads' ? (
+            <DownloadsLibraryControls
+              totalCount={library.installedSkins.length}
+              totalSizeBytes={installedSkinsTotalBytes}
+              origin={downloadsOrigin}
+              sort={downloadsSort}
+              onOriginChange={setDownloadsOrigin}
+              onSortChange={setDownloadsSort}
+            />
+          ) : <div className="mb-3.5 mt-5 flex items-center gap-2">{active === 'camouflages' && <span className="border border-[#414a39] bg-[#2b3328] px-2.5 py-1.5 text-xs text-[#dbe0d1]">{t(selectedPeriodLabel)}</span>}<span className="ml-auto text-[11px] text-[#929a8e]">{t('posts', { count: visible.length })}</span></div>}
 
           {renderActiveSection()}
         </div>}
@@ -246,7 +267,7 @@ export default function App() {
     </main>
 
     <GameSetupModal
-      open={gameSetup.isOpen && !legalNotice.isOpen} loading={gameSetup.loading} error={gameSetup.error}
+      open={gameSetup.isOpen && !legalNotice.isOpen && !imageQuality.isSetupRequired} loading={gameSetup.loading} error={gameSetup.error}
       installations={gameSetup.installations} selected={gameSetup.selected}
       onSelect={gameSetup.selectInstallation} onConfirm={gameSetup.confirmInstallation}
       onRescan={() => void gameSetup.scan()} onChooseManual={() => void gameSetup.chooseManual(t('gameSetupPickerTitle'))}
@@ -273,9 +294,13 @@ export default function App() {
       onAcknowledge={legalNotice.acknowledge}
       onClose={legalNotice.closeNotice}
     />
+    <ImageQualitySetupDialog
+      open={imageQuality.isSetupRequired && !legalNotice.isOpen} keepWindowControlsVisible={isTauriRuntime}
+      initialQuality={imageQuality.quality} onConfirm={imageQuality.setQuality}
+    />
     {selected && (
       <PostDetailDialog
-        item={selected} detail={detail} loading={detailLoading} error={detailError}
+        item={selected} detail={detail} loading={detailLoading} error={detailError} imageQuality={imageQuality.quality}
         canInstall={isTauriRuntime} installer={skinInstaller}
         installedEntry={selectedInstalledSkin}
         onInstall={() => void handleInstallSkin()}

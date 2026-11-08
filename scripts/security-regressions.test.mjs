@@ -27,3 +27,17 @@ test('the texture help link has only its exact wiki URL opener permission', asyn
   assert.ok(capability.includes(`"url": "${url}"`))
   assert.ok(!capability.includes('https://wiki.warthunder.com/**'))
 })
+
+test('the first-run image-quality choice is local, configurable, and gates startup requests', async () => {
+  const [app, settings, gallery, preference] = await Promise.all([
+    read('src/App.tsx'),
+    read('src/components/SettingsPage.tsx'),
+    read('src/components/PostGallery.tsx'),
+    read('src/hooks/useImageQualityPreference.ts'),
+  ])
+  assert.match(app, /enabled:\s*feedEnabled\s*&&\s*!legalNotice\.isRequired\s*&&\s*!imageQuality\.isSetupRequired/)
+  assert.match(settings, /ImageQualitySettingsCard/)
+  assert.match(gallery, /imageSourceForQuality\(activeImage\.src, activeImage\.fullResolutionSrc, quality\)/)
+  assert.match(preference, /localStorage\.setItem\(storageKey, quality\)/)
+  assert.match(preference, /isSetupRequired:\s*storedQuality === null/)
+})

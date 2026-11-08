@@ -14,9 +14,12 @@ import { useI18n } from '../i18n/I18nProvider'
 import type { WtLiveDetail, WtLiveImage, WtLiveItem } from '../lib/wtLive'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
 import type { InstalledSkin } from '../lib/localLibrary'
+import type { ImageQualityMode } from '../lib/imageQuality'
+import { imageSourceForQuality } from '../lib/imageQuality'
 
 type Props = {
   item: WtLiveItem
+  imageQuality: ImageQualityMode
   detail: WtLiveDetail | null
   loading: boolean
   error: string
@@ -32,7 +35,7 @@ type Props = {
 }
 
 export function PostDetailDialog({
-  item, detail, loading, error, canInstall, installer,
+  item, imageQuality, detail, loading, error, canInstall, installer,
   installedEntry, onInstall, onReinstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
 }: Props) {
   const { t } = useI18n()
@@ -166,6 +169,7 @@ export function PostDetailDialog({
                 )}
                 <PostGallery
                   images={galleryImages}
+                  quality={imageQuality}
                   title={item.title || t('postFallbackTitle', { id: item.id })}
                   onZoom={setZoomedImage}
                 />
@@ -184,7 +188,10 @@ export function PostDetailDialog({
                       >
                         <PostImage
                           className="h-auto max-h-[65vh] w-full object-contain"
-                          image={block}
+                          image={{
+                            ...block,
+                            src: imageSourceForQuality(block.src, block.fullResolutionSrc, imageQuality),
+                          }}
                           alt={block.alt || t('postImageAlt')}
                           loading="lazy"
                         />

@@ -2,14 +2,17 @@ import { useState } from 'react'
 import { useI18n } from '../i18n/I18nProvider'
 import { PostImage } from './PostImage'
 import type { WtLiveImage } from '../lib/wtLive'
+import type { ImageQualityMode } from '../lib/imageQuality'
+import { imageSourceForQuality } from '../lib/imageQuality'
 
 type Props = {
   images: WtLiveImage[]
+  quality: ImageQualityMode
   title: string
   onZoom: (image: { src: string; alt: string }) => void
 }
 
-export function PostGallery({ images, title, onZoom }: Props) {
+export function PostGallery({ images, quality, title, onZoom }: Props) {
   const { t } = useI18n()
   const [activeIndex, setActiveIndex] = useState(0)
   const [prevImages, setPrevImages] = useState(images)
@@ -33,7 +36,10 @@ export function PostGallery({ images, title, onZoom }: Props) {
       >
         <PostImage
           className="h-auto max-h-[65vh] w-full object-contain"
-          image={activeImage}
+          image={{
+            ...activeImage,
+            src: imageSourceForQuality(activeImage.src, activeImage.fullResolutionSrc, quality),
+          }}
           alt={`${title} - ${activeIndex + 1}`}
           loading="eager"
           fetchPriority="high"
