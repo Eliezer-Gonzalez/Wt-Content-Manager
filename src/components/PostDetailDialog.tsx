@@ -220,10 +220,10 @@ export function PostDetailDialog({
               {t('readComments')} <ExternalLink size={13} />
             </button>
           )}
-          {commentError && (
-            <p className="mt-2 text-xs text-amber-200" role="alert">
-              {t('openLinkFailed')}
-            </p>
+          {detail?.commentsUrl && (
+            <div className="mt-2 min-h-5">
+              {commentError && <p className="mb-0 text-xs leading-5 text-amber-200" role="alert">{t('openLinkFailed')}</p>}
+            </div>
           )}
         </div>
       </section>

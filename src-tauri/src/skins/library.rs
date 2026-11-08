@@ -218,7 +218,10 @@ mod tests {
             ".wtcm-staging-1234567890abcdef",
         ] {
             let err = uninstall_skin(game_str, invalid).unwrap_err();
-            assert_eq!(err.code, "skin_invalid_folder", "failed on input: {invalid}");
+            assert_eq!(
+                err.code, "skin_invalid_folder",
+                "failed on input: {invalid}"
+            );
         }
 
         assert!(staging.exists());

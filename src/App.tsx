@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, ChevronDown, RefreshCw, Search } from 'lucide-react'
 import { GameSetupModal } from './components/GameSetupModal'
 import { ConfirmUninstallModal } from './components/ConfirmUninstallModal'
+import { ConfirmRemoveFavoriteModal } from './components/ConfirmRemoveFavoriteModal'
 import { NavigationSidebar, type AppSection } from './components/NavigationSidebar'
 import { SectionHeader } from './components/HeroBanner'
 import { PostCard } from './components/PostCard'
@@ -14,6 +15,7 @@ import { SoundComingSoon } from './components/SoundComingSoon'
 import { PeriodFilter } from './components/PeriodFilter'
 import { EmptyLibraryState } from './components/EmptyLibraryState'
 import { HomeDashboard } from './components/HomeDashboard'
+import { SettingsPage } from './components/SettingsPage'
 import { WindowTitleBar } from './components/WindowTitleBar'
 import { Button } from './components/ui/Button'
 import { APP_VERSION } from './lib/appInfo'
@@ -24,6 +26,7 @@ import { useSectionSearch } from './hooks/useSectionSearch'
 import { useAutoLoadMore } from './hooks/useAutoLoadMore'
 import { useCamouflageFeed } from './hooks/useCamouflageFeed'
 import { usePostDetail } from './hooks/usePostDetail'
+import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { isTauriRuntime } from './lib/gameInstall'
 import { useI18n, asTranslationKey } from './i18n/I18nProvider'
 import type { WtLiveFeedSort, WtLiveItem } from './lib/wtLive'
@@ -33,6 +36,7 @@ const isApple = typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.te
 export default function App() {
   const { t, locale, languages, setLocale } = useI18n()
   const gameSetup = useGameInstallation()
+  const diagnostics = useDiagnosticsSettings()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
   const [active, setActive] = useState<AppSection>('camouflages')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -40,8 +44,9 @@ export default function App() {
   const query = searches[active] ?? ''
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [sort, setSort] = useState<'recent' | 'popular'>('recent')
+  const [favoriteToRemove, setFavoriteToRemove] = useState<WtLiveItem | null>(null)
   const feedSort: WtLiveFeedSort = active === 'camouflages' && sort === 'popular' ? 'rating' : 'created'
-  const feedEnabled = active !== 'favorites' && active !== 'downloads' && active !== 'sounds'
+  const feedEnabled = active !== 'favorites' && active !== 'downloads' && active !== 'sounds' && active !== 'settings'
   const feed = useCamouflageFeed({ enabled: feedEnabled, query, sort: feedSort })
   const skinInstaller = useSkinInstaller({ gamePath: gameSetup.gameInstall?.path, t, onInstalled: library.recordInstallation })
   const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail({
@@ -116,7 +121,7 @@ export default function App() {
                   isSaved
                   isInstalled={installedIds.has(item.id)}
                   onOpen={openPost}
-                  onToggleSaved={library.toggleFavorite}
+                  onToggleSaved={() => setFavoriteToRemove(item)}
                 />
               )}
             />
@@ -143,7 +148,11 @@ export default function App() {
             />
           )}
         />
-        {feed.loadMoreError && <p className="mt-4 text-center text-sm text-amber-200" role="alert">{feed.loadMoreError}</p>}
+        {(feed.loadMoreError || feed.hasNext || feed.loadingMore) && (
+          <div className="mt-4 flex min-h-6 items-center justify-center">
+            {feed.loadMoreError && <p className="mb-0 text-center text-sm text-amber-200" role="alert">{feed.loadMoreError}</p>}
+          </div>
+        )}
         {(feed.hasNext || feed.loadingMore) && (
           <div ref={feedLoadMoreRef} className="mt-5 flex justify-center">
             <Button variant="quiet" disabled={feed.loadingMore} onClick={() => (feed.loadMoreError ? feed.retry() : feed.loadMore())}>
@@ -165,9 +174,9 @@ export default function App() {
     {isTauriRuntime && <WindowTitleBar />}
     <NavigationSidebar
       active={active} hasCustomTitleBar={isTauriRuntime} mobileOpen={mobileMenuOpen}
-      gameInstall={gameSetup.gameInstall} gameLoading={gameSetup.loading} installedCount={library.installedSkins.length}
+      installedCount={library.installedSkins.length}
       onNavigate={key => { setActive(key); if (key === 'camouflages' || key === 'home') feed.loadPage(0) }}
-      onOpenGameSetup={gameSetup.openSetup} onToggleMobile={() => setMobileMenuOpen(open => !open)} onCloseMobile={closeMobileMenu}
+      onToggleMobile={() => setMobileMenuOpen(open => !open)} onCloseMobile={closeMobileMenu}
     />
 
     <main className={`ml-[246px] flex flex-col max-[1100px]:ml-[210px] max-[720px]:ml-0 ${isTauriRuntime ? 'h-[calc(100dvh-36px)] min-h-0 overflow-y-auto [overflow-anchor:none]' : 'min-h-screen'}`}>
@@ -180,7 +189,13 @@ export default function App() {
       </header>
 
       <div className="flex flex-1 flex-col">
-        {active === 'sounds' ? <SoundComingSoon /> : active === 'home' ? <HomeDashboard
+        {active === 'settings' ? <SettingsPage
+          gameInstall={gameSetup.gameInstall}
+          gameLoading={gameSetup.loading}
+          diagnostics={diagnostics}
+          onOpenGameSetup={gameSetup.openSetup}
+          onRescanGame={() => void gameSetup.scan()}
+        /> : active === 'sounds' ? <SoundComingSoon /> : active === 'home' ? <HomeDashboard
           items={feed.items} favorites={library.favorites} installedSkins={library.installedSkins}
           favoritesCount={library.favorites.length} installedCount={library.installedSkins.length}
           gameConfigured={Boolean(gameSetup.gameInstall)} loading={feed.loading} error={feed.error}
@@ -237,6 +252,15 @@ export default function App() {
       entry={library.uninstallTarget} busy={library.uninstalling} error={library.uninstallError}
       uninstalledFolder={library.uninstalledFolder} onDismissNotice={library.dismissUninstalledNotice}
       onConfirm={() => void library.confirmUninstall()} onClose={library.cancelUninstall}
+    />
+    <ConfirmRemoveFavoriteModal
+      item={favoriteToRemove}
+      onClose={() => setFavoriteToRemove(null)}
+      onConfirm={() => {
+        if (!favoriteToRemove) return
+        library.toggleFavorite(favoriteToRemove)
+        setFavoriteToRemove(null)
+      }}
     />
     {selected && (
       <PostDetailDialog

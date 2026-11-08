@@ -101,7 +101,9 @@ mod tests {
 
         // Wrong suffix length
         assert!(!is_orphan_staging_dir(".wtcm-staging-abc123"));
-        assert!(!is_orphan_staging_dir(".wtcm-staging-1234567890abcdeftoolong"));
+        assert!(!is_orphan_staging_dir(
+            ".wtcm-staging-1234567890abcdeftoolong"
+        ));
         assert!(!is_orphan_staging_dir(".wtcm-staging-"));
 
         // Invalid characters (e.g. symbols, underscores)
@@ -152,9 +154,18 @@ mod tests {
         // - active_staging is registered -> NOT deleted
         // - old_orphan was just created, elapsed < 10m -> NOT deleted
         cleanup_orphans_with_threshold(&game_root, Duration::from_secs(600));
-        assert!(fresh_staging.exists(), "fresh matching dir should not be deleted");
-        assert!(active_staging.exists(), "active staging dir should not be deleted");
-        assert!(old_orphan.exists(), "young dir should not be deleted with 10m threshold");
+        assert!(
+            fresh_staging.exists(),
+            "fresh matching dir should not be deleted"
+        );
+        assert!(
+            active_staging.exists(),
+            "active staging dir should not be deleted"
+        );
+        assert!(
+            old_orphan.exists(),
+            "young dir should not be deleted with 10m threshold"
+        );
 
         // Second pass: with Duration::ZERO (simulating old age >= threshold)
         // - old_orphan is matching and not active -> DELETED
@@ -162,9 +173,18 @@ mod tests {
         // - wtcm-my-skin, content, UserSkins, MySkin -> NOT deleted
         cleanup_orphans_with_threshold(&game_root, Duration::ZERO);
         assert!(!old_orphan.exists(), "old matching dir should be deleted");
-        assert!(active_staging.exists(), "active staging dir must stay even with 0 threshold");
-        assert!(wtcm_skin_in_userskins.exists(), "wtcm-my-skin in UserSkins must stay");
-        assert!(wtcm_dir_in_game_root.exists(), "wtcm-my-skin in game_root must stay");
+        assert!(
+            active_staging.exists(),
+            "active staging dir must stay even with 0 threshold"
+        );
+        assert!(
+            wtcm_skin_in_userskins.exists(),
+            "wtcm-my-skin in UserSkins must stay"
+        );
+        assert!(
+            wtcm_dir_in_game_root.exists(),
+            "wtcm-my-skin in game_root must stay"
+        );
         assert!(content_dir.exists(), "content dir must stay");
         assert!(userskins.exists(), "UserSkins dir must stay");
         assert!(my_skin_dir.exists(), "MySkin in UserSkins must stay");

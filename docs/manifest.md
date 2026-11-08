@@ -6,7 +6,7 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 
 | Field | Value |
 | --- | --- |
-| Application version | 0.8.0 (keep package, Rust crate, and Tauri versions synchronized) |
+| Application version | 0.11.1 (keep package, Rust crate, and Tauri versions synchronized) |
 | License | GNU GPL v3 or later (`GPL-3.0-or-later`) |
 | Frontend | React, TypeScript, Vite, Tailwind CSS 4 |
 | Desktop runtime | Tauri 2 |
@@ -23,6 +23,8 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 - Save favorites, record installed skins, and remember the selected game path and UI preferences locally.
 - Detect/select a War Thunder installation and install supported ZIP/RAR skin archives into its `UserSkins` directory.
 - Show download progress and allow pause, resume, or cancellation while bytes are downloading. Archive extraction/installation follows after transfer and is not pausable.
+- Configure the War Thunder path and local diagnostic logging in Settings.
+- Store bounded diagnostic logs locally by default, with an opt-out; provide controls to copy recent logs or open their folder. No telemetry or automatic upload is used.
 - Open WT Live images in an image viewer and zoom/pan within the image.
 
 ## Scope and limitations
@@ -30,6 +32,7 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 - The catalog integration targets WT Live's camouflage feed and post-detail endpoints. It is an integration with a third-party service, so response shape, availability, and access rules can change independently.
 - The native game-path detection currently uses Windows registry and Steam locations; manually choosing and validating a game directory is also supported.
 - The app does not provide WT Live account login, comments, or a sound-mod manager.
+- Hard system freezes or forced process termination may prevent the last event from being recorded; logs capture handled frontend/backend errors and Rust panics.
 - Browser development mode can render the frontend and call WT Live directly; filesystem installation and native dialogs require the Tauri runtime.
 - Tauri bundling is currently disabled in `src-tauri/tauri.conf.json` (`bundle.active: false`).
 

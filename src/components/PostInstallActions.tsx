@@ -122,9 +122,7 @@ export function PostInstallActions({
       )}
 
       {error && (
-        <p role="alert" className="mt-3 text-sm text-amber-200">
-          {error}
-        </p>
+        <p role="alert" className="mt-3 text-sm text-amber-200">{error}</p>
       )}
       {cancelled && (
         <p role="status" className="mt-3 border border-[#424c3b] bg-[#252c23] p-3 text-xs text-[#c5cfb0]">

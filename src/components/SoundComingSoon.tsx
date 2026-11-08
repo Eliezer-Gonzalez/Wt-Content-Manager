@@ -41,8 +41,8 @@ export function SoundComingSoon() {
             role="img"
             className="sound-scene h-auto w-full select-none"
             xmlns="http://www.w3.org/2000/svg"
+            aria-label={t('soundIllustrationTitle')}
           >
-            <title>{t('soundIllustrationTitle')}</title>
             <desc>{t('soundIllustrationDesc')}</desc>
             <defs>
               <clipPath id="strip">

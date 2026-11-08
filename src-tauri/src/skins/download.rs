@@ -41,8 +41,7 @@ pub async fn download_archive(
     control: &DownloadControl,
     channel: &Channel<SkinInstallProgress>,
 ) -> Result<(), AppError> {
-    let parsed =
-        reqwest::Url::parse(url).map_err(|_| AppError::new("download_invalid_url"))?;
+    let parsed = reqwest::Url::parse(url).map_err(|_| AppError::new("download_invalid_url"))?;
     if !trusted_download(&parsed) {
         return Err(AppError::new("download_untrusted_host"));
     }
@@ -73,8 +72,9 @@ pub async fn download_archive(
     }
     let total = response.content_length();
     if total.is_some_and(|size| size > MAX_ARCHIVE_BYTES) {
-        return Err(AppError::new("download_size_exceeded")
-            .with_param("max_bytes", MAX_ARCHIVE_BYTES));
+        return Err(
+            AppError::new("download_size_exceeded").with_param("max_bytes", MAX_ARCHIVE_BYTES)
+        );
     }
 
     let mut output = tokio::fs::OpenOptions::new()
@@ -113,8 +113,9 @@ pub async fn download_archive(
         let Some(chunk) = chunk else { break };
         downloaded = downloaded.saturating_add(chunk.len() as u64);
         if downloaded > MAX_ARCHIVE_BYTES || total.is_some_and(|size| downloaded > size) {
-            return Err(AppError::new("download_size_exceeded")
-                .with_param("max_bytes", MAX_ARCHIVE_BYTES));
+            return Err(
+                AppError::new("download_size_exceeded").with_param("max_bytes", MAX_ARCHIVE_BYTES)
+            );
         }
         output
             .write_all(&chunk)
@@ -128,6 +129,9 @@ pub async fn download_archive(
     if total.is_some_and(|size| downloaded != size) {
         return Err(AppError::new("download_incomplete"));
     }
-    output.sync_all().await.map_err(|error| AppError::with_detail("io_error", error.to_string()))?;
+    output
+        .sync_all()
+        .await
+        .map_err(|error| AppError::with_detail("io_error", error.to_string()))?;
     Ok(())
 }

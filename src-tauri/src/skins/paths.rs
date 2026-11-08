@@ -110,23 +110,13 @@ pub fn sanitize_folder_name(name: &str) -> String {
 }
 
 pub fn select_skin_root(payload: &Path, archive_name: &str) -> Result<(PathBuf, String), AppError> {
-    let entries = fs::read_dir(payload)?
-        .collect::<Result<Vec<_>, _>>()?;
-    if entries.len() == 1
-        && entries[0]
-            .file_type()?
-            .is_dir()
-    {
+    let entries = fs::read_dir(payload)?.collect::<Result<Vec<_>, _>>()?;
+    if entries.len() == 1 && entries[0].file_type()?.is_dir() {
         let outer = entries[0].path();
         let outer_name = entries[0].file_name().to_string_lossy().to_string();
         if outer_name.eq_ignore_ascii_case("UserSkins") {
-            let inner = fs::read_dir(&outer)?
-                .collect::<Result<Vec<_>, _>>()?;
-            if inner.len() == 1
-                && inner[0]
-                    .file_type()?
-                    .is_dir()
-            {
+            let inner = fs::read_dir(&outer)?.collect::<Result<Vec<_>, _>>()?;
+            if inner.len() == 1 && inner[0].file_type()?.is_dir() {
                 let name = sanitize_folder_name(&inner[0].file_name().to_string_lossy());
                 return Ok((inner[0].path(), name));
             }

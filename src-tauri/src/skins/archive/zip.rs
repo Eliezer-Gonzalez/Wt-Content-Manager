@@ -17,8 +17,8 @@ pub fn extract(
     size_limit: u64,
 ) -> Result<ExtractStats, AppError> {
     let file = fs::File::open(archive_path)?;
-    let mut archive =
-        ZipArchive::new(file).map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
     if archive.is_empty() {
         return Err(AppError::new("archive_empty_or_too_many_entries"));
     }
@@ -31,7 +31,9 @@ pub fn extract(
         let options = ZipReadOptions::new().enforce_header_consistency(true);
         let entry = archive
             .by_index_with_options(index, options)
-            .map_err(|error| AppError::with_detail("archive_entry_read_failed", error.to_string()))?;
+            .map_err(|error| {
+                AppError::with_detail("archive_entry_read_failed", error.to_string())
+            })?;
         if entry.is_symlink() {
             return Err(AppError::new("archive_symlink_rejected"));
         }
@@ -83,10 +85,13 @@ pub fn extract(
             .write(true)
             .create_new(true)
             .open(&output)
-            .map_err(|error| AppError::with_detail("archive_extract_file_failed", error.to_string()))?;
+            .map_err(|error| {
+                AppError::with_detail("archive_extract_file_failed", error.to_string())
+            })?;
         let remaining = size_limit.saturating_sub(total_written);
-        let copied = io::copy(&mut entry.take(remaining.saturating_add(1)), &mut target)
-            .map_err(|error| AppError::with_detail("archive_extract_file_failed", error.to_string()))?;
+        let copied = io::copy(&mut entry.take(remaining.saturating_add(1)), &mut target).map_err(
+            |error| AppError::with_detail("archive_extract_file_failed", error.to_string()),
+        )?;
         if copied > remaining || copied != expected {
             return Err(AppError::new("archive_limits_exceeded"));
         }

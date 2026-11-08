@@ -48,7 +48,9 @@ pub async fn install_skin(
                 total_bytes: None,
                 paused: false,
             })
-            .map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))?;
+            .map_err(|error| {
+                AppError::with_detail("download_progress_failed", error.to_string())
+            })?;
         game_install::validate(game_path)?;
         let (download_url, archive_name) = wt_live::skin_download_source(lang_group).await?;
         control.check_cancelled()?;
@@ -66,7 +68,9 @@ pub async fn install_skin(
                 total_bytes: None,
                 paused: false,
             })
-            .map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))?;
+            .map_err(|error| {
+                AppError::with_detail("download_progress_failed", error.to_string())
+            })?;
         tauri::async_runtime::spawn_blocking(move || staging.extract_and_install(&archive_name))
             .await
             .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))?
@@ -98,9 +102,15 @@ impl InstallStaging {
         let userskins = game_root.join("UserSkins");
         if let Err(error) = std::fs::create_dir_all(&userskins) {
             if error.kind() == std::io::ErrorKind::PermissionDenied {
-                return Err(AppError::with_detail("game_permission_denied", error.to_string()));
+                return Err(AppError::with_detail(
+                    "game_permission_denied",
+                    error.to_string(),
+                ));
             }
-            return Err(AppError::with_detail("userskins_create_failed", error.to_string()));
+            return Err(AppError::with_detail(
+                "userskins_create_failed",
+                error.to_string(),
+            ));
         }
 
         cleanup_orphans(game_root);

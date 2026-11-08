@@ -25,8 +25,8 @@ pub fn extract(
     size_limit: u64,
 ) -> Result<ExtractStats, AppError> {
     let file = fs::File::open(archive_path)?;
-    let mut archive =
-        RarArchive::open(file).map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
+    let mut archive = RarArchive::open(file)
+        .map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
     archive.set_limits(Limits {
         max_data_segment: MAX_ENTRY_BYTES,
         max_unpacked_size: MAX_ENTRY_BYTES,
@@ -100,12 +100,16 @@ pub fn extract(
             .write(true)
             .create_new(true)
             .open(&output)
-            .map_err(|error| AppError::with_detail("archive_extract_file_failed", error.to_string()))?;
+            .map_err(|error| {
+                AppError::with_detail("archive_extract_file_failed", error.to_string())
+            })?;
         archive
             .by_index(index)
             .map_err(|error| AppError::with_detail("archive_entry_read_failed", error.to_string()))?
             .copy_to(&mut target)
-            .map_err(|error| AppError::with_detail("archive_extract_file_failed", error.to_string()))?;
+            .map_err(|error| {
+                AppError::with_detail("archive_extract_file_failed", error.to_string())
+            })?;
     }
     Ok(stats)
 }

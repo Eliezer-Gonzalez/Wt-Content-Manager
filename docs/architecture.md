@@ -16,6 +16,8 @@ React UI (src/)
 - `src/App.tsx` composes the app shell, navigation, catalog and local-library views, and detail/setup dialogs. Feature state is delegated to hooks and components.
 - `src/components/` contains focused UI units: post cards and grids, filters, detail and image viewers, the game setup modal, navigation, and download progress.
 - `src/hooks/` owns reusable stateful behavior, including game setup, local library persistence, per-section searches, and skin installation UI state.
+- `src/hooks/useDiagnosticsSettings.ts` owns Settings diagnostics state, while `src/lib/diagnostics.ts` provides the Tauri IPC calls and uncaught frontend error capture.
+- `src/components/SettingsPage.tsx` presents game path and local diagnostics controls in the application's olive, bordered panel style.
 - `src/lib/wtLive.ts` defines frontend WT Live types, maps feed data, parses post descriptions into text/image blocks, validates image URLs, and selects the browser or Tauri request path.
 - `src/i18n/` loads locale JSON files dynamically. Add a locale by adding a JSON file with the same message keys; `I18nProvider` discovers locale files at build time.
 - `src/lib/` contains non-UI helpers for local-library persistence, image URL handling, dates, and app metadata.
@@ -25,6 +27,7 @@ React UI (src/)
 
 - `src-tauri/src/lib.rs` initializes Tauri plugins, shared download-task state, and the IPC command registry.
 - `src-tauri/src/commands.rs` is the IPC boundary. It validates/coordinates command inputs and delegates domain work to modules.
+- `src-tauri/src/logging.rs` persists bounded local JSONL diagnostics and the opt-out setting; command failures are logged by stable error code.
 - `src-tauri/src/http.rs` defines the shared HTTP User-Agent identifier used by outbound requests.
 - `src-tauri/src/providers/wt_live.rs` sends form requests to WT Live and validates feed/detail/download-source responses.
 - `src-tauri/src/game_install.rs` detects known Windows Steam/Gaijin installations and validates a manually selected path.
@@ -52,11 +55,18 @@ React UI (src/)
 
 Favorites and installed-skin metadata are serialized in browser `localStorage` (`wt-content-manager-library-v1`). The game path, language, searches, and first-run setup flag use separate local storage keys. The installed files remain in the War Thunder directory; localStorage records metadata and paths, not the skin archive.
 
+### Diagnostics and Settings
+
+Settings centralizes the War Thunder path controls and diagnostics. The Rust logger is initialized under Tauri's app data directory (`logs/`), defaults to enabled, and persists the opt-out in a local settings file. It writes newline-delimited JSON records for failed Tauri commands, uncaught frontend errors/rejections, application startup, and Rust panics. The log is capped at 1 MiB with two rotated backups; the copy action reads at most the latest 96 KiB. User-profile paths are redacted and application errors are recorded by stable error code to avoid storing query strings or detailed file paths.
+
+No telemetry, upload, polling, or background reporting is performed. The frontend sends a local IPC log entry only for uncaught errors; handled backend errors are recorded where Tauri commands return. A forced process termination or hard OS-level hang may prevent the last event from being written.
+
 ## Boundaries and extension points
 
 - Keep React components focused on rendering; put reusable state transitions in hooks and service/data transformations in `src/lib/`.
 - Keep Tauri command handlers thin. Put game, network, download, and archive logic in their respective Rust modules.
 - Keep frontend/Rust IPC parameter and response shapes aligned. Progress is event-channel data; command completion returns the final installation result or an error.
+- Keep diagnostic output local and bounded; avoid logging search strings, archive contents, or full error details that may contain private paths.
 - Locale files share keys. Update `en.json` and `es.json` together when adding user-facing text.
 - Sound support should be a separate feature/module: sound mods have different paths and may require composing selected mods by vehicle class, unlike installing a camouflage archive.
 

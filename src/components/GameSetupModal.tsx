@@ -84,9 +84,14 @@ export function GameSetupModal({
           <p className="mt-2 max-w-[420px] text-sm leading-6 text-[#b1b7ab]">{t('gameSetupIntro')}</p>
         </header>
 
-        <div className="space-y-4 px-6 py-5 max-[420px]:px-5" aria-live="polite">
-          {loading && <p className="flex items-center gap-2.5 text-sm text-[#bdc99e]"><LoaderCircle className="animate-spin motion-reduce:animate-none" size={17}/>{t('gameSetupSearching')}</p>}
-          {!loading && errorMessage && <p className="border border-amber-800/60 bg-amber-950/30 px-3 py-2.5 text-sm leading-relaxed text-amber-100" role="alert">{errorMessage}</p>}
+        <div className="space-y-4 px-6 py-5 max-[420px]:px-5">
+          {(loading || errorMessage) && <div className="flex min-h-11 items-center" aria-live="polite" aria-atomic="true">
+            {loading ? (
+              <p className="mb-0 flex items-center gap-2.5 text-sm text-[#bdc99e]"><LoaderCircle className="animate-spin motion-reduce:animate-none" size={17}/>{t('gameSetupSearching')}</p>
+            ) : (
+              <p className="mb-0 border border-amber-800/60 bg-amber-950/30 px-3 py-2.5 text-sm leading-relaxed text-amber-100" role="alert">{errorMessage}</p>
+            )}
+          </div>}
           {installations.length > 0 && <div role="radiogroup" aria-label={t('gameSetupFound')}>
             <p className="mb-2.5 text-xs font-semibold text-[#c9cebf]">{t('gameSetupFound')}</p>
             <div className="space-y-2">

@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
-import { Bookmark, Download, Gamepad2, Grid2X2, Headphones, Menu, Settings2, Shield, X } from 'lucide-react'
+import { Bookmark, Download, Grid2X2, Headphones, Menu, Settings2, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
-import type { GameInstall } from '../lib/gameInstall'
 import { APP_VERSION } from '../lib/appInfo'
 import { formatNumber } from '../lib/format'
 import { useI18n } from '../i18n/I18nProvider'
@@ -11,17 +10,14 @@ const navigation = [
   { group: 'library', items: [['favorites', Bookmark], ['downloads', Download]] },
 ] as const
 
-export type AppSection = (typeof navigation)[number]['items'][number][0]
+export type AppSection = (typeof navigation)[number]['items'][number][0] | 'settings'
 
 type Props = {
   active: AppSection
   hasCustomTitleBar: boolean
   mobileOpen: boolean
-  gameInstall: GameInstall | null
-  gameLoading: boolean
   installedCount: number
   onNavigate: (key: AppSection) => void
-  onOpenGameSetup: () => void
   onToggleMobile: () => void
   onCloseMobile: () => void
 }
@@ -30,11 +26,8 @@ export function NavigationSidebar({
   active,
   hasCustomTitleBar,
   mobileOpen,
-  gameInstall,
-  gameLoading,
   installedCount,
   onNavigate,
-  onOpenGameSetup,
   onToggleMobile,
   onCloseMobile,
 }: Props) {
@@ -143,45 +136,13 @@ export function NavigationSidebar({
         <div className={`mt-auto ${mobileOpen ? 'max-[720px]:mt-auto max-[720px]:block' : 'max-[720px]:hidden'}`}>
           <button
             type="button"
-            className="relative mb-[13px] flex w-full items-center gap-2.5 border border-[#333b31] bg-[#242a23] p-3 text-left hover:border-[#717d5b]"
-            onClick={onOpenGameSetup}
-            title={t('chooseGameFolder')}
-          >
-            <span className="text-[#aeb993]">
-              <Gamepad2 size={17} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <small className="block text-[10px] tracking-[.1em] text-[#a9b09e]">{t('game')}</small>
-              <strong className="mt-1 block max-w-[175px] truncate text-[11px] font-medium text-[#d1d4c9]">
-                {gameInstall
-                  ? t('installedAt', { path: gameInstall.path })
-                  : gameLoading
-                    ? t('detecting')
-                    : t('notDetected')}
-              </strong>
-            </span>
-            <span className={`size-1.5 rounded-full ${gameInstall ? 'bg-[#9cae70]' : 'bg-[#c29459]'}`} />
-          </button>
-
-          <button
-            className="flex h-10 w-full items-center gap-[11px] border-l-2 border-transparent px-[10px] text-left text-[13px] text-[#b1b7ab] disabled:cursor-not-allowed disabled:opacity-55"
-            type="button"
-            disabled
-            aria-disabled="true"
+            aria-current={active === 'settings' ? 'page' : undefined}
+            className={`flex h-10 w-full items-center gap-[11px] border-l-2 px-[10px] text-left text-[13px] transition-colors ${active === 'settings' ? 'border-olive bg-[#293027] text-[#dfe4d2]' : 'border-transparent text-[#b1b7ab] hover:bg-[#252b24] hover:text-[#e7e8df]'}`}
+            onClick={() => { onNavigate('settings'); onCloseMobile() }}
           >
             <Settings2 size={17} />
             {t('settings')}
           </button>
-
-          <div className="mt-4 flex items-center gap-[9px] border-t border-[#313830] px-[5px] pb-0 pt-[14px]">
-            <span className="grid size-[29px] place-items-center bg-[#454b3b] text-xs text-[#e1e5d4]">
-              {Array.from(t('profile'))[0]?.toUpperCase() ?? 'P'}
-            </span>
-            <span className="min-w-0 flex-1">
-              <strong className="block text-xs font-medium">{t('profileLocal')}</strong>
-              <small className="mt-1 block text-[10px] text-[#9da596]">{t('libraryLocal')}</small>
-            </span>
-          </div>
         </div>
       </aside>
     </>
