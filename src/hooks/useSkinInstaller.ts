@@ -55,7 +55,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     resetInstallState()
   }, [selectionKey, resetInstallState])
 
-  const install = useCallback(async (item: WtLiveItem) => {
+  const install = useCallback(async (item: WtLiveItem, replaceFolderName?: string) => {
     if (!gamePath) return
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
@@ -71,7 +71,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     try {
       const result = await installSkin(item.langGroup, gamePath, taskId, progressUpdate => {
         if (mountedRef.current) setProgress(progressUpdate)
-      })
+      }, replaceFolderName)
       if (!mountedRef.current) return
       setInstalledPath(result.path)
       if (result.skippedFiles > 0) {

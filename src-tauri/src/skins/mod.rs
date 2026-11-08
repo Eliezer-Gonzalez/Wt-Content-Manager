@@ -37,9 +37,11 @@ pub async fn install_skin(
     lang_group: u64,
     game_path: &str,
     task_id: &str,
+    replace_folder_name: Option<&str>,
     on_progress: Channel<SkinInstallProgress>,
     manager: &DownloadManager,
 ) -> Result<InstallResult, AppError> {
+    let replace_folder_name = replace_folder_name.map(str::to_owned);
     let control = manager.register(task_id)?;
     let result = async {
         on_progress
@@ -72,9 +74,11 @@ pub async fn install_skin(
             .map_err(|error| {
                 AppError::with_detail("download_progress_failed", error.to_string())
             })?;
-        tauri::async_runtime::spawn_blocking(move || staging.extract_and_install(&archive_name))
-            .await
-            .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))?
+        tauri::async_runtime::spawn_blocking(move || {
+            staging.extract_and_install(&archive_name, replace_folder_name.as_deref())
+        })
+        .await
+        .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))?
     }
     .await;
     manager.finish(task_id);
@@ -146,7 +150,11 @@ impl InstallStaging {
         download::download_archive(url, &self.archive_path, control, channel).await
     }
 
-    pub fn extract_and_install(self, archive_name: &str) -> Result<InstallResult, AppError> {
+    pub fn extract_and_install(
+        self,
+        archive_name: &str,
+        replace_folder_name: Option<&str>,
+    ) -> Result<InstallResult, AppError> {
         let payload = self.staging_dir.path().join("payload");
         std::fs::create_dir(&payload)?;
         let stats = archive::extract(&self.archive_path, &payload, MAX_SKIN_BYTES)?;
@@ -156,10 +164,18 @@ impl InstallStaging {
             return Err(AppError::new("archive_no_skin_definition"));
         }
         let size_bytes = paths::total_size(&source)?;
-        let folder_name = paths::unique_folder_name(&self.userskins, &folder_name)?;
+        let folder_name = match replace_folder_name {
+            Some(name) => name.to_string(),
+            None => paths::unique_folder_name(&self.userskins, &folder_name)?,
+        };
         let destination = self.userskins.join(&folder_name);
-        std::fs::rename(&source, &destination)
-            .map_err(|error| AppError::with_detail("skin_save_failed", error.to_string()))?;
+        if let Some(name) = replace_folder_name {
+            let backup = self.staging_dir.path().join("previous-skin");
+            library::replace_skin_folder(&self.userskins, name, &source, &backup)?;
+        } else {
+            std::fs::rename(&source, &destination)
+                .map_err(|error| AppError::with_detail("skin_save_failed", error.to_string()))?;
+        }
 
         Ok(InstallResult {
             folder_name,

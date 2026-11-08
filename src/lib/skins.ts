@@ -24,10 +24,10 @@ export type ScannedSkin = {
   modifiedAtMs: number | null
 }
 
-export function installSkin(langGroup: number, gamePath: string, taskId: string, onProgress: (progress: SkinInstallProgress) => void): Promise<SkinInstallResult> {
+export function installSkin(langGroup: number, gamePath: string, taskId: string, onProgress: (progress: SkinInstallProgress) => void, replaceFolderName?: string): Promise<SkinInstallResult> {
   const channel = new Channel<SkinInstallProgress>()
   channel.onmessage = onProgress
-  return invoke<SkinInstallResult>('install_skin', { langGroup, gamePath, taskId, onProgress: channel })
+  return invoke<SkinInstallResult>('install_skin', { langGroup, gamePath, taskId, onProgress: channel, replaceFolderName })
 }
 
 export function setSkinDownloadPaused(taskId: string, paused: boolean): Promise<void> {

@@ -24,6 +24,7 @@ type Props = {
   installer: SkinInstaller
   installedEntry?: InstalledSkin | null
   onInstall: () => void
+  onReinstall: (entry: InstalledSkin) => void
   onUninstall?: (entry: InstalledSkin) => void
   onChooseGame: () => void
   onClose: () => void
@@ -32,7 +33,7 @@ type Props = {
 
 export function PostDetailDialog({
   item, detail, loading, error, canInstall, installer,
-  installedEntry, onInstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
+  installedEntry, onInstall, onReinstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
 }: Props) {
   const { t } = useI18n()
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null)
@@ -238,6 +239,7 @@ export function PostDetailDialog({
             installer={installer}
             installedEntry={installedEntry}
             onInstall={onInstall}
+            onReinstall={onReinstall}
             onUninstall={onUninstall}
             onChooseGame={onChooseGame}
           />

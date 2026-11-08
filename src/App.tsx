@@ -279,6 +279,7 @@ export default function App() {
         canInstall={isTauriRuntime} installer={skinInstaller}
         installedEntry={selectedInstalledSkin}
         onInstall={() => void handleInstallSkin()}
+        onReinstall={entry => { if (selected) void skinInstaller.install(selected, entry.folderName) }}
         onUninstall={entry => { closePost(); library.requestUninstall(entry); }}
         onChooseGame={gameSetup.openSetup}
         onSearchHashtag={handleSearchHashtag} onClose={closePost}

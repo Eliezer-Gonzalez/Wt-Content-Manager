@@ -180,6 +180,8 @@
   "downloadsCount_other": "{count} descargas",
   "installSkin": "Instalar skin",
   "reinstallSkin": "Reinstalar skin",
+  "reinstallConfirmTitle": "¿Reemplazar esta skin?",
+  "reinstallConfirmBody": "Se descargará y validará la skin nueva. Después, se reemplazará la carpeta \"{folder}\" existente en UserSkins.",
   "uninstallFromGame": "Desinstalar del juego",
   "skinAlreadyInstalled": "Skin instalada en UserSkins",
   "installedBadge": "INSTALADA",

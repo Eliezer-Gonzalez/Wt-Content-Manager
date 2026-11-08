@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Check, Download, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { SkinDownloadProgress } from './SkinDownloadProgress'
+import { ConfirmReinstallModal } from './ConfirmReinstallModal'
 import { useI18n } from '../i18n/I18nProvider'
 import { formatNumber } from '../lib/format'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
@@ -12,6 +14,7 @@ type Props = {
   installer: SkinInstaller
   installedEntry?: InstalledSkin | null
   onInstall: () => void
+  onReinstall: (entry: InstalledSkin) => void
   onUninstall?: (entry: InstalledSkin) => void
   onChooseGame: () => void
 }
@@ -22,9 +25,11 @@ export function PostInstallActions({
   installer,
   installedEntry,
   onInstall,
+  onReinstall,
   onUninstall,
   onChooseGame,
 }: Props) {
+  const [reinstallTarget, setReinstallTarget] = useState<InstalledSkin | null>(null)
   const { t, locale } = useI18n()
   const {
     installing,
@@ -79,7 +84,7 @@ export function PostInstallActions({
             variant={installedEntry ? 'secondary' : 'primary'}
             className="w-full"
             disabled={!canInstall}
-            onClick={onInstall}
+            onClick={() => installedEntry ? setReinstallTarget(installedEntry) : onInstall()}
           >
             {installedEntry ? <RefreshCw size={16} /> : <Download size={16} />}
             {t(installedEntry ? 'reinstallSkin' : 'installSkin')}
@@ -149,6 +154,15 @@ export function PostInstallActions({
           )}
         </>
       )}
+      <ConfirmReinstallModal
+        entry={reinstallTarget}
+        onClose={() => setReinstallTarget(null)}
+        onConfirm={() => {
+          if (!reinstallTarget) return
+          onReinstall(reinstallTarget)
+          setReinstallTarget(null)
+        }}
+      />
     </>
   )
 }

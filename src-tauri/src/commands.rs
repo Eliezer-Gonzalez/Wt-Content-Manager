@@ -66,11 +66,20 @@ pub async fn install_skin(
     lang_group: u64,
     game_path: String,
     task_id: String,
+    replace_folder_name: Option<String>,
     on_progress: Channel<skins::download_task::SkinInstallProgress>,
     manager: State<'_, skins::download_task::DownloadManager>,
     logger: State<'_, logging::DiagnosticLogger>,
 ) -> Result<skins::InstallResult, AppError> {
-    let result = skins::install_skin(lang_group, &game_path, &task_id, on_progress, &manager).await;
+    let result = skins::install_skin(
+        lang_group,
+        &game_path,
+        &task_id,
+        replace_folder_name.as_deref(),
+        on_progress,
+        &manager,
+    )
+    .await;
     record_failure(&logger, "install_skin", result)
 }
 

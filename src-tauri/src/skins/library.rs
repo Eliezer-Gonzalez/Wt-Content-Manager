@@ -135,9 +135,48 @@ pub fn uninstall_skin(game_path: &str, folder_name: &str) -> Result<(), AppError
     fs::remove_dir_all(&target).map_err(map_uninstall_io_error)
 }
 
+pub(super) fn replace_skin_folder(
+    userskins: &Path,
+    folder_name: &str,
+    replacement: &Path,
+    backup: &Path,
+) -> Result<(), AppError> {
+    validate_skin_folder_name(folder_name)?;
+    let target = userskins.join(folder_name);
+    let metadata = match fs::symlink_metadata(&target) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            return Err(AppError::new("skin_not_found"));
+        }
+        Err(error) => return Err(map_uninstall_io_error(error)),
+    };
+    if metadata.file_type().is_symlink() || !metadata.file_type().is_dir() {
+        return Err(AppError::new("skin_invalid_folder"));
+    }
+
+    let userskins_canon = fs::canonicalize(userskins).map_err(map_uninstall_io_error)?;
+    let target_canon = fs::canonicalize(&target).map_err(map_uninstall_io_error)?;
+    if target_canon.parent() != Some(userskins_canon.as_path()) || backup.exists() {
+        return Err(AppError::new("skin_invalid_folder"));
+    }
+
+    fs::rename(&target, backup).map_err(map_uninstall_io_error)?;
+    if let Err(error) = fs::rename(replacement, &target) {
+        let restore = fs::rename(backup, &target);
+        return Err(AppError::with_detail(
+            "skin_save_failed",
+            restore.map_or_else(
+                |restore_error| format!("{error}; restoring previous skin failed: {restore_error}"),
+                |_| error.to_string(),
+            ),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{scan_installed_skins, uninstall_skin};
+    use super::{replace_skin_folder, scan_installed_skins, uninstall_skin};
     use std::fs;
     use tempfile::TempDir;
 
@@ -192,6 +231,50 @@ mod tests {
 
         assert!(!skin_dir.exists());
         assert!(userskins.exists());
+    }
+
+    #[test]
+    fn replaces_existing_skin_folder_only_after_new_skin_is_ready() {
+        let game = create_fake_game_root();
+        let userskins = game.path().join("UserSkins");
+        let existing = userskins.join("F-16C");
+        let replacement_parent = game.path().join("stage");
+        let replacement = replacement_parent.join("replacement");
+        let backup = replacement_parent.join("previous-skin");
+        fs::create_dir_all(&existing).unwrap();
+        fs::create_dir_all(&replacement).unwrap();
+        fs::create_dir_all(&replacement_parent).unwrap();
+        fs::write(existing.join("old.blk"), b"old").unwrap();
+        fs::write(replacement.join("new.blk"), b"new").unwrap();
+
+        replace_skin_folder(&userskins, "F-16C", &replacement, &backup).unwrap();
+
+        assert!(!existing.join("old.blk").exists());
+        assert!(existing.join("new.blk").exists());
+        assert!(backup.join("old.blk").exists());
+    }
+
+    #[test]
+    fn restores_existing_skin_if_replacement_cannot_be_moved_into_place() {
+        let game = create_fake_game_root();
+        let userskins = game.path().join("UserSkins");
+        let existing = userskins.join("F-16C");
+        let backup = game.path().join("stage").join("previous-skin");
+        fs::create_dir_all(&existing).unwrap();
+        fs::create_dir_all(backup.parent().unwrap()).unwrap();
+        fs::write(existing.join("old.blk"), b"old").unwrap();
+
+        let error = replace_skin_folder(
+            &userskins,
+            "F-16C",
+            &game.path().join("stage").join("missing-replacement"),
+            &backup,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, "skin_save_failed");
+        assert!(existing.join("old.blk").exists());
+        assert!(!backup.exists());
     }
 
     #[test]
