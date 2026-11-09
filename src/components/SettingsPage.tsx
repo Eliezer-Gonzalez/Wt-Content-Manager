@@ -11,6 +11,7 @@ import { TemporaryFilesCard } from './TemporaryFilesCard'
 import { ResetLocalDataCard } from './ResetLocalDataCard'
 import { ImageQualitySettingsCard } from './ImageQualitySettingsCard'
 import type { ImageQualityMode } from '../lib/imageQuality'
+import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 
 type DiagnosticsState = ReturnType<typeof useDiagnosticsSettings>
 
@@ -29,14 +30,20 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
   const { t } = useI18n()
   const diagnosticsEnabled = diagnostics.settings?.enabled ?? diagnostics.supported
   const [userSkinsError, setUserSkinsError] = useState(false)
+  const [openingUserSkins, setOpeningUserSkins] = useState(false)
 
   async function handleOpenUserSkins() {
-    if (!gameInstall) return
+    if (!gameInstall || openingUserSkins) return
+    const startedAt = Date.now()
+    setOpeningUserSkins(true)
     setUserSkinsError(false)
     try {
       await openUserSkinsFolder(gameInstall.path)
     } catch {
       setUserSkinsError(true)
+    } finally {
+      await waitForMinimumLoadingDuration(startedAt)
+      setOpeningUserSkins(false)
     }
   }
 
@@ -83,8 +90,8 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
                 {gameLoading && <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                 {t(gameLoading ? 'gameSetupSearching' : 'gameSetupRescan')}
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => void handleOpenUserSkins()} disabled={!gameInstall}>
-                <FolderOpen size={14} aria-hidden="true" />{t('settingsOpenUserSkins')}
+              <Button variant="secondary" size="sm" onClick={() => void handleOpenUserSkins()} disabled={!gameInstall || openingUserSkins}>
+                {openingUserSkins ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <FolderOpen size={14} aria-hidden="true" />}{t(openingUserSkins ? 'settingsOpenUserSkinsWorking' : 'settingsOpenUserSkins')}
               </Button>
             </div>
             {userSkinsError && <p className="mb-0 text-xs text-amber-200" role="alert">{t('settingsOpenUserSkinsFailed')}</p>}
@@ -95,7 +102,7 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
           <div className="flex items-start gap-3 border-b border-[#343b32] px-5 py-4">
             <span className="grid size-10 shrink-0 place-items-center border border-[#4b5640] bg-[#293027] text-[#bcc899]"><FileText size={18} /></span>
             <div className="min-w-0 flex-1">
-              <p className="mb-1 text-[10px] tracking-[.13em] text-[#9eaa85]">{t('settingsDiagnosticsEyebrow')}</p>
+              <p className="mb-1 flex items-center gap-1.5 text-[10px] tracking-[.13em] text-[#9eaa85]">{diagnostics.action === 'toggle' && <LoaderCircle size={12} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{t(diagnostics.action === 'toggle' ? 'settingsDiagnosticsWorking' : 'settingsDiagnosticsEyebrow')}</p>
               <h2 id="diagnostics-title" className="mb-0 text-base font-medium text-[#e0e3d8]">{t('settingsDiagnosticsTitle')}</h2>
             </div>
             <button
@@ -125,10 +132,10 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
             </div>}
             <div className="mt-auto flex flex-wrap gap-2 border-t border-[#30372e] pt-3">
               <Button variant="secondary" size="sm" onClick={() => void diagnostics.copyLogs()} disabled={!diagnostics.settings?.hasLogs || diagnostics.busy}>
-                <Copy size={14} />{t('settingsCopyLogs')}
+                {diagnostics.action === 'copy' ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Copy size={14} />}{t(diagnostics.action === 'copy' ? 'settingsCopyLogsWorking' : 'settingsCopyLogs')}
               </Button>
               <Button variant="quiet" size="sm" onClick={() => void diagnostics.openFolder()} disabled={!diagnostics.settings || diagnostics.busy}>
-                <FolderOpen size={14} />{t('settingsOpenLogsFolder')}
+                {diagnostics.action === 'open' ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <FolderOpen size={14} />}{t(diagnostics.action === 'open' ? 'settingsOpenLogsFolderWorking' : 'settingsOpenLogsFolder')}
               </Button>
             </div>
           </div>

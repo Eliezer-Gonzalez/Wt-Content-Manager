@@ -20,6 +20,10 @@ fn record_failure<T>(
                     || error.code.clone(),
                     |params| format!("{} {params}", error.code),
                 );
+            let message = error
+                .detail
+                .as_deref()
+                .map_or(message.clone(), |detail| format!("{message}; detail: {detail}"));
             let _ = logger.write("error", source, &message);
         }
     }

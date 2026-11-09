@@ -7,10 +7,14 @@ import {
   type DiagnosticSettings,
 } from '../lib/diagnostics'
 import { isTauriRuntime } from '../lib/gameInstall'
+import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
+
+type DiagnosticsAction = 'toggle' | 'copy' | 'open'
 
 export function useDiagnosticsSettings() {
   const [settings, setSettings] = useState<DiagnosticSettings | null>(null)
   const [busy, setBusy] = useState(false)
+  const [action, setAction] = useState<DiagnosticsAction | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -25,6 +29,8 @@ export function useDiagnosticsSettings() {
 
   const toggle = useCallback(async () => {
     if (!settings || busy) return
+    const startedAt = Date.now()
+    setAction('toggle')
     setBusy(true)
     setError('')
     setNotice('')
@@ -35,13 +41,19 @@ export function useDiagnosticsSettings() {
     } catch {
       setError('diagnosticsSettingsFailed')
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setBusy(false)
+      setAction(null)
     }
   }, [busy, settings])
 
   const copyLogs = useCallback(async () => {
     if (!settings?.hasLogs || busy) return
+    const startedAt = Date.now()
+    setAction('copy')
     setBusy(true)
+    setError('')
+    setNotice('')
     try {
       const contents = await readRecentDiagnostics()
       if (!contents.trim()) {
@@ -56,12 +68,16 @@ export function useDiagnosticsSettings() {
       setNotice('')
       setError('diagnosticsCopyFailed')
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setBusy(false)
+      setAction(null)
     }
   }, [busy, settings])
 
   const openFolder = useCallback(async () => {
     if (!settings || busy) return
+    const startedAt = Date.now()
+    setAction('open')
     setBusy(true)
     setError('')
     setNotice('')
@@ -70,7 +86,9 @@ export function useDiagnosticsSettings() {
     } catch {
       setError('diagnosticsOpenFailed')
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setBusy(false)
+      setAction(null)
     }
   }, [busy, settings])
 
@@ -78,6 +96,7 @@ export function useDiagnosticsSettings() {
     settings,
     supported: isTauriRuntime,
     busy,
+    action,
     error,
     notice,
     toggle,

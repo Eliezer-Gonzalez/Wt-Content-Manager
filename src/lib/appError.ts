@@ -87,3 +87,13 @@ export function formatAppError(error: unknown, t: TranslateFn): FormattedError {
 
   return { message: t('errors.unexpected') }
 }
+
+export function formatWtLiveError(error: unknown, t: TranslateFn): string {
+  if (error instanceof TypeError) return t('wtLiveConnectionFailed')
+  if (error instanceof SyntaxError) return t('errors.wt_live_invalid_response')
+  const formatted = formatAppError(error, t)
+  if (error instanceof WtLiveError) return formatted.message
+  if (error instanceof Error && formatted.message === error.message) return t('wtLiveConnectionFailed')
+  if (typeof error === 'string' && formatted.message === error) return t('wtLiveConnectionFailed')
+  return formatted.message
+}

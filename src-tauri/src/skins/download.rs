@@ -60,7 +60,7 @@ pub async fn download_archive(
     let mut response = tokio::time::timeout(READ_TIMEOUT, client.get(parsed).send())
         .await
         .map_err(|_| AppError::new("download_timeout"))?
-        .map_err(|error| AppError::with_detail("download_connection_failed", error.to_string()))?;
+        .map_err(|error| AppError::with_detail("download_connection_failed", error.without_url().to_string()))?;
     control.check_cancelled()?;
     if !response.status().is_success() {
         return Err(AppError::new("download_http_error")
@@ -107,7 +107,7 @@ pub async fn download_archive(
             return Err(AppError::new("download_timeout"));
         }
         let chunk = tokio::select! {
-            result = response.chunk() => result.map_err(|error| AppError::with_detail("download_stream_failed", error.to_string()))?,
+            result = response.chunk() => result.map_err(|error| AppError::with_detail("download_stream_failed", error.without_url().to_string()))?,
             _ = tokio::time::sleep(POLL_INTERVAL) => continue,
         };
         let Some(chunk) = chunk else { break };

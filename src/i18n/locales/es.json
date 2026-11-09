@@ -331,5 +331,15 @@
   "imageQualityConfirm": "Guardar preferencia",
   "imageQualityChangeTitle": "¿Cambiar a {mode}?",
   "imageQualityChangeBody": "El cambio se aplicará a los próximos modales de publicaciones que abras. No necesitas reiniciar la aplicación.",
-  "imageQualityChangeConfirm": "Aplicar cambio"
+  "imageQualityChangeConfirm": "Aplicar cambio",
+  "offlineSource": "Sin conexión",
+  "wtLiveConnectionFailed": "No se pudo conectar con WT Live. Comprueba tu conexión a internet e inténtalo de nuevo.",
+  "externalSkinInfo": "No la instaló esta aplicación. Se detectó en UserSkins.",
+  "externalSkinUninstallNote": "Esta skin externa se detectó en UserSkins; no la instaló esta aplicación.",
+  "settingsTemporaryCleaningAction": "Limpiando…",
+  "connectingSource": "Conectando con WT Live…",
+  "settingsCopyLogsWorking": "Copiando registros…",
+  "settingsOpenLogsFolderWorking": "Abriendo carpeta…",
+  "settingsOpenUserSkinsWorking": "Abriendo UserSkins…",
+  "settingsDiagnosticsWorking": "Actualizando registros…"
 }

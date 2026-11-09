@@ -1,6 +1,6 @@
 [package]
 name = "wt-content-manager"
-version = "0.12.0"
+version = "0.12.2"
 description = "Desktop catalog and installer for War Thunder community content"
 authors = []
 edition = "2021"
@@ -23,6 +23,7 @@ tempfile = "3"
 tokio = { version = "1", features = ["fs", "macros", "time"] }
 zip = { version = "9.4.0", default-features = false, features = ["deflate"] }
 tauri-plugin-opener = "2.5.3"
+tauri-plugin-single-instance = "2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

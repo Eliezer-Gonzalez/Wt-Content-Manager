@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchRecentCamouflages, type WtLiveFeedSort, type WtLiveItem } from '../lib/wtLive'
-import { formatAppError } from '../lib/appError'
+import { formatWtLiveError } from '../lib/appError'
+
 import { useI18n } from '../i18n/I18nProvider'
 import type { Period } from '../components/PeriodFilter'
 
@@ -21,6 +22,7 @@ export function useCamouflageFeed({ enabled, query, sort }: Options) {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+  const [online, setOnline] = useState<boolean | null>(null)
   const [loadMoreError, setLoadMoreError] = useState('')
   const [retryCount, setRetryCount] = useState(0)
   const fetchRequestIdRef = useRef(0)
@@ -59,6 +61,7 @@ export function useCamouflageFeed({ enabled, query, sort }: Options) {
     fetchRecentCamouflages(controller.signal, searchTag, period, page, sort)
       .then(pageItems => {
         if (requestId !== fetchRequestIdRef.current) return
+        setOnline(true)
         setItems(current => {
           if (page === 0) return pageItems
           const existingIds = new Set(current.map(item => item.id))
@@ -69,8 +72,8 @@ export function useCamouflageFeed({ enabled, query, sort }: Options) {
       .catch((cause: unknown) => {
         if (requestId !== fetchRequestIdRef.current) return
         if (!(cause instanceof Error && cause.name === 'AbortError')) {
-          const formatted = formatAppError(cause, t)
-          const message = formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message
+          setOnline(false)
+          const message = formatWtLiveError(cause, t)
           if (isLoadingMore) setLoadMoreError(message)
           else setError(message)
         }
@@ -121,6 +124,7 @@ export function useCamouflageFeed({ enabled, query, sort }: Options) {
     loading,
     loadingMore,
     error,
+    online,
     loadMoreError,
     page,
     hasNext,

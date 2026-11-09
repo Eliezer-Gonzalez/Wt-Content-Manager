@@ -21,6 +21,7 @@ type Props = {
   gameConfigured: boolean
   loading: boolean
   error: string
+  online: boolean | null
   isSaved: (item: WtLiveItem) => boolean
   onNavigate: (section: AppSection) => void
   onOpenGameSetup: () => void
@@ -58,9 +59,9 @@ function StatusCard({ icon, label, value, onClick }: StatusCardProps) {
 }
 
 function HomeRowHeader({
-  title, subtitle, showLiveDot, sectionKey, onHide, onSeeAll,
+  title, subtitle, showLiveDot, online, sectionKey, onHide, onSeeAll,
 }: {
-  title: string; subtitle: string; showLiveDot?: boolean; sectionKey: HomeSectionKey; onHide: (key: HomeSectionKey) => void; onSeeAll: () => void
+  title: string; subtitle: string; showLiveDot?: boolean; online?: boolean | null; sectionKey: HomeSectionKey; onHide: (key: HomeSectionKey) => void; onSeeAll: () => void
 }) {
   const { t } = useI18n()
   return (
@@ -69,7 +70,7 @@ function HomeRowHeader({
         <h2 className="mb-1 text-lg font-medium tracking-tight text-[#e3e6dc]">{title}</h2>
         <p className="mb-0 text-xs text-[#a1a99b]">
           {subtitle}
-          {showLiveDot && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-[#9cae70]" />}
+          {showLiveDot && <span className={`ml-1.5 inline-block size-1.5 rounded-full ${online ? 'bg-[#9cae70]' : 'bg-[#788078]'}`} />}
         </p>
       </div>
       <div className="flex items-center gap-1.5">
@@ -86,7 +87,7 @@ function HomeRowHeader({
 }
 
 export function HomeDashboard({
-  items, favorites, installedSkins, favoritesCount, installedCount, gameConfigured, loading, error,
+  items, favorites, installedSkins, favoritesCount, installedCount, gameConfigured, loading, error, online,
   isSaved, onNavigate, onOpenGameSetup, onRetry, onOpen, onToggleSaved, onUninstall,
 }: Props) {
   const { t, locale } = useI18n()
@@ -152,8 +153,9 @@ export function HomeDashboard({
         <section className="mt-8">
           <HomeRowHeader
             title={t('homeLatest')}
-            subtitle={t('updatedFrom')}
+            subtitle={t(online === null ? 'connectingSource' : online ? 'updatedFrom' : 'offlineSource')}
             showLiveDot
+            online={online}
             sectionKey="recent"
             onHide={hideSection}
             onSeeAll={() => onNavigate('camouflages')}

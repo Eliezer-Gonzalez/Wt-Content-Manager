@@ -15,6 +15,14 @@ export function formatNumber(value: number, locale: string): string {
   return getNumberFormatter(locale).format(value)
 }
 
+export function truncateMiddle(value: string, maxLength = 64): string {
+  if (value.length <= maxLength) return value
+  const available = Math.max(2, maxLength - 1)
+  const startLength = Math.ceil(available / 2)
+  const endLength = Math.floor(available / 2)
+  return `${value.slice(0, startLength)}…${value.slice(-endLength)}`
+}
+
 export function relativeDate(timestamp: number, locale: string): string {
   const seconds = Math.max(0, Math.floor(Date.now() / 1000 - timestamp))
 

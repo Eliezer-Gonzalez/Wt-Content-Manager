@@ -1,8 +1,8 @@
-import { CalendarDays, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, Trash2 } from 'lucide-react'
+import { CalendarDays, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, Info, Trash2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../lib/wtLive'
-import { formatFileSize } from '../lib/format'
+import { formatFileSize, truncateMiddle } from '../lib/format'
 import { useI18n } from '../i18n/I18nProvider'
 
 type Props = {
@@ -32,7 +32,7 @@ export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FileArchive size={13}/>{t('files')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{t('installedFiles', { count: entry.fileCount })}</dd></div>
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><HardDriveDownload size={13}/>{t('installedSize')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{formatFileSize(entry.sizeBytes, locale)}</dd></div>
     </dl>
-    <p className="mb-3 mt-3 truncate border border-[#343b32] bg-[#1b201b] p-2 text-[11px] leading-4 text-[#9fa899]" title={entry.path}>{entry.path}</p>
+    <p className="mb-3 mt-3 break-all border border-[#343b32] bg-[#1b201b] p-2 text-[11px] leading-4 text-[#9fa899]" title={entry.path}>{truncateMiddle(entry.path, 72)}</p>
     <div className="mt-auto flex items-center gap-2 pt-1">
       {entry.item ? (
         <Button variant="secondary" size="sm" className="flex-1 justify-center" onClick={() => onOpen(entry.item!)} aria-label={t('viewPostAria', { title })}>
@@ -40,8 +40,12 @@ export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
           <ExternalLink size={13} aria-hidden="true" />
         </Button>
       ) : (
-        <span className="inline-flex min-h-8 flex-1 items-center justify-center border border-[#394136] bg-[#20261f] px-2.5 py-1 text-xs text-[#9fa896]">
+        <span className="inline-flex min-h-8 flex-1 items-center justify-center gap-2 border border-[#394136] bg-[#20261f] px-2.5 py-1 text-xs text-[#9fa896]">
           {t('installedExternalBadge')}
+          <span className="group relative inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive" tabIndex={0} aria-label={t('externalSkinInfo')} aria-describedby="external-skin-info-tooltip">
+            <Info size={14} aria-hidden="true" />
+            <span id="external-skin-info-tooltip" role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-52 -translate-x-1/2 border border-[#46513d] bg-[#171c17] p-2 text-left text-xs leading-4 text-[#d3d9ca] shadow-xl group-hover:block group-focus:block">{t('externalSkinInfo')}</span>
+          </span>
         </span>
       )}
       <Button variant="danger" size="sm" onClick={() => onUninstall(entry)} aria-label={t('uninstallSkinAria', { name: title })} title={t('uninstallSkin')}>

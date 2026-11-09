@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchPostDetail, type WtLiveDetail, type WtLiveItem } from '../lib/wtLive'
-import { formatAppError } from '../lib/appError'
+import { formatWtLiveError } from '../lib/appError'
 import { useI18n } from '../i18n/I18nProvider'
 
 type Options = {
@@ -43,8 +43,7 @@ export function usePostDetail({ onResetInstallState }: Options = {}) {
       .catch((cause: unknown) => {
         if (requestId !== detailRequestIdRef.current) return
         if (!(cause instanceof Error && cause.name === 'AbortError')) {
-          const formatted = formatAppError(cause, t)
-          setDetailError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+          setDetailError(formatWtLiveError(cause, t))
         }
       })
       .finally(() => {

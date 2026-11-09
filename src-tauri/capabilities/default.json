@@ -15,7 +15,8 @@
       "allow": [
         { "url": "https://live.warthunder.com/**" },
         { "url": "https://wiki.warthunder.com/cdk/creation_camo" },
-        { "url": "https://github.com/Eliezer-Gonzalez/Wt-Download/**" }
+        { "url": "https://github.com/Eliezer-Gonzalez/Wt-Content-Manager" },
+        { "url": "https://github.com/Eliezer-Gonzalez/Wt-Content-Manager/**" }
       ]
     }
   ]

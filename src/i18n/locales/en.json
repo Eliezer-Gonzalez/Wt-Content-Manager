@@ -331,5 +331,15 @@
   "imageQualityConfirm": "Save preference",
   "imageQualityChangeTitle": "Switch to {mode}?",
   "imageQualityChangeBody": "This change will apply to the next post dialogs you open. You do not need to restart the app.",
-  "imageQualityChangeConfirm": "Apply change"
+  "imageQualityChangeConfirm": "Apply change",
+  "offlineSource": "Offline",
+  "wtLiveConnectionFailed": "Could not connect to WT Live. Check your internet connection and try again.",
+  "externalSkinInfo": "Not installed by this app. Detected in UserSkins.",
+  "externalSkinUninstallNote": "This external skin was detected in UserSkins; it was not installed by this app.",
+  "settingsTemporaryCleaningAction": "Cleaning…",
+  "connectingSource": "Connecting to WT Live…",
+  "settingsCopyLogsWorking": "Copying logs…",
+  "settingsOpenLogsFolderWorking": "Opening folder…",
+  "settingsOpenUserSkinsWorking": "Opening UserSkins…",
+  "settingsDiagnosticsWorking": "Updating logging…"
 }

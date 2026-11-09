@@ -54,13 +54,13 @@ async fn post_form(path: &str, fields: &[(&str, &str)]) -> Result<Value, AppErro
         .form(fields)
         .send()
         .await
-        .map_err(|error| AppError::with_detail("wt_live_unreachable", error.to_string()))?;
+        .map_err(|error| AppError::with_detail("wt_live_unreachable", error.without_url().to_string()))?;
 
     if let Err(error) = response.error_for_status_ref() {
         let status = error.status().map(|s| s.as_u16()).unwrap_or(500);
         return Err(AppError::new("wt_live_http_error")
             .with_param("status", status)
-            .set_detail(error.to_string()));
+            .set_detail(format!("HTTP status {status}")));
     }
 
     if response
@@ -74,7 +74,7 @@ async fn post_form(path: &str, fields: &[(&str, &str)]) -> Result<Value, AppErro
     while let Some(chunk) = response
         .chunk()
         .await
-        .map_err(|error| AppError::with_detail("wt_live_invalid_response", error.to_string()))?
+        .map_err(|error| AppError::with_detail("wt_live_invalid_response", error.without_url().to_string()))?
     {
         append_limited_response_chunk(&mut body, &chunk, MAX_API_RESPONSE_BYTES)?;
     }

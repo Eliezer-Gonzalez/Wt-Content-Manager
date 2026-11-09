@@ -92,7 +92,7 @@ export function SectionHeader({
         aria-hidden="true"
       />
       <div className="relative z-10 max-w-2xl">
-        <p className="mb-0 flex items-center gap-2 text-[10px] tracking-[.14em] text-[#a0aa8a]">
+        <p className="mb-0 flex max-w-full flex-wrap items-center gap-2 text-[12px] leading-5 tracking-[.08em] text-[#c0c9aa] sm:text-[13px]">
           <span className="h-px w-3.5 bg-[#acb98b]" />
           {eyebrow}
         </p>

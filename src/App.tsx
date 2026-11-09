@@ -190,6 +190,7 @@ export default function App() {
     <NavigationSidebar
       active={active} hasCustomTitleBar={isTauriRuntime} mobileOpen={mobileMenuOpen}
       installedCount={library.installedSkins.length}
+      online={feed.online}
       onNavigate={key => { setActive(key); if (key === 'camouflages' || key === 'home') feed.loadPage(0) }}
       onToggleMobile={() => setMobileMenuOpen(open => !open)} onCloseMobile={closeMobileMenu}
     />
@@ -214,7 +215,7 @@ export default function App() {
         /> : active === 'sounds' ? <SoundComingSoon /> : active === 'home' ? <HomeDashboard
           items={feed.items} favorites={library.favorites} installedSkins={library.installedSkins}
           favoritesCount={library.favorites.length} installedCount={library.installedSkins.length}
-          gameConfigured={Boolean(gameSetup.gameInstall)} loading={feed.loading} error={feed.error}
+          gameConfigured={Boolean(gameSetup.gameInstall)} loading={feed.loading} error={feed.error} online={feed.online}
           isSaved={item => library.favorites.some(saved => saved.id === item.id)}
           onNavigate={section => { setActive(section); if (section === 'camouflages') feed.loadPage(0) }}
           onOpenGameSetup={gameSetup.openSetup} onRetry={feed.retry}
@@ -235,7 +236,7 @@ export default function App() {
           </section>
 
           <div className="flex items-end justify-between gap-4">
-            <div><h2 className="mb-1 text-lg font-medium tracking-tight">{active === 'favorites' ? t('favorites') : active === 'downloads' ? t('downloads') : t('latestPosts')}</h2>{!isLocalLibrary && <p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{feed.loading ? t('loading') : feed.error ? t('catalogError') : <>{t('updatedFrom')} <span className="inline-block size-1.5 rounded-full bg-[#9cae70]" /></>}</p>}</div>
+            <div>{!isLocalLibrary && <p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{feed.loading ? t('loading') : <>{t(feed.online ? 'updatedFrom' : 'offlineSource')} <span className={`inline-block size-1.5 rounded-full ${feed.online ? 'bg-[#9cae70]' : 'bg-[#788078]'}`} /></>}</p>}</div>
             <div className="flex min-h-9 flex-wrap items-center justify-end gap-2 text-xs text-[#a1a99b]">
               {active === 'downloads' && gameSetup.gameInstall && (
                 <Button variant="secondary" size="sm" onClick={() => void library.rescanSkins()} disabled={library.scanning}>
@@ -263,7 +264,7 @@ export default function App() {
           {renderActiveSection()}
         </div>}
       </div>
-      <footer className="sticky bottom-0 z-20 mx-8 mt-auto flex shrink-0 justify-between gap-3 border-t border-[#2d342d] bg-wt-bg px-1 py-3 text-[10px] tracking-[.06em] text-[#8d968a] max-[1100px]:mx-6 max-[720px]:mx-4 max-[420px]:flex-col"><span>{t('dataSource')}</span><span>{t('brandManager')} <b className="font-medium text-[#b2baa9]">{APP_VERSION}</b></span></footer>
+      <footer className="sticky bottom-0 z-20 mx-8 mt-auto flex shrink-0 flex-wrap justify-between gap-x-3 gap-y-1 border-t border-[#2d342d] bg-wt-bg px-1 py-3 text-[10px] tracking-[.06em] text-[#8d968a] max-[1100px]:mx-6 max-[720px]:mx-4"><span>{t('dataSource')}</span><span>By DestGM · {t('brandManager')} <b className="font-medium text-[#b2baa9]">{APP_VERSION}</b></span></footer>
     </main>
 
     <GameSetupModal

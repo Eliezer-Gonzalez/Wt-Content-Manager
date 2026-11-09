@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Broom, RefreshCw } from 'lucide-react'
+import { Broom, LoaderCircle, RefreshCw } from 'lucide-react'
 import type { GameInstall } from '../lib/gameInstall'
 import { formatFileSize } from '../lib/format'
 import { useTemporaryFiles } from '../hooks/useTemporaryFiles'
@@ -50,7 +50,7 @@ export function TemporaryFilesCard({ gameInstall }: Props) {
             <p className="mb-0 mt-1 text-[11px] text-[#838d7f]">{t('settingsTemporaryHint')}</p>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setConfirmOpen(true)} disabled={!gameInstall || !temporaryFiles.report || directoryCount === 0 || temporaryFiles.loading || temporaryFiles.busy}>
-            <Broom size={14} aria-hidden="true" />{t('settingsTemporaryCleanAction')}
+            {temporaryFiles.busy ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Broom size={14} aria-hidden="true" />}{t(temporaryFiles.busy ? 'settingsTemporaryCleaningAction' : 'settingsTemporaryCleanAction')}
           </Button>
         </div>
       </section>

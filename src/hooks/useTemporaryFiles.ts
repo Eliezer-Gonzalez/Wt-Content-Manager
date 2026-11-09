@@ -6,6 +6,7 @@ import {
   type TemporaryFileReport,
 } from '../lib/settings'
 import { isTauriRuntime } from '../lib/gameInstall'
+import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 
 export function useTemporaryFiles(gamePath?: string) {
   const [report, setReport] = useState<TemporaryFileReport | null>(null)
@@ -20,6 +21,7 @@ export function useTemporaryFiles(gamePath?: string) {
       setLastCleanup(null)
       return
     }
+    const startedAt = Date.now()
     setLoading(true)
     setError('')
     setLastCleanup(null)
@@ -28,6 +30,7 @@ export function useTemporaryFiles(gamePath?: string) {
     } catch {
       setError('temporaryFilesScanFailed')
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setLoading(false)
     }
   }, [gamePath])
@@ -36,6 +39,7 @@ export function useTemporaryFiles(gamePath?: string) {
 
   const clean = useCallback(async () => {
     if (!gamePath || busy) return null
+    const startedAt = Date.now()
     setBusy(true)
     setError('')
     setLastCleanup(null)
@@ -48,6 +52,7 @@ export function useTemporaryFiles(gamePath?: string) {
       setError('temporaryFilesCleanupFailed')
       return null
     } finally {
+      await waitForMinimumLoadingDuration(startedAt)
       setBusy(false)
     }
   }, [busy, gamePath])

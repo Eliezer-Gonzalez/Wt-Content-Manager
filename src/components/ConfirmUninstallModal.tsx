@@ -4,6 +4,7 @@ import { Button } from './ui/Button'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { InstalledSkin } from '../lib/localLibrary'
 import { useI18n } from '../i18n/I18nProvider'
+import { truncateMiddle } from '../lib/format'
 
 type Props = {
   entry: InstalledSkin | null
@@ -55,6 +56,7 @@ export function ConfirmUninstallModal({
             aria-labelledby="confirm-uninstall-title"
             aria-describedby="confirm-uninstall-desc"
             className="w-full max-w-md border border-[#3c4538] bg-[#1e241e] p-6 shadow-2xl"
+            onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}
           >
             <div className="flex items-start gap-3">
               <span className="grid size-10 shrink-0 place-items-center border border-[#644b42] bg-[#2a201d] text-[#e0c1b5]">
@@ -67,11 +69,12 @@ export function ConfirmUninstallModal({
                 <p id="confirm-uninstall-desc" className="mt-2 text-sm leading-relaxed text-[#b1b7ab]">
                   {t('uninstallConfirmBody', { folder: entry.folderName })}
                 </p>
+                {!entry.item && <p className="mb-0 mt-2 text-xs leading-5 text-[#c4cbae]">{t('externalSkinUninstallNote')}</p>}
               </div>
             </div>
 
-            <p className="mt-4 truncate border border-[#343b32] bg-[#161a16] px-3 py-2 text-xs text-[#9fa899]" title={entry.path}>
-              {entry.path}
+            <p className="mt-4 break-all border border-[#343b32] bg-[#161a16] px-3 py-2 text-xs text-[#9fa899]" title={entry.path}>
+              {truncateMiddle(entry.path, 72)}
             </p>
 
             {error && (
@@ -97,7 +100,7 @@ export function ConfirmUninstallModal({
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 border border-[#4c5b3e] bg-[#1e251d] px-4 py-3 text-xs text-[#dce3d0] shadow-2xl"
+          className="fixed bottom-4 right-4 z-[60] flex max-w-[calc(100vw-2rem)] items-center gap-3 border border-[#6a8051] bg-[#263321] px-4 py-3 text-sm font-medium text-[#e5f0d5] shadow-2xl sm:bottom-8 sm:right-8 sm:max-w-sm"
         >
           <CheckCircle2 size={16} className="shrink-0 text-[#aabd7c]" aria-hidden="true" />
           <span className="min-w-0 flex-1 leading-relaxed">

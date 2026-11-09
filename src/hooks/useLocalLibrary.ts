@@ -19,7 +19,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
 
   useEffect(() => {
     if (!uninstalledFolder) return
-    const timer = window.setTimeout(() => setUninstalledFolder(null), 4000)
+    const timer = window.setTimeout(() => setUninstalledFolder(null), 5500)
     return () => window.clearTimeout(timer)
   }, [uninstalledFolder])
 

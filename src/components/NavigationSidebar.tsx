@@ -17,6 +17,7 @@ type Props = {
   hasCustomTitleBar: boolean
   mobileOpen: boolean
   installedCount: number
+  online: boolean | null
   onNavigate: (key: AppSection) => void
   onToggleMobile: () => void
   onCloseMobile: () => void
@@ -27,6 +28,7 @@ export function NavigationSidebar({
   hasCustomTitleBar,
   mobileOpen,
   installedCount,
+  online,
   onNavigate,
   onToggleMobile,
   onCloseMobile,
@@ -87,13 +89,13 @@ export function NavigationSidebar({
         </div>
 
         <div
-          className={`mb-6 mt-7 items-center justify-between px-2 text-[10px] tracking-[.12em] text-[#8f988b] ${
+            className={`mb-6 mt-7 flex-wrap items-center justify-between gap-x-2 gap-y-1 px-2 text-[10px] tracking-[.12em] text-[#8f988b] ${
             mobileOpen ? 'flex max-[720px]:mt-7' : 'flex max-[720px]:hidden'
           }`}
         >
-          <span>
-            <span className="mr-2 inline-block size-1.5 rounded-full bg-[#9cae70]" />
-            {t('onlineSource')}
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={`inline-block size-1.5 shrink-0 rounded-full ${online ? 'bg-[#9cae70]' : 'bg-[#788078]'}`} />
+            <span className={`min-w-0 ${online === null ? 'truncate' : 'break-words'}`}>{t(online === null ? 'connectingSource' : online ? 'onlineSource' : 'offlineSource')}</span>
           </span>
           <span className="text-[#bac49c]">{t('sourceName')}</span>
         </div>
