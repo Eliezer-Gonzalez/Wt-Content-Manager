@@ -1,4 +1,7 @@
-export type BannerVariant = 'radar' | 'hazard'
+import { LibraryInsignia } from './LibraryInsignia'
+import { SettingsDials } from './SettingsDials'
+
+export type BannerVariant = 'radar' | 'hazard' | 'favorites' | 'downloads' | 'settings'
 
 type HeroBannerProps = {
   variant: BannerVariant
@@ -58,6 +61,8 @@ export function HeroBanner({ variant, className = 'inset-0' }: HeroBannerProps) 
         <div className="hazard">
           <div className="hazard__stripes" />
           <div className="hazard__edge" />
+          {(variant === 'favorites' || variant === 'downloads') && <LibraryInsignia kind={variant} />}
+          {variant === 'settings' && <SettingsDials />}
         </div>
       )}
     </div>

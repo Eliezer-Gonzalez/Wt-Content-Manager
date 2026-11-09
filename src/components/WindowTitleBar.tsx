@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Copy, Minus, Shield, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useI18n } from '../i18n/I18nProvider'
+import { AppTooltip } from './ui/AppTooltip'
 
 export function WindowTitleBar() {
   const { t } = useI18n()
@@ -41,9 +42,9 @@ export function WindowTitleBar() {
       aria-hidden="true"
     />
     <div className="flex h-full shrink-0 items-stretch">
-      <button type="button" className="grid w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive" onClick={() => void appWindow.minimize()} aria-label={t('minimizeWindow')} title={t('minimizeWindow')}><Minus size={15}/></button>
-      <button type="button" className="grid w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive" onClick={() => void toggleMaximize()} aria-label={t(maximized ? 'restoreWindow' : 'maximizeWindow')} title={t(maximized ? 'restoreWindow' : 'maximizeWindow')}>{maximized ? <Copy size={13}/> : <Square size={13}/>}</button>
-      <button type="button" className="grid w-12 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#a83f37] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-300" onClick={() => void appWindow.close()} aria-label={t('closeWindow')} title={t('closeWindow')}><X size={15}/></button>
+      <AppTooltip content={t('minimizeWindow')} className="h-full" placement="bottom"><button type="button" className="grid h-full w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive" onClick={() => void appWindow.minimize()} aria-label={t('minimizeWindow')}><Minus size={15}/></button></AppTooltip>
+      <AppTooltip content={t(maximized ? 'restoreWindow' : 'maximizeWindow')} className="h-full" placement="bottom"><button type="button" className="grid h-full w-11 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#30372f] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-olive" onClick={() => void toggleMaximize()} aria-label={t(maximized ? 'restoreWindow' : 'maximizeWindow')}>{maximized ? <Copy size={13}/> : <Square size={13}/>}</button></AppTooltip>
+      <AppTooltip content={t('closeWindow')} className="h-full" placement="bottom" align="end"><button type="button" className="grid h-full w-12 place-items-center text-[#aeb5a7] transition-colors hover:bg-[#a83f37] hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-300" onClick={() => void appWindow.close()} aria-label={t('closeWindow')}><X size={15}/></button></AppTooltip>
     </div>
   </header>
 }

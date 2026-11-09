@@ -10,6 +10,7 @@ import { SectionHeader } from './HeroBanner'
 import type { AppSection } from './NavigationSidebar'
 import { formatNumber } from '../lib/format'
 import { useI18n } from '../i18n/I18nProvider'
+import { AppTooltip } from './ui/AppTooltip'
 import { useHomeSections, type HomeSectionKey } from '../hooks/useHomeSections'
 
 type Props = {
@@ -74,10 +75,12 @@ function HomeRowHeader({
         </p>
       </div>
       <div className="flex items-center gap-1.5">
-        <Button variant="quiet" className="min-h-8 px-2 text-xs text-[#959e8f]" onClick={() => onHide(sectionKey)} title={t('homeHideSection')}>
-          <EyeOff size={14} aria-hidden="true" />
-          <span>{t('homeHide')}</span>
-        </Button>
+        <AppTooltip content={t('homeHideSection')} align="end">
+          <Button variant="quiet" className="min-h-8 px-2 text-xs text-[#959e8f]" onClick={() => onHide(sectionKey)}>
+            <EyeOff size={14} aria-hidden="true" />
+            <span>{t('homeHide')}</span>
+          </Button>
+        </AppTooltip>
         <Button variant="quiet" className="min-h-9 px-2 text-xs" onClick={onSeeAll}>
           {t('seeAll')} <ArrowRight size={14} aria-hidden="true" />
         </Button>

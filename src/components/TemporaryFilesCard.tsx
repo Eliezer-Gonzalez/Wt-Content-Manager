@@ -6,6 +6,7 @@ import { useTemporaryFiles } from '../hooks/useTemporaryFiles'
 import { asTranslationKey, useI18n } from '../i18n/I18nProvider'
 import { ConfirmCleanupTemporaryFilesModal } from './ConfirmCleanupTemporaryFilesModal'
 import { Button } from './ui/Button'
+import { AppTooltip } from './ui/AppTooltip'
 
 type Props = { gameInstall: GameInstall | null }
 
@@ -31,9 +32,11 @@ export function TemporaryFilesCard({ gameInstall }: Props) {
             <p className="mb-1 text-[10px] tracking-[.13em] text-[#9eaa85]">{t('settingsTemporaryEyebrow')}</p>
             <h2 id="temporary-files-title" className="mb-0 text-base font-medium text-[#e0e3d8]">{t('settingsTemporaryTitle')}</h2>
           </div>
-          <Button variant="icon" onClick={() => void temporaryFiles.refresh()} disabled={!gameInstall || temporaryFiles.loading || temporaryFiles.busy} aria-label={t('settingsTemporaryRefresh')} title={t('settingsTemporaryRefresh')}>
-            <RefreshCw size={15} className={temporaryFiles.loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />
-          </Button>
+          <AppTooltip content={t('settingsTemporaryRefresh')} align="end">
+            <Button variant="icon" onClick={() => void temporaryFiles.refresh()} disabled={!gameInstall || temporaryFiles.loading || temporaryFiles.busy} aria-label={t('settingsTemporaryRefresh')}>
+              <RefreshCw size={15} className={temporaryFiles.loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />
+            </Button>
+          </AppTooltip>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
           <div className="min-w-0 flex-1 text-xs leading-5 text-[#aab2a4]" aria-live="polite" aria-atomic="true">

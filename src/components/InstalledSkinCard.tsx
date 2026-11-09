@@ -4,6 +4,7 @@ import type { InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../lib/wtLive'
 import { formatFileSize, truncateMiddle } from '../lib/format'
 import { useI18n } from '../i18n/I18nProvider'
+import { AppTooltip } from './ui/AppTooltip'
 
 type Props = {
   entry: InstalledSkin
@@ -22,17 +23,17 @@ export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><HardDriveDownload size={18}/></span>
       <div className="min-w-0 flex-1">
-        <h3 className="mb-1 min-h-[2.5rem] line-clamp-2 font-display text-lg font-semibold leading-5 text-[#e2e4da]" title={title}>{title}</h3>
-        <p className="mb-0 truncate text-xs text-[#bdc99e]" title={subtitle}>{subtitle}</p>
+        <AppTooltip content={title} className="mb-1 w-full"><div className="w-full"><h3 className="mb-0 min-h-[2.5rem] w-full line-clamp-2 font-display text-lg font-semibold leading-5 text-[#e2e4da]">{title}</h3></div></AppTooltip>
+        <AppTooltip content={subtitle} className="w-full"><div className="w-full"><p className="mb-0 w-full truncate text-xs text-[#bdc99e]">{subtitle}</p></div></AppTooltip>
       </div>
     </div>
     <dl className="mb-0 mt-4 grid grid-cols-2 gap-3 border-t border-[#333a32] pt-3 text-xs">
-      <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FolderOpen size={13}/>{t('installedFolder')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]" title={entry.folderName}>{entry.folderName}</dd></div>
-      <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><CalendarDays size={13}/>{t(entry.item ? 'installedDate' : 'modifiedDate')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]" title={date}>{date}</dd></div>
+      <AppTooltip content={entry.folderName}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FolderOpen size={13}/>{t('installedFolder')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{entry.folderName}</dd></div></AppTooltip>
+      <AppTooltip content={date}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><CalendarDays size={13}/>{t(entry.item ? 'installedDate' : 'modifiedDate')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{date}</dd></div></AppTooltip>
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FileArchive size={13}/>{t('files')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{t('installedFiles', { count: entry.fileCount })}</dd></div>
       <div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><HardDriveDownload size={13}/>{t('installedSize')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{formatFileSize(entry.sizeBytes, locale)}</dd></div>
     </dl>
-    <p className="mb-3 mt-3 break-all border border-[#343b32] bg-[#1b201b] p-2 text-[11px] leading-4 text-[#9fa899]" title={entry.path}>{truncateMiddle(entry.path, 72)}</p>
+    <AppTooltip content={entry.path} className="mb-3 mt-3"><p className="mb-0 w-full break-all border border-[#343b32] bg-[#1b201b] p-2 text-[11px] leading-4 text-[#9fa899]">{truncateMiddle(entry.path, 72)}</p></AppTooltip>
     <div className="mt-auto flex items-center gap-2 pt-1">
       {entry.item ? (
         <Button variant="secondary" size="sm" className="flex-1 justify-center" onClick={() => onOpen(entry.item!)} aria-label={t('viewPostAria', { title })}>
@@ -42,15 +43,18 @@ export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
       ) : (
         <span className="inline-flex min-h-8 flex-1 items-center justify-center gap-2 border border-[#394136] bg-[#20261f] px-2.5 py-1 text-xs text-[#9fa896]">
           {t('installedExternalBadge')}
-          <span className="group relative inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive" tabIndex={0} aria-label={t('externalSkinInfo')} aria-describedby="external-skin-info-tooltip">
-            <Info size={14} aria-hidden="true" />
-            <span id="external-skin-info-tooltip" role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-52 -translate-x-1/2 border border-[#46513d] bg-[#171c17] p-2 text-left text-xs leading-4 text-[#d3d9ca] shadow-xl group-hover:block group-focus:block">{t('externalSkinInfo')}</span>
-          </span>
+          <AppTooltip content={t('externalSkinInfo')}>
+            <span className="rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive" tabIndex={0} aria-label={t('externalSkinInfo')}>
+              <Info size={14} aria-hidden="true" />
+            </span>
+          </AppTooltip>
         </span>
       )}
-      <Button variant="danger" size="sm" onClick={() => onUninstall(entry)} aria-label={t('uninstallSkinAria', { name: title })} title={t('uninstallSkin')}>
-        <Trash2 size={14} aria-hidden="true" />
-      </Button>
+      <AppTooltip content={t('uninstallSkin')} align="end">
+        <Button variant="danger" size="sm" onClick={() => onUninstall(entry)} aria-label={t('uninstallSkinAria', { name: title })}>
+          <Trash2 size={14} aria-hidden="true" />
+        </Button>
+      </AppTooltip>
     </div>
   </article>
 }

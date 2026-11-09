@@ -16,6 +16,7 @@
   --color-radar-accent: #B5B76A;
   --color-radar-blip: #D8D98A;
   --color-hazard-stripe: #C9A93B;
+  --color-insignia-gold: #E8CB5A;
   --font-sans: "DM Sans", sans-serif;
   --font-display: "Barlow Condensed", sans-serif;
 }
@@ -155,7 +156,38 @@
   }
 }
 
+.back-to-top-enter {
+  animation: back-to-top-bounce 420ms ease-out both;
+}
+
+.back-to-top-exit {
+  animation: back-to-top-dismiss 220ms ease-in both;
+}
+
+@keyframes back-to-top-bounce {
+  0% { opacity: 0; transform: translateY(12px); }
+  58% { opacity: 1; transform: translateY(-5px); }
+  78% { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes back-to-top-dismiss {
+  to { opacity: 0; transform: translateY(10px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .insignia__glow,
+  .insignia__shine,
+  .insignia__ticks,
+  .insignia__sway { animation: none; }
+  .insignia__glow { opacity: .8; }
+  .dial-needle { animation: none; }
+  .dial-needle--1 { transform: rotate(-30deg); }
+  .dial-needle--2 { transform: rotate(20deg); }
+  .dial-needle--3 { transform: rotate(25deg); }
+  .settings-dials__light { animation: none; opacity: 1; }
+  .back-to-top-enter,
+  .back-to-top-exit { animation: none; }
   .radar__sweep,
   .radar__blip {
     animation: none;
@@ -199,5 +231,80 @@
     var(--color-hazard-stripe, #C9A93B) 0 12px,
     var(--color-wt-bg, #171916) 12px 24px
   );
+}
+
+.insignia {
+  position: absolute;
+  top: 50%;
+  right: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: min(260px, calc(100% + 56px));
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+}
+
+.insignia__glow,
+.insignia__backing {
+  position: absolute;
+  inset: 0;
+}
+
+.insignia__glow {
+  background: radial-gradient(circle, rgba(232, 203, 90, .45) 0%, transparent 66%);
+  animation: insignia-glow 3.6s ease-in-out infinite;
+}
+
+.insignia__backing {
+  inset: 6%;
+  background: radial-gradient(circle, #171916 60%, transparent 78%);
+}
+
+.insignia svg { position: relative; width: 85%; height: 85%; }
+.insignia__shine { animation: insignia-shine 4.5s ease-in-out infinite; }
+.insignia__ticks { transform-box: fill-box; transform-origin: center; animation: insignia-ticks 60s linear infinite; }
+.insignia__sway { transform-box: view-box; transform-origin: 60px 28px; animation: insignia-sway 5s ease-in-out infinite; }
+
+@keyframes insignia-glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+@keyframes insignia-shine { 0% { transform: translateX(0); } 30% { transform: translateX(190px); } 100% { transform: translateX(190px); } }
+@keyframes insignia-ticks { to { transform: rotate(360deg); } }
+@keyframes insignia-sway { 0%, 100% { transform: rotate(-3deg) translateY(0); } 50% { transform: rotate(3deg) translateY(3px); } }
+
+.settings-dials {
+  position: absolute;
+  top: 50%;
+  right: 36px;
+  height: min(190px, calc(100% - 16px));
+  aspect-ratio: 360 / 190;
+  transform: translateY(-50%);
+}
+
+.settings-dials__backing {
+  position: absolute;
+  top: 0;
+  right: -48px;
+  bottom: 0;
+  left: -48px;
+  background: radial-gradient(ellipse at 60% 50%, #171916 46%, transparent 76%);
+}
+
+.settings-dials svg { position: relative; width: 100%; height: 100%; }
+.dial-needle { transform-box: view-box; }
+.dial-needle--1 { transform-origin: 66px 84px; animation: dial-needle-1 9s ease-in-out infinite; }
+.dial-needle--2 { transform-origin: 180px 84px; animation: dial-needle-2 7s ease-in-out infinite; }
+.dial-needle--3 { transform-origin: 294px 84px; animation: dial-needle-3 11s ease-in-out infinite; }
+.settings-dials__light--green { fill: #6E8F3A; animation: dial-light 2.4s ease-in-out infinite; }
+.settings-dials__light--yellow { fill: #E8CB5A; animation: dial-light 3.1s ease-in-out infinite; }
+.settings-dials__light--red { fill: #A3322B; animation: dial-light 1.7s ease-in-out infinite; }
+
+@keyframes dial-needle-1 { 0%, 100% { transform: rotate(-70deg); } 30% { transform: rotate(40deg); } 55% { transform: rotate(10deg); } 80% { transform: rotate(60deg); } }
+@keyframes dial-needle-2 { 0%, 100% { transform: rotate(20deg); } 25% { transform: rotate(-60deg); } 60% { transform: rotate(50deg); } 80% { transform: rotate(-10deg); } }
+@keyframes dial-needle-3 { 0%, 100% { transform: rotate(-30deg); } 35% { transform: rotate(70deg); } 65% { transform: rotate(-50deg); } 85% { transform: rotate(30deg); } }
+@keyframes dial-light { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+@media (max-width: 720px) {
+  .insignia { right: 20px; height: min(220px, calc(100% + 44px)); opacity: .82; }
+  .settings-dials { right: 12px; height: min(150px, calc(100% - 16px)); }
 }
 

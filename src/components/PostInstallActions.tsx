@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Check, Download, RefreshCw, Trash2 } from 'lucide-react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { Button } from './ui/Button'
+import { AppTooltip } from './ui/AppTooltip'
 import { SkinDownloadProgress } from './SkinDownloadProgress'
 import { ConfirmReinstallModal } from './ConfirmReinstallModal'
 import { useI18n } from '../i18n/I18nProvider'
@@ -91,9 +92,9 @@ export function PostInstallActions({
           <Check size={16} className="mt-0.5 shrink-0 text-[#a9ce6b]" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <strong className="block font-medium text-[#dce7cb]">{t('skinAlreadyInstalled')}</strong>
-            <span className="mt-0.5 block truncate text-[11px] text-[#9baa87]" title={installedEntry.path}>
-              {installedEntry.folderName || installedEntry.path}
-            </span>
+            <AppTooltip content={installedEntry.path} className="mt-0.5 w-full">
+              <div className="w-full"><span className="block w-full truncate text-[11px] text-[#9baa87]">{installedEntry.folderName || installedEntry.path}</span></div>
+            </AppTooltip>
           </div>
         </div>
       )}

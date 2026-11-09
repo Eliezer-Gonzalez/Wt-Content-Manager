@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react'
 import { X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from './ui/Button'
+import { AppTooltip } from './ui/AppTooltip'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useI18n } from '../i18n/I18nProvider'
 
@@ -158,16 +159,17 @@ export function ImageLightbox({ src, alt, onClose }: Props) {
           draggable={false}
           onClick={toggleImageZoom}
         />
-        <Button
-          variant="icon"
-          className="absolute bottom-3 right-3 size-11 border border-[#69715e] bg-[#171b17]/90 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-          onClick={toggleButtonZoom}
-          aria-label={zoomLabel}
-          aria-pressed={zoomed}
-          title={zoomLabel}
-        >
-          {zoomed ? <ZoomOut size={19} /> : <ZoomIn size={19} />}
-        </Button>
+        <AppTooltip content={zoomLabel} className="absolute bottom-3 right-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" align="end">
+          <Button
+            variant="icon"
+            className="size-11 border border-[#69715e] bg-[#171b17]/90"
+            onClick={toggleButtonZoom}
+            aria-label={zoomLabel}
+            aria-pressed={zoomed}
+          >
+            {zoomed ? <ZoomOut size={19} /> : <ZoomIn size={19} />}
+          </Button>
+        </AppTooltip>
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from './ui/Button'
+import { AppTooltip } from './ui/AppTooltip'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useI18n } from '../i18n/I18nProvider'
 import type { InstalledSkin } from '../lib/localLibrary'
@@ -38,7 +39,7 @@ export function ConfirmReinstallModal({ entry, onConfirm, onClose }: Props) {
             <p id="confirm-reinstall-desc" className="mt-2 text-sm leading-relaxed text-[#b1b7ab]">{t('reinstallConfirmBody', { folder: entry.folderName })}</p>
           </div>
         </div>
-        <p className="mt-4 truncate border border-[#343b32] bg-[#161a16] px-3 py-2 text-xs text-[#9fa899]" title={entry.path}>{entry.path}</p>
+        <AppTooltip content={entry.path} className="mt-4 w-full"><div className="w-full"><p className="mb-0 w-full truncate border border-[#343b32] bg-[#161a16] px-3 py-2 text-xs text-[#9fa899]">{entry.path}</p></div></AppTooltip>
         <div className="mt-5 flex items-center justify-end gap-2.5">
           <Button ref={cancelRef} variant="secondary" onClick={onClose}>{t('skinCancel')}</Button>
           <Button variant="primary" onClick={onConfirm}><RefreshCw size={15} aria-hidden="true" />{t('reinstallSkin')}</Button>

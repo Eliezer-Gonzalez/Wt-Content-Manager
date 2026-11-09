@@ -50,7 +50,7 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
   return (
     <div className="flex w-full flex-1 flex-col px-8 pb-8 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
       <SectionHeader
-        variant="hazard"
+        variant="settings"
         size="compact"
         eyebrow={t('libraryLocal')}
         titleHighlight={t('settings')}

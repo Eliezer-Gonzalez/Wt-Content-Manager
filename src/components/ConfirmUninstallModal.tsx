@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { CheckCircle2, LoaderCircle, Trash2, X } from 'lucide-react'
 import { Button } from './ui/Button'
+import { AppTooltip } from './ui/AppTooltip'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { InstalledSkin } from '../lib/localLibrary'
 import { useI18n } from '../i18n/I18nProvider'
@@ -73,9 +74,9 @@ export function ConfirmUninstallModal({
               </div>
             </div>
 
-            <p className="mt-4 break-all border border-[#343b32] bg-[#161a16] px-3 py-2 text-xs text-[#9fa899]" title={entry.path}>
-              {truncateMiddle(entry.path, 72)}
-            </p>
+            <AppTooltip content={entry.path} className="mt-4">
+              <p className="mb-0 w-full break-all border border-[#343b32] bg-[#161a16] px-3 py-2 text-xs text-[#9fa899]">{truncateMiddle(entry.path, 72)}</p>
+            </AppTooltip>
 
             {error && (
               <p className="mt-3 border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-xs leading-relaxed text-amber-100" role="alert">
