@@ -50,6 +50,7 @@ export function TemporaryFilesCard({ gameInstall }: Props) {
                     })}{temporaryFiles.lastCleanup.failedDirectories > 0 && ` ${t('settingsTemporaryFailedCount', { count: temporaryFiles.lastCleanup.failedDirectories })}`}</p>
                       : directoryCount > 0 ? <p className="mb-0">{t('settingsTemporaryFound', { count: directoryCount, size: formatFileSize(totalBytes, locale) })}</p>
                         : <p className="mb-0">{t('settingsTemporaryNone')}</p>}
+            {(temporaryFiles.report?.recoveryRequiredCount ?? 0) > 0 && <p className="mb-0 mt-2 text-amber-200" role="status">{t('settingsTemporaryRecoveryRequired', { count: temporaryFiles.report?.recoveryRequiredCount ?? 0 })}</p>}
             <p className="mb-0 mt-1 text-[11px] text-[#838d7f]">{t('settingsTemporaryHint')}</p>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setConfirmOpen(true)} disabled={!gameInstall || !temporaryFiles.report || directoryCount === 0 || temporaryFiles.loading || temporaryFiles.busy}>

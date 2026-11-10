@@ -3,12 +3,14 @@ import { invoke } from '@tauri-apps/api/core'
 export type TemporaryFileReport = {
   directoryCount: number
   totalBytes: number
+  recoveryRequiredCount: number
 }
 
 export type TemporaryCleanupOutcome = {
   removedDirectories: number
   freedBytes: number
   failedDirectories: number
+  recoveryRequiredCount: number
 }
 
 export function getOrphanTemporaryFiles(gamePath: string): Promise<TemporaryFileReport> {

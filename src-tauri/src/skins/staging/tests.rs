@@ -1,6 +1,6 @@
 use super::{
-    cleanup_orphan_staging_with_threshold, cleanup_orphans_with_threshold,
-    inspect_orphan_staging_with_threshold, is_orphan_staging_dir, register_active_staging,
+    cleanup_orphan_staging_with_threshold, inspect_orphan_staging_with_threshold,
+    is_orphan_staging_dir, register_active_staging,
     unregister_active_staging,
 };
 use std::fs;
@@ -66,7 +66,7 @@ fn cleanup_orphans_respects_active_age_and_strict_naming() {
     // - fresh_staging was just created, elapsed < 10m -> NOT deleted
     // - active_staging is registered -> NOT deleted
     // - old_orphan was just created, elapsed < 10m -> NOT deleted
-    cleanup_orphans_with_threshold(&game_root, Duration::from_secs(600));
+    cleanup_orphan_staging_with_threshold(&game_root, Duration::from_secs(600)).unwrap();
     assert!(
         fresh_staging.exists(),
         "fresh matching dir should not be deleted"
@@ -84,7 +84,7 @@ fn cleanup_orphans_respects_active_age_and_strict_naming() {
     // - old_orphan is matching and not active -> DELETED
     // - active_staging is registered -> NOT deleted even with threshold 0
     // - wtcm-my-skin, content, UserSkins, MySkin -> NOT deleted
-    cleanup_orphans_with_threshold(&game_root, Duration::ZERO);
+    cleanup_orphan_staging_with_threshold(&game_root, Duration::ZERO).unwrap();
     assert!(!old_orphan.exists(), "old matching dir should be deleted");
     assert!(
         active_staging.exists(),

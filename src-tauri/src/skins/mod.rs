@@ -3,14 +3,16 @@ mod download;
 pub mod download_task;
 pub mod library;
 mod paths;
+mod recovery;
+mod replacement;
 mod staging;
 mod texture_validation;
 
 pub use library::{scan_installed_skins, uninstall_skin, ScannedSkin};
 pub use staging::{
-    cleanup_orphan_staging, cleanup_orphans, inspect_orphan_staging, is_orphan_staging_dir,
+    cleanup_orphan_staging, inspect_orphan_staging, is_orphan_staging_dir,
     register_active_staging, unregister_active_staging, TemporaryCleanupOutcome,
-    TemporaryFileReport, STAGING_PREFIX, STAGING_SUFFIX_LEN,
+    TemporaryFileReport, DEFAULT_ORPHAN_AGE_THRESHOLD, STAGING_PREFIX, STAGING_SUFFIX_LEN,
 };
 
 use serde::Serialize;
@@ -60,7 +62,13 @@ pub async fn install_skin(
         game_install::validate(game_path)?;
         let (download_url, archive_name) = wt_live::skin_download_source(lang_group).await?;
         control.check_cancelled()?;
-        let staging = InstallStaging::new(game_path)?;
+        let staging_game_path = game_path.to_string();
+        let staging =
+            tauri::async_runtime::spawn_blocking(move || InstallStaging::new(&staging_game_path))
+                .await
+                .map_err(|error| {
+                    AppError::with_detail("staging_prepare_failed", error.to_string())
+                })??;
         control.begin_download();
         staging
             .download(&download_url, &control, &on_progress)
@@ -91,18 +99,55 @@ pub async fn install_skin(
 pub struct InstallStaging {
     userskins: PathBuf,
     archive_path: PathBuf,
-    staging_dir: TempDir,
+    staging_dir: RegisteredStagingDir,
 }
 
-impl Drop for InstallStaging {
+struct RegisteredStagingDir {
+    temp_dir: Option<TempDir>,
+    registered_path: PathBuf,
+}
+
+impl RegisteredStagingDir {
+    fn new(temp_dir: TempDir) -> Self {
+        let registered_path = std::fs::canonicalize(temp_dir.path())
+            .unwrap_or_else(|_| temp_dir.path().to_path_buf());
+        register_active_staging(registered_path.clone());
+        Self {
+            temp_dir: Some(temp_dir),
+            registered_path,
+        }
+    }
+
+    fn path(&self) -> &Path {
+        self.temp_dir
+            .as_ref()
+            .expect("staging directory retained")
+            .path()
+    }
+
+    fn preserve(mut self) -> PathBuf {
+        let path = self
+            .temp_dir
+            .take()
+            .expect("staging directory retained")
+            .keep();
+        unregister_active_staging(&self.registered_path);
+        path
+    }
+}
+
+impl Drop for RegisteredStagingDir {
     fn drop(&mut self) {
-        unregister_active_staging(self.staging_dir.path());
+        if let Some(temp_dir) = self.temp_dir.take() {
+            drop(temp_dir);
+            unregister_active_staging(&self.registered_path);
+        }
     }
 }
 
 impl InstallStaging {
     pub fn new(game_path: &str) -> Result<Self, AppError> {
-        let game_root = Path::new(game_path);
+        let game_root = std::fs::canonicalize(game_path)?;
         if !game_root.is_dir() {
             return Err(AppError::new("game_folder_not_found"));
         }
@@ -121,12 +166,13 @@ impl InstallStaging {
             ));
         }
 
-        cleanup_orphans(game_root);
+        let _mutation = recovery::lock_game_filesystem();
+        staging::cleanup_orphans_locked(&game_root, DEFAULT_ORPHAN_AGE_THRESHOLD);
 
         let staging = tempfile::Builder::new()
             .prefix(STAGING_PREFIX)
             .rand_bytes(STAGING_SUFFIX_LEN)
-            .tempdir_in(game_root)
+            .tempdir_in(&game_root)
             .map_err(|error| {
                 if error.kind() == std::io::ErrorKind::PermissionDenied {
                     AppError::with_detail("game_permission_denied", error.to_string())
@@ -134,13 +180,11 @@ impl InstallStaging {
                     AppError::with_detail("staging_prepare_failed", error.to_string())
                 }
             })?;
-        let staging_path = staging.path().to_path_buf();
-        register_active_staging(staging_path);
         let archive_path = staging.path().join("download.archive");
         Ok(Self {
             userskins,
             archive_path,
-            staging_dir: staging,
+            staging_dir: RegisteredStagingDir::new(staging),
         })
     }
 
@@ -167,17 +211,54 @@ impl InstallStaging {
             return Err(AppError::new("archive_no_skin_definition"));
         }
         let size_bytes = paths::total_size(&source)?;
-        let folder_name = match replace_folder_name {
+        let mut folder_name = match replace_folder_name {
             Some(name) => name.to_string(),
             None => paths::unique_folder_name(&self.userskins, &folder_name)?,
         };
-        let destination = self.userskins.join(&folder_name);
-        if let Some(name) = replace_folder_name {
-            let backup = self.staging_dir.path().join("previous-skin");
-            library::replace_skin_folder(&self.userskins, name, &source, &backup)?;
-        } else {
-            std::fs::rename(&source, &destination)
-                .map_err(|error| AppError::with_detail("skin_save_failed", error.to_string()))?;
+        let mut destination = self.userskins.join(&folder_name);
+        {
+            let _mutation = recovery::lock_game_filesystem();
+            let recovery = recovery::recover_pending_replacements(
+                self.userskins.parent().unwrap_or(&self.userskins),
+            )
+            .map_err(|error| AppError::with_detail("skin_recovery_required", error.to_string()))?;
+            if let Some(protected) = recovery.protected.first() {
+                let folder = protected.folder_name.as_deref().unwrap_or("unknown skin");
+                let detail = format!(
+                    "{folder}; recovery data at {}",
+                    protected.staging_path.display()
+                );
+                return Err(AppError::with_detail("skin_recovery_required", detail));
+            }
+            if let Some(name) = replace_folder_name {
+                let result = replacement::replace_skin_folder(
+                    &self.userskins,
+                    name,
+                    &source,
+                    self.staging_dir.path(),
+                );
+                if let Err(failure) = result {
+                    if failure.preserve_staging {
+                        let path = self.staging_dir.preserve();
+                        let detail = failure
+                            .error
+                            .detail
+                            .clone()
+                            .unwrap_or_else(|| "replacement recovery required".to_string());
+                        return Err(failure.error.set_detail(format!(
+                            "{detail}; retained recovery data at {}",
+                            path.display()
+                        )));
+                    }
+                    return Err(failure.error);
+                }
+            } else {
+                folder_name = paths::unique_folder_name(&self.userskins, &folder_name)?;
+                destination = self.userskins.join(&folder_name);
+                std::fs::rename(&source, &destination).map_err(|error| {
+                    AppError::with_detail("skin_save_failed", error.to_string())
+                })?;
+            }
         }
         let missing_textures = texture_validation::find_missing_references(&destination);
 
@@ -196,7 +277,7 @@ impl InstallStaging {
 
 #[cfg(test)]
 mod tests {
-    use super::{InstallStaging, STAGING_PREFIX, STAGING_SUFFIX_LEN};
+    use super::{InstallStaging, RegisteredStagingDir, STAGING_PREFIX, STAGING_SUFFIX_LEN};
     use std::fs;
 
     #[test]
@@ -208,7 +289,8 @@ mod tests {
         assert!(staging.archive_path.exists());
 
         // Check staging is inside game_root, with prefix and exact suffix length
-        assert!(staging_path.starts_with(game_root.path()));
+        let canonical_game_root = fs::canonicalize(game_root.path()).unwrap();
+        assert!(staging_path.starts_with(canonical_game_root));
         let dir_name = staging_path.file_name().unwrap().to_string_lossy();
         assert!(dir_name.starts_with(STAGING_PREFIX));
         assert_eq!(dir_name.len(), STAGING_PREFIX.len() + STAGING_SUFFIX_LEN);
@@ -217,5 +299,24 @@ mod tests {
 
         assert!(!staging_path.exists());
         assert!(game_root.path().join("UserSkins").is_dir());
+    }
+
+    #[test]
+    fn preserved_staging_survives_owner_drop_and_is_unregistered() {
+        let game_root = tempfile::tempdir().unwrap();
+        let staging = tempfile::Builder::new()
+            .prefix(STAGING_PREFIX)
+            .rand_bytes(STAGING_SUFFIX_LEN)
+            .tempdir_in(game_root.path())
+            .unwrap();
+        fs::create_dir(staging.path().join("previous-skin")).unwrap();
+        let staging_path = staging.path().to_path_buf();
+        let registered = RegisteredStagingDir::new(staging);
+
+        let preserved_path = registered.preserve();
+
+        assert_eq!(preserved_path, staging_path);
+        assert!(preserved_path.join("previous-skin").is_dir());
+        assert!(!super::staging::is_active_staging(&preserved_path));
     }
 }

@@ -196,9 +196,8 @@ impl DiagnosticLogger {
         let bytes =
             serde_json::to_vec(&LoggerConfig { enabled }).map_err(|error| error.to_string())?;
         fs::write(&temp_path, bytes).map_err(|error| error.to_string())?;
-        if path.exists() {
-            fs::remove_file(path).map_err(|error| error.to_string())?;
-        }
+        // Rename replaces the old file atomically on supported filesystems, so a failed
+        // settings update leaves the previously saved diagnostics preference in place.
         fs::rename(temp_path, path).map_err(|error| error.to_string())
     }
 }

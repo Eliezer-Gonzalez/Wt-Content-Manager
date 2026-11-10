@@ -6,6 +6,7 @@ const localDataKeys = [
   'wt-content-manager-game-setup-seen',
   'wt-content-manager-independent-notice-v4',
   'wt-content-manager-language',
+  'wt-content-manager-image-quality-v1',
 ] as const
 
 export function resetLocalData(): void {
