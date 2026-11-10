@@ -14,7 +14,7 @@ use super::{
 
 static GAME_FILESYSTEM_MUTATION_LOCK: Mutex<()> = Mutex::new(());
 
-pub(super) fn lock_game_filesystem() -> MutexGuard<'static, ()> {
+pub(crate) fn lock_game_filesystem() -> MutexGuard<'static, ()> {
     GAME_FILESYSTEM_MUTATION_LOCK
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())

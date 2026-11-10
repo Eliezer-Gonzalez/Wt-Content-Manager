@@ -7,8 +7,8 @@ use tokio::io::AsyncWriteExt;
 use super::download_task::{DownloadControl, SkinInstallProgress};
 use crate::{http::USER_AGENT, AppError};
 
-const MAX_ARCHIVE_BYTES: u64 = 250 * 1024 * 1024;
-const READ_TIMEOUT: Duration = Duration::from_secs(180);
+pub(crate) const MAX_SKIN_DOWNLOAD_BYTES: u64 = 250 * 1024 * 1024;
+pub(crate) const DEFAULT_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(180);
 const POLL_INTERVAL: Duration = Duration::from_millis(120);
 
 fn trusted_wt_host(host: &str) -> bool {
@@ -35,11 +35,14 @@ fn report_progress(
         .map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))
 }
 
-pub async fn download_archive(
+pub(crate) async fn download_archive(
     url: &str,
     path: &Path,
     control: &DownloadControl,
     channel: &Channel<SkinInstallProgress>,
+    max_archive_bytes: u64,
+    max_download_duration: Duration,
+    permission_error_code: &str,
 ) -> Result<(), AppError> {
     let parsed = reqwest::Url::parse(url).map_err(|_| AppError::new("download_invalid_url"))?;
     if !trusted_download(&parsed) {
@@ -57,7 +60,7 @@ pub async fn download_archive(
         }))
         .build()
         .map_err(|error| AppError::with_detail("download_client_error", error.to_string()))?;
-    let mut response = tokio::time::timeout(READ_TIMEOUT, client.get(parsed).send())
+    let mut response = tokio::time::timeout(DEFAULT_DOWNLOAD_TIMEOUT, client.get(parsed).send())
         .await
         .map_err(|_| AppError::new("download_timeout"))?
         .map_err(|error| AppError::with_detail("download_connection_failed", error.without_url().to_string()))?;
@@ -71,9 +74,9 @@ pub async fn download_archive(
         return Err(AppError::new("download_redirect_untrusted"));
     }
     let total = response.content_length();
-    if total.is_some_and(|size| size > MAX_ARCHIVE_BYTES) {
+    if total.is_some_and(|size| size > max_archive_bytes) {
         return Err(
-            AppError::new("download_size_exceeded").with_param("max_bytes", MAX_ARCHIVE_BYTES)
+            AppError::new("download_size_exceeded").with_param("max_bytes", max_archive_bytes)
         );
     }
 
@@ -84,7 +87,7 @@ pub async fn download_archive(
         .await
         .map_err(|error| {
             if error.kind() == std::io::ErrorKind::PermissionDenied {
-                AppError::with_detail("game_permission_denied", error.to_string())
+                AppError::with_detail(permission_error_code, error.to_string())
             } else {
                 AppError::with_detail("io_error", error.to_string())
             }
@@ -103,7 +106,7 @@ pub async fn download_archive(
             }
             active_started = Instant::now();
         }
-        if active_elapsed + active_started.elapsed() >= READ_TIMEOUT {
+        if active_elapsed + active_started.elapsed() >= max_download_duration {
             return Err(AppError::new("download_timeout"));
         }
         let chunk = tokio::select! {
@@ -112,9 +115,9 @@ pub async fn download_archive(
         };
         let Some(chunk) = chunk else { break };
         downloaded = downloaded.saturating_add(chunk.len() as u64);
-        if downloaded > MAX_ARCHIVE_BYTES || total.is_some_and(|size| downloaded > size) {
+        if downloaded > max_archive_bytes || total.is_some_and(|size| downloaded > size) {
             return Err(
-                AppError::new("download_size_exceeded").with_param("max_bytes", MAX_ARCHIVE_BYTES)
+                AppError::new("download_size_exceeded").with_param("max_bytes", max_archive_bytes)
             );
         }
         output

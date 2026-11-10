@@ -5,7 +5,7 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{game_install, logging, providers::wt_live, skins, AppError};
 
-fn record_failure<T>(
+pub(crate) fn record_failure<T>(
     logger: &logging::DiagnosticLogger,
     source: &str,
     result: Result<T, AppError>,
@@ -40,6 +40,18 @@ pub async fn fetch_recent_camouflages(
 ) -> Result<Value, AppError> {
     let result = wt_live::recent_camouflages(&search_string, period, page, &sort).await;
     record_failure(&logger, "fetch_recent_camouflages", result)
+}
+
+#[tauri::command]
+pub async fn fetch_recent_sounds(
+    search_string: String,
+    period: u32,
+    page: u32,
+    sort: String,
+    logger: State<'_, logging::DiagnosticLogger>,
+) -> Result<Value, AppError> {
+    let result = wt_live::recent_sounds(&search_string, period, page, &sort).await;
+    record_failure(&logger, "fetch_recent_sounds", result)
 }
 
 #[tauri::command]

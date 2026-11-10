@@ -29,12 +29,14 @@ test('startup fonts are local and the legal notice gates the WT Live feed', asyn
 })
 
 test('every app external URL is covered by a narrow Tauri opener permission', async () => {
-  const [capability, appInfo, postActions, detailDialog, wtLive] = await Promise.all([
+  const [capability, appInfo, postActions, detailDialog, wtLive, externalLinks, descriptionLinks] = await Promise.all([
     read('src-tauri/capabilities/default.json').then(JSON.parse),
     read('src/lib/appInfo.ts'),
     read('src/components/PostInstallActions.tsx'),
     read('src/components/PostDetailDialog.tsx'),
     read('src/lib/wtLive.ts'),
+    read('src-tauri/src/external_links.rs'),
+    read('src/components/WtLiveDescriptionText.tsx'),
   ])
   const opener = capability.permissions.find(permission => typeof permission === 'object' && permission.identifier === 'opener:allow-open-url')
   assert.ok(opener, 'the app must declare opener URL rules')
@@ -69,6 +71,11 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
   assert.match(wtLive, /url\.origin !== 'https:\/\/live\.warthunder\.com'/)
   assert.match(wtLive, /!url\.pathname\.startsWith\('\/post\/'\)/)
   assert.ok(matchesPermission('https://live.warthunder.com/post/123/en/#comments'), 'sanitized dynamic WT Live comment links must be allowed')
+  assert.match(wtLive, /getWtLivePostReference/)
+  assert.match(descriptionLinks, /getSafeExternalHttpsUrl\(url\)/)
+  assert.match(descriptionLinks, /invoke\('open_external_https_url'/)
+  assert.match(externalLinks, /url\.scheme\(\) != "https"/)
+  assert.match(externalLinks, /url\.username\(\)/)
 
   const sourceFiles = await listSourceFiles(new URL('../src/', import.meta.url))
   const externalOpenFiles = []
@@ -80,11 +87,15 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
     'components/PostDetailDialog.tsx',
     'components/PostInstallActions.tsx',
     'components/SettingsAboutCard.tsx',
+    'components/SoundPostDetailDialog.tsx',
+    'components/WtLiveDescriptionText.tsx',
   ], 'review every new external URL opener call site in this allowlist test')
   const openerCalls = new Map([
     ['components/PostDetailDialog.tsx', 2],
     ['components/PostInstallActions.tsx', 2],
     ['components/SettingsAboutCard.tsx', 2],
+    ['components/SoundPostDetailDialog.tsx', 2],
+    ['components/WtLiveDescriptionText.tsx', 1],
   ])
   for (const file of externalOpenFiles) {
     const source = await read(`src/${file}`)

@@ -1,6 +1,4 @@
-import type { CSSProperties } from 'react'
-import { SectionHeader } from './HeroBanner'
-import { useI18n } from '../i18n/I18nProvider'
+import { useId, type CSSProperties } from 'react'
 
 const smallSparks = [
   { r: 2.5, fill: '#f2b84b', dx: '-74px', dy: '-44px' },
@@ -22,30 +20,28 @@ const glowSparks = [
   { r: 4.5, fill: '#fff1c2', dx: '2px', dy: '-114px' },
 ]
 
-export function SoundComingSoon() {
-  const { t } = useI18n()
+export function SoundHammerAnimation({
+  label,
+  description,
+}: {
+  label: string
+  description: string
+}) {
+  const stripId = `sound-strip-${useId().replace(/:/g, '')}`
+
   return (
-    <div className="flex w-full flex-1 flex-col px-8 pb-5 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
-      <SectionHeader
-        variant="radar"
-        size="catalog"
-        eyebrow={t('communityContent')}
-        titleHighlight={t('sounds')}
-      />
-      <section className="grid flex-1 place-items-center px-6 py-12 text-center">
-        <div className="flex w-full max-w-[560px] flex-col items-center gap-6 text-[#bdc99e]">
-          <div className="relative w-full">
+    <div className="relative w-full">
           <svg
             width="100%"
             viewBox="0 0 680 320"
             role="img"
             className="sound-scene h-auto w-full select-none"
             xmlns="http://www.w3.org/2000/svg"
-            aria-label={t('soundIllustrationTitle')}
+            aria-label={label}
           >
-            <desc>{t('soundIllustrationDesc')}</desc>
+            <desc>{description}</desc>
             <defs>
-              <clipPath id="strip">
+              <clipPath id={stripId}>
                 <rect x="140" y="271" width="400" height="10" />
               </clipPath>
             </defs>
@@ -127,7 +123,7 @@ export function SoundComingSoon() {
             />
 
             {/* Franja de peligro */}
-            <g clipPath="url(#strip)">
+            <g clipPath={`url(#${stripId})`}>
               <rect x="140" y="271" width="400" height="10" fill="#262b20" />
               <path
                 className="sound-chevrons"
@@ -201,14 +197,6 @@ export function SoundComingSoon() {
               ))}
             </g>
           </svg>
-          </div>
-
-          <h1 className="m-0 font-display text-4xl font-semibold tracking-wide text-[#e6e7dd]">
-            {t('underConstruction')}
-          </h1>
-        </div>
-      </section>
     </div>
   )
 }
-

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { PostInstallActions } from './PostInstallActions'
@@ -16,6 +16,7 @@ import type { SkinInstaller } from '../hooks/useSkinInstaller'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { ImageQualityMode } from '../lib/imageQuality'
 import { imageSourceForQuality } from '../lib/imageQuality'
+import { WtLiveDescriptionText } from './WtLiveDescriptionText'
 
 type Props = {
   item: WtLiveItem
@@ -40,11 +41,13 @@ export function PostDetailDialog({
 }: Props) {
   const { t } = useI18n()
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null)
+  const [descriptionOverlayOpen, setDescriptionOverlayOpen] = useState(false)
   const [commentError, setCommentError] = useState(false)
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const handleDescriptionOverlay = useCallback((open: boolean) => setDescriptionOverlayOpen(open), [])
   const { installing } = installer
-  const hasDescription = detail?.description.some(block => block.type === 'text') ?? false
+  const hasDescription = detail?.description.some(block => block.type !== 'image') ?? false
   const previewImage = useMemo(() => item.imageUrl
     ? {
         src: item.imageUrl,
@@ -86,7 +89,7 @@ export function PostDetailDialog({
     containerRef: dialogRef,
     initialFocusRef: closeButtonRef,
     onClose,
-    enabled: !zoomedImage,
+    enabled: !zoomedImage && !descriptionOverlayOpen,
     canEscape: !installing,
   })
 
@@ -197,13 +200,16 @@ export function PostDetailDialog({
                         />
                       </button>
                     ) : (
-                      <p className="mb-0 whitespace-pre-line" key={index}>
-                        {block.text}
-                      </p>
+                      <WtLiveDescriptionText block={block} imageQuality={imageQuality} onOverlayChange={handleDescriptionOverlay} originPost={item} key={index} />
                     ),
                   )
                 ) : (
-                  <p className="mb-0">{cleanFallbackDescription || t('noDescription')}</p>
+                  <WtLiveDescriptionText
+                    block={{ type: 'text', text: cleanFallbackDescription || t('noDescription') }}
+                    imageQuality={imageQuality}
+                    onOverlayChange={handleDescriptionOverlay}
+                    originPost={item}
+                  />
                 )}
               </section>
 

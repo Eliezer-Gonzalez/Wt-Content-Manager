@@ -1,9 +1,9 @@
 mod archive;
-mod download;
+pub(crate) mod download;
 pub mod download_task;
 pub mod library;
-mod paths;
-mod recovery;
+pub(crate) mod paths;
+pub(crate) mod recovery;
 mod replacement;
 mod staging;
 mod texture_validation;
@@ -194,7 +194,16 @@ impl InstallStaging {
         control: &DownloadControl,
         channel: &Channel<SkinInstallProgress>,
     ) -> Result<(), AppError> {
-        download::download_archive(url, &self.archive_path, control, channel).await
+        download::download_archive(
+            url,
+            &self.archive_path,
+            control,
+            channel,
+            download::MAX_SKIN_DOWNLOAD_BYTES,
+            download::DEFAULT_DOWNLOAD_TIMEOUT,
+            "game_permission_denied",
+        )
+        .await
     }
 
     pub fn extract_and_install(

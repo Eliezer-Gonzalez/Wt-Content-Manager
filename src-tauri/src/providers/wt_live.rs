@@ -88,6 +88,25 @@ pub async fn recent_camouflages(
     page: u32,
     sort: &str,
 ) -> Result<Value, AppError> {
+    recent_content("camouflage", search_string, period, page, sort).await
+}
+
+pub async fn recent_sounds(
+    search_string: &str,
+    period: u32,
+    page: u32,
+    sort: &str,
+) -> Result<Value, AppError> {
+    recent_content("sound", search_string, period, page, sort).await
+}
+
+async fn recent_content(
+    content: &str,
+    search_string: &str,
+    period: u32,
+    page: u32,
+    sort: &str,
+) -> Result<Value, AppError> {
     let search_string: String = search_string.trim().chars().take(120).collect();
     let period = if [0, 7, 90, 180].contains(&period) {
         period
@@ -103,7 +122,7 @@ pub async fn recent_camouflages(
     let response = post_form(
         "/api/feed/get_regular/",
         &[
-            ("content", "camouflage"),
+            ("content", content),
             ("sort", sort),
             ("user", ""),
             ("period", &period.to_string()),
@@ -133,6 +152,14 @@ pub async fn post_detail(lang_group: u64) -> Result<Value, AppError> {
 }
 
 pub async fn skin_download_source(lang_group: u64) -> Result<(String, String), AppError> {
+    download_source(lang_group, "skin.zip").await
+}
+
+pub async fn sound_download_source(lang_group: u64) -> Result<(String, String), AppError> {
+    download_source(lang_group, "sound-mod.zip").await
+}
+
+async fn download_source(lang_group: u64, fallback_name: &str) -> Result<(String, String), AppError> {
     let post = post_detail(lang_group).await?;
     let file = &post["file"];
     let url = file["link"]
@@ -142,7 +169,7 @@ pub async fn skin_download_source(lang_group: u64) -> Result<(String, String), A
     let name = file["name"]
         .as_str()
         .filter(|value| !value.is_empty())
-        .unwrap_or("skin.zip");
+        .unwrap_or(fallback_name);
     Ok((url.to_string(), name.to_string()))
 }
 

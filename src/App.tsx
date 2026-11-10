@@ -14,7 +14,7 @@ import { InstalledSkinCard } from './components/InstalledSkinCard'
 import { DownloadsLibraryControls, DownloadsLibrarySummary } from './components/DownloadsLibraryControls'
 import { PaginatedGrid } from './components/PaginatedGrid'
 import { MasonryPostGrid } from './components/MasonryPostGrid'
-import { SoundComingSoon } from './components/SoundComingSoon'
+import { SoundManagerPage } from './components/SoundManagerPage'
 import { PeriodFilter } from './components/PeriodFilter'
 import { EmptyLibraryState } from './components/EmptyLibraryState'
 import { HomeDashboard } from './components/HomeDashboard'
@@ -213,7 +213,7 @@ export default function App() {
           onOpenGameSetup={gameSetup.openSetup}
           onRescanGame={() => void gameSetup.scan()}
           onViewLegalNotice={legalNotice.openNotice}
-        /> : active === 'sounds' ? <SoundComingSoon /> : active === 'home' ? <HomeDashboard
+        /> : active === 'sounds' ? <SoundManagerPage gamePath={gameSetup.gameInstall?.path} imageQuality={imageQuality.quality} onChooseGame={gameSetup.openSetup} /> : active === 'home' ? <HomeDashboard
           items={feed.items} favorites={library.favorites} installedSkins={library.installedSkins}
           favoritesCount={library.favorites.length} installedCount={library.installedSkins.length}
           gameConfigured={Boolean(gameSetup.gameInstall)} loading={feed.loading} error={feed.error} online={feed.online}

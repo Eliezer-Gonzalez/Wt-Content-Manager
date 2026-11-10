@@ -68,7 +68,10 @@ No telemetry, upload, polling, or background reporting is performed. The fronten
 - Keep frontend/Rust IPC parameter and response shapes aligned. Progress is event-channel data; command completion returns the final installation result or an error.
 - Keep diagnostic output local and bounded; avoid logging search strings, archive contents, or full error details that may contain private paths.
 - Locale files share keys. Update `en.json` and `es.json` together when adding user-facing text.
-- Sound support should be a separate feature/module: sound mods have different paths and may require composing selected mods by vehicle class, unlike installing a camouflage archive.
+- Sound support lives in its own feature/module: sound packages use a shared flat `sound/mod` target, need backup and recovery behavior, and can later support composition by vehicle/audio family without reusing camouflage installation rules.
+- Sound package source ZIPs and install records live in Tauri app data. Installation stages only validated `.bank` files beside the game target, retains a backup of the original sound folder, and journals directory replacement so interrupted changes can be recovered.
+- The sound deployment checks the selected installation's `aces.exe` process before changing files and treats an indeterminate process check as a block. Windows sharing errors remain a second guard because process detection can race with game startup and sharing modes vary.
+- Sound activation stays manual; sound commands do not modify `config.blk` or control the War Thunder process.
 
 ## Security and reliability notes
 

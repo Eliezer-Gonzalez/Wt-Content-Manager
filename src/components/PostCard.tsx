@@ -9,12 +9,14 @@ type Props = {
   item: WtLiveItem
   isSaved: boolean
   isInstalled?: boolean
+  contentType?: 'camouflage' | 'sound'
+  showSave?: boolean
   masonry?: boolean
   onOpen: (item: WtLiveItem) => void
   onToggleSaved: (item: WtLiveItem) => void
 }
 
-export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, onToggleSaved }: Props) {
+export function PostCard({ item, isSaved, isInstalled, contentType = 'camouflage', showSave = true, masonry = true, onOpen, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
   const imageLoaded = Boolean(item.imageUrl && loadedUrl === item.imageUrl)
@@ -49,7 +51,7 @@ export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, o
           )}
           <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent"/>
           <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
-            <span className="bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t('camouflage')}</span>
+            <span className="bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t(contentType === 'sound' ? 'soundMod' : 'camouflage')}</span>
             {isInstalled && (
               <span className="flex items-center gap-1 border border-[#6f8252] bg-[#1e271be8] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882] shadow-sm backdrop-blur-xs">
                 <Check size={11} strokeWidth={3} aria-hidden="true" />
@@ -63,7 +65,7 @@ export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, o
             <span aria-hidden="true">{formatNumber(item.likes, locale)}</span>
           </span>
         </div>
-        <Button
+        {showSave && <Button
           variant="icon"
           className={`absolute right-2 top-2 size-9 border border-[#596154] bg-[#171c18c9] ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`}
           onClick={() => onToggleSaved(item)}
@@ -71,7 +73,7 @@ export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, o
           aria-pressed={isSaved}
         >
           <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'}/>
-        </Button>
+        </Button>}
       </div>
       <button
         type="button"
@@ -83,7 +85,7 @@ export function PostCard({ item, isSaved, isInstalled, masonry = true, onOpen, o
           <strong className="min-w-0 line-clamp-3 break-words font-display text-[19px] font-semibold leading-tight text-[#e2e4da]">{item.title || t('postFallbackTitle', { id: item.id })}</strong>
           <span className="shrink-0 pt-1 text-[10px] text-[#a1a99b]">{relativeDate(item.createdAt, locale)}</span>
         </span>
-        <span className="mb-3 mt-1.5 block truncate text-xs text-[#bdc99e]">{item.fileName || t('camouflageForGame')}</span>
+        <span className="mb-3 mt-1.5 block truncate text-xs text-[#bdc99e]">{item.fileName || t(contentType === 'sound' ? 'soundMod' : 'camouflageForGame')}</span>
         <span className="mt-auto flex items-center justify-between gap-2 border-t border-[#333a32] pt-2.5 text-[11px] text-[#a2aa9c]">
           <span className="min-w-0 truncate">{t('by')} <b className="font-medium text-[#bbc1b2]">{item.author || t('unknownAuthor')}</b></span>
           <span className="flex shrink-0 items-center gap-1.5 text-[#bdc99e]">{t('viewPost')} <ExternalLink size={13}/></span>

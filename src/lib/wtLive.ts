@@ -8,7 +8,8 @@ export type WtLiveImage = {
 }
 
 export type WtLiveBlock =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; segments?: Array<{ text: string; url?: string }> }
+  | { type: 'video'; url: string; title?: string }
   | ({ type: 'image'; alt: string } & WtLiveImage)
 
 import { invoke } from '@tauri-apps/api/core'
@@ -35,6 +36,8 @@ export type WtLiveDetail = {
   commentsUrl: string
   images: WtLiveImage[]
 }
+
+export type WtLivePostReference = Pick<WtLiveItem, 'langGroup' | 'language'>
 
 export type WtLiveFeedSort = 'created' | 'rating'
 
@@ -84,12 +87,34 @@ export async function fetchRecentCamouflages(
   page = 0,
   sort: WtLiveFeedSort = 'created',
 ): Promise<WtLiveItem[]> {
+  return fetchRecentContent('camouflage', 'fetch_recent_camouflages', signal, searchString, period, page, sort)
+}
+
+export async function fetchRecentSounds(
+  signal?: AbortSignal,
+  searchString = '',
+  period = 0,
+  page = 0,
+  sort: WtLiveFeedSort = 'created',
+): Promise<WtLiveItem[]> {
+  return fetchRecentContent('sound', 'fetch_recent_sounds', signal, searchString, period, page, sort)
+}
+
+async function fetchRecentContent(
+  content: 'camouflage' | 'sound',
+  command: 'fetch_recent_camouflages' | 'fetch_recent_sounds',
+  signal?: AbortSignal,
+  searchString = '',
+  period = 0,
+  page = 0,
+  sort: WtLiveFeedSort = 'created',
+): Promise<WtLiveItem[]> {
   const result = isDesktop
-    ? await invoke<FeedResponse>('fetch_recent_camouflages', { searchString, period, page, sort })
+    ? await invoke<FeedResponse>(command, { searchString, period, page, sort })
     : await post<FeedResponse>(
         '/api/feed/get_regular/',
         new URLSearchParams({
-          content: 'camouflage',
+          content,
           sort,
           user: '',
           period: String(period),
@@ -107,13 +132,32 @@ export async function fetchRecentCamouflages(
 }
 
 export async function fetchPostDetail(item: WtLiveItem, signal?: AbortSignal): Promise<WtLiveDetail> {
-  const result = isDesktop
-    ? await invoke<ApiPost>('fetch_post_detail', { langGroup: item.langGroup })
-    : await post<ApiPost>(
+  const result = await fetchPost(item.langGroup, signal)
+  return mapPostDetail(result, item)
+}
+
+export async function fetchLinkedPost(
+  langGroup: number,
+  language = 'en',
+  signal?: AbortSignal,
+): Promise<{ item: WtLiveItem; detail: WtLiveDetail }> {
+  const result = await fetchPost(langGroup, signal)
+  const item = mapPost(result)
+  item.language = language
+  return { item, detail: mapPostDetail(result, item) }
+}
+
+async function fetchPost(langGroup: number, signal?: AbortSignal): Promise<ApiPost> {
+  return isDesktop
+    ? invoke<ApiPost>('fetch_post_detail', { langGroup })
+    : post<ApiPost>(
         '/api/posts/get/',
-        new URLSearchParams({ lang_group: String(item.langGroup), language: '0' }),
+        new URLSearchParams({ lang_group: String(langGroup), language: '0' }),
         signal,
       )
+}
+
+function mapPostDetail(result: ApiPost, item: WtLiveItem): WtLiveDetail {
   const images = mapPostImages(result)
   const imageByUrl = new Map<string, WtLiveImage>()
   for (const image of images) {
@@ -133,6 +177,30 @@ export async function fetchPostDetail(item: WtLiveItem, signal?: AbortSignal): P
     hashtags: content.hashtags,
     commentsUrl: `https://live.warthunder.com/post/${item.langGroup}/${item.language}/#comments`,
     images,
+  }
+}
+
+export function getWtLivePostReference(value: string): WtLivePostReference | null {
+  try {
+    const url = new URL(value)
+    if (url.origin !== 'https://live.warthunder.com') return null
+    const match = url.pathname.match(/^\/post\/(\d+)\/([a-z]{2})\/?$/i)
+    if (!match) return null
+    const langGroup = Number(match[1])
+    if (!Number.isSafeInteger(langGroup) || langGroup <= 0) return null
+    return { langGroup, language: match[2].toLowerCase() }
+  } catch {
+    return null
+  }
+}
+
+export function getSafeExternalHttpsUrl(value: string): string | null {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null
+    return url.href
+  } catch {
+    return null
   }
 }
 

@@ -4,8 +4,8 @@
   "version": "0.12.3",
   "identifier": "dev.wtcontentmanager.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev --port 5174 --strictPort",
-    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "pnpm dev --host 127.0.0.1 --port 5175 --strictPort",
+    "devUrl": "http://127.0.0.1:5175",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },

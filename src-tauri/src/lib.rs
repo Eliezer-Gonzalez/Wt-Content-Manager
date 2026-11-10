@@ -1,11 +1,13 @@
 mod commands;
 pub mod error;
+mod external_links;
 mod game_install;
 pub mod http;
 mod logging;
 mod providers;
 mod settings;
 mod skins;
+mod sounds;
 
 use tauri::Manager;
 
@@ -43,7 +45,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::fetch_recent_camouflages,
+            commands::fetch_recent_sounds,
             commands::fetch_post_detail,
+            external_links::open_external_https_url,
             commands::detect_game_installations,
             commands::validate_game_installation,
             commands::install_skin,
@@ -56,6 +60,13 @@ pub fn run() {
             commands::write_diagnostic,
             commands::read_recent_diagnostics,
             commands::open_diagnostics_folder,
+            sounds::commands::list_sound_packages,
+            sounds::commands::download_sound_package,
+            sounds::commands::set_sound_download_paused,
+            sounds::commands::cancel_sound_download,
+            sounds::commands::get_sound_mod_status,
+            sounds::commands::install_sound_package,
+            sounds::commands::restore_sound_mod_backup,
             settings::get_orphan_temporary_files,
             settings::cleanup_orphan_temporary_files,
             settings::open_user_skins_folder,
