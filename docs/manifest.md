@@ -6,7 +6,7 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 
 | Field | Value |
 | --- | --- |
-| Application version | 0.11.1 (keep package, Rust crate, and Tauri versions synchronized) |
+| Application version | 0.12.2 (keep package, Rust crate, and Tauri versions synchronized) |
 | License | GNU GPL v3 or later (`GPL-3.0-or-later`) |
 | Frontend | React, TypeScript, Vite, Tailwind CSS 4 |
 | Desktop runtime | Tauri 2 |
@@ -34,7 +34,7 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 - The app does not provide WT Live account login, comments, or a sound-mod manager.
 - Hard system freezes or forced process termination may prevent the last event from being recorded; logs capture handled frontend/backend errors and Rust panics.
 - Browser development mode can render the frontend and call WT Live directly; filesystem installation and native dialogs require the Tauri runtime.
-- Tauri bundling is currently disabled in `src-tauri/tauri.conf.json` (`bundle.active: false`).
+- A Windows NSIS installer target is configured in `src-tauri/tauri.conf.json`; a release installer is not currently provided.
 
 ## Development commands
 
