@@ -34,7 +34,7 @@ test('the texture help link has only its exact wiki URL opener permission', asyn
     read('src/components/PostInstallActions.tsx'),
   ])
   const url = 'https://wiki.warthunder.com/cdk/creation_camo'
-  assert.match(component, new RegExp(url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  assert.ok(component.includes(url))
   assert.ok(capability.includes(`"url": "${url}"`))
   assert.ok(!capability.includes('https://wiki.warthunder.com/**'))
 })
