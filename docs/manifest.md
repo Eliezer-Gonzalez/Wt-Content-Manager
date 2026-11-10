@@ -34,7 +34,11 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 - The app does not provide WT Live account login, comments, or a sound-mod manager.
 - Hard system freezes or forced process termination may prevent the last event from being recorded; logs capture handled frontend/backend errors and Rust panics.
 - Browser development mode can render the frontend and call WT Live directly; filesystem installation and native dialogs require the Tauri runtime.
-- A Windows NSIS installer target is configured in `src-tauri/tauri.conf.json`; a release installer is not currently provided.
+- A Windows NSIS installer target is configured in `src-tauri/tauri.conf.json`. Pushing a version tag that matches the package, Rust crate, and Tauri configuration versions runs `.github/workflows/release.yml` to build and publish the installer.
+
+## Planned distribution work
+
+- Later, add an in-app update flow with Tauri's updater plugin, using signed update artifacts published with each release. This requires a private signing key stored as a GitHub Actions secret and a public key embedded in the app configuration.
 
 ## Development commands
 

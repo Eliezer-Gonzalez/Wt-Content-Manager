@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Verify release tag and application versions
+        shell: pwsh
+        run: |
+          $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tauriVersion = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $cargoManifest = Get-Content src-tauri/Cargo.toml -Raw
+
+          if ($cargoManifest -notmatch '(?m)^version\s*=\s*"([^"]+)"') {
+            throw "Could not read the Rust crate version from src-tauri/Cargo.toml."
+          }
+
+          $cargoVersion = $Matches[1]
+          $versions = @($packageVersion, $tauriVersion, $cargoVersion) | Select-Object -Unique
+          if ($versions.Count -ne 1) {
+            throw "Application versions must match. package.json=$packageVersion, tauri.conf.json=$tauriVersion, Cargo.toml=$cargoVersion"
+          }
+
+          $expectedTag = "v$packageVersion"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag '$env:GITHUB_REF_NAME' must match the application version tag '$expectedTag'."
+          }
+
+      - name: Set up pnpm and Node.js
+        uses: pnpm/setup@v1
+        with:
+          version: 11.1.3
+          runtime: node@22
+          install: false
+          cache: true
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check translations
+        run: pnpm check:locales
+
+      - name: Run frontend regression checks
+        run: pnpm test
+
+      - name: Set up Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          build-warnings: ""
+
+      - name: Run Rust tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Build and publish GitHub Release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: WT Content Manager ${{ github.ref_name }}
+          releaseBody: Download the Windows installer from the assets below.
+          generateReleaseNotes: true
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
