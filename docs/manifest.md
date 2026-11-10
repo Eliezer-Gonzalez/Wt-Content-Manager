@@ -6,7 +6,7 @@ WT Content Manager is a desktop application for browsing camouflage posts from t
 
 | Field | Value |
 | --- | --- |
-| Application version | 0.12.2 (keep package, Rust crate, and Tauri versions synchronized) |
+| Application version | 0.12.3 (keep package, Rust crate, and Tauri versions synchronized) |
 | License | GNU GPL v3 or later (`GPL-3.0-or-later`) |
 | Frontend | React, TypeScript, Vite, Tailwind CSS 4 |
 | Desktop runtime | Tauri 2 |

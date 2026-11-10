@@ -5271,7 +5271,7 @@ dependencies = [
 
 [[package]]
 name = "wt-content-manager"
-version = "0.12.2"
+version = "0.12.3"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
