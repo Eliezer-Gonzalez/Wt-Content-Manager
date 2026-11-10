@@ -118,13 +118,13 @@ Solo se admiten archivos ZIP de skins. Al extraerlos, la aplicación conserva ar
 
 ## Privacidad y diagnósticos
 
-Los favoritos, la ruta del juego y las preferencias se guardan localmente. Los registros de diagnóstico están activados por defecto, se guardan en este equipo y se pueden desactivar en **Ajustes**. No se envían automáticamente. Si incluyes registros en un reporte, revísalos primero.
+Los favoritos, la ruta del juego y las preferencias se guardan localmente. Los registros de diagnóstico están activados por defecto, se guardan en este equipo y se pueden desactivar en **Configuración**. No se envían automáticamente. Si incluyes registros en un reporte, revísalos primero.
 
 Explorar y descargar skins requiere conexión a internet y se comunica con War Thunder Live y otros servicios de terceros. Esos servicios reciben información normal de conexión, como tu dirección IP. La aplicación no requiere una cuenta de Gaijin.
 
 ## Reportar un problema o una vulnerabilidad
 
-- Para informar de un error, [crea un issue en GitHub](https://github.com/Eliezer-Gonzalez/Wt-Content-Manager/issues) e incluye la versión de la aplicación, la versión de Windows, los pasos para reproducirlo y lo que ocurrió. Para copiar registros recientes, abre **Ajustes → Registros de diagnóstico → Copiar registros recientes**; revisa su contenido antes de compartirlo.
+- Para informar de un error, [crea un issue en GitHub](https://github.com/Eliezer-Gonzalez/Wt-Content-Manager/issues) e incluye la versión de la aplicación, la versión de Windows, los pasos para reproducirlo y lo que ocurrió. Para copiar registros recientes, abre **Configuración → Registros de diagnóstico → Copiar registros recientes**; revisa su contenido antes de compartirlo.
 - Para reportar una vulnerabilidad, usa la opción privada **Report a vulnerability** en la pestaña **Security** del repositorio. No publiques los detalles de la vulnerabilidad en un issue público.
 
 ## Desarrollo
