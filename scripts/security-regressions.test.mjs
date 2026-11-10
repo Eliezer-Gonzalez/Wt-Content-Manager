@@ -28,17 +28,6 @@ test('startup fonts are local and the legal notice gates the WT Live feed', asyn
   assert.doesNotMatch(config, /fonts\.googleapis\.com|fonts\.gstatic\.com/i)
 })
 
-test('the texture help link has only its exact wiki URL opener permission', async () => {
-  const [capability, component] = await Promise.all([
-    read('src-tauri/capabilities/default.json'),
-    read('src/components/PostInstallActions.tsx'),
-  ])
-  const url = 'https://wiki.warthunder.com/cdk/creation_camo'
-  assert.ok(component.includes(url))
-  assert.ok(capability.includes(`"url": "${url}"`))
-  assert.ok(!capability.includes('https://wiki.warthunder.com/**'))
-})
-
 test('every app external URL is covered by a narrow Tauri opener permission', async () => {
   const [capability, appInfo, postActions, detailDialog, wtLive] = await Promise.all([
     read('src-tauri/capabilities/default.json').then(JSON.parse),
