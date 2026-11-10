@@ -1,9 +1,15 @@
+<div align="center">
+
 # WT Content Manager
 
-[![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D4?style=flat&logo=windows)]
-[![Built with Tauri](https://img.shields.io/badge/desktop-Tauri%202-24C8DB?style=flat&logo=tauri)]
-[![Backend: Rust](https://img.shields.io/badge/backend-Rust-orange?style=flat&logo=rust)]
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue?style=flat)](LICENSE)
+<p>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D4?style=flat&logo=windows" alt="Platform: Windows">
+  <img src="https://img.shields.io/badge/desktop-Tauri%202-24C8DB?style=flat&logo=tauri" alt="Built with Tauri">
+  <img src="https://img.shields.io/badge/backend-Rust-orange?style=flat&logo=rust" alt="Backend: Rust">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue?style=flat" alt="License: GPL-3.0-or-later"></a>
+</p>
+
+</div>
 
 An independent Windows desktop app for managing community-made War Thunder skins.
 
