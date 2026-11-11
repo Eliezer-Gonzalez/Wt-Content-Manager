@@ -147,19 +147,24 @@ export function SoundPostDetailDialog({
                 />}
               </section>
               {!!detail?.hashtags.length && (
-                <div className="mt-5 flex flex-wrap gap-2 border-t border-[#343b32] pt-4" aria-label={t('hashtags')}>
-                  {detail.hashtags.map(tag => (
-                    <button key={tag} type="button" onClick={() => onSearchHashtag(tag)} className="border border-[#46513e] bg-[#283026] px-2.5 py-1 text-xs text-[#d2dcc1] hover:border-[#9eae7b]">
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
+                <section className="mt-6 border-t border-[#343b32] pt-4" aria-labelledby="sound-post-hashtags-heading">
+                  <h3 id="sound-post-hashtags-heading" className="mb-3 text-xs font-semibold uppercase tracking-[.12em] text-[#aeb990]">
+                    {t('hashtags')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {detail.hashtags.map(tag => (
+                      <button key={tag} type="button" onClick={() => onSearchHashtag(tag)} className="border border-[#46513e] bg-[#283026] px-2.5 py-1 text-xs text-[#d2dcc1] hover:border-[#9eae7b]">
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               )}
             </>
           )}
 
-          <p className="mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
-            {t('likes', { count: item.likes })} · {t('downloadsCount', { count: item.downloads })}
+          <p className="mb-4 mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
+            {t('likes', { count: detail?.stats?.likes ?? item.likes })} · {t('downloadsCount', { count: detail?.stats?.downloads ?? item.downloads })}
           </p>
           <SoundPackageDownloadActions
             item={item}

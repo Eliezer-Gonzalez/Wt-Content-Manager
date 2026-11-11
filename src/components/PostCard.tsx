@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Bookmark, Check, ExternalLink, Star } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bookmark, Check, Download, ExternalLink, Star } from 'lucide-react'
 import { Button } from './ui/Button'
 import { formatNumber, relativeDate } from '../lib/format'
 import type { WtLiveItem } from '../lib/wtLive'
@@ -9,6 +9,7 @@ type Props = {
   item: WtLiveItem
   isSaved: boolean
   isInstalled?: boolean
+  isDownloaded?: boolean
   contentType?: 'camouflage' | 'sound'
   showSave?: boolean
   masonry?: boolean
@@ -16,11 +17,28 @@ type Props = {
   onToggleSaved: (item: WtLiveItem) => void
 }
 
-export function PostCard({ item, isSaved, isInstalled, contentType = 'camouflage', showSave = true, masonry = true, onOpen, onToggleSaved }: Props) {
+export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType = 'camouflage', showSave = true, masonry = true, onOpen, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
+  const [favoriteGlow, setFavoriteGlow] = useState(false)
+  const wasSavedRef = useRef(isSaved)
   const imageLoaded = Boolean(item.imageUrl && loadedUrl === item.imageUrl)
   const aspectRatio = Math.max(0.45, Math.min(2.5, item.imageAspectRatio ?? 1.6))
+
+  useEffect(() => {
+    const wasSaved = wasSavedRef.current
+    wasSavedRef.current = isSaved
+    if (!isSaved) {
+      setFavoriteGlow(false)
+      return
+    }
+    if (wasSaved) {
+      return
+    }
+    setFavoriteGlow(true)
+    const timer = window.setTimeout(() => setFavoriteGlow(false), 450)
+    return () => window.clearTimeout(timer)
+  }, [isSaved])
 
   return (
     <article className={`group flex min-w-0 flex-col border border-[#30372f] bg-wt-panel transition-colors hover:border-[#687354] ${masonry ? '' : 'h-full'}`}>
@@ -50,12 +68,17 @@ export function PostCard({ item, isSaved, isInstalled, contentType = 'camouflage
             />
           )}
           <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent"/>
-          <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+          <div className="absolute left-2.5 top-2.5 flex flex-wrap items-center gap-1.5">
             <span className="bg-[#1a201bdc] px-2 py-1 text-[10px] tracking-[.1em] text-[#e2e5d9]">{t(contentType === 'sound' ? 'soundMod' : 'camouflage')}</span>
+            {contentType === 'sound' && isDownloaded && (
+              <span className="flex items-center gap-1 border border-[#6f8252] bg-[#1e271be8] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882] shadow-sm backdrop-blur-xs">
+                <Download size={11} aria-hidden="true" />{t('soundDownloadedBadge')}
+              </span>
+            )}
             {isInstalled && (
               <span className="flex items-center gap-1 border border-[#6f8252] bg-[#1e271be8] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882] shadow-sm backdrop-blur-xs">
                 <Check size={11} strokeWidth={3} aria-hidden="true" />
-                {t('installedBadge')}
+                {t(contentType === 'sound' ? 'soundActive' : 'installedBadge')}
               </span>
             )}
           </div>
@@ -67,12 +90,12 @@ export function PostCard({ item, isSaved, isInstalled, contentType = 'camouflage
         </div>
         {showSave && <Button
           variant="icon"
-          className={`absolute right-2 top-2 size-9 border border-[#596154] bg-[#171c18c9] ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`}
+          className={`absolute right-2 top-2 size-9 border border-[#596154] bg-[#171c18c9] transition-transform duration-150 active:scale-95 ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`}
           onClick={() => onToggleSaved(item)}
           aria-label={isSaved ? t('removeFavorite') : t('addFavorite')}
           aria-pressed={isSaved}
         >
-          <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'}/>
+          <Bookmark size={16} className={`transition-colors duration-200 ${favoriteGlow ? 'favorite-glow' : ''}`} fill={isSaved ? 'currentColor' : 'none'}/>
         </Button>}
       </div>
       <button

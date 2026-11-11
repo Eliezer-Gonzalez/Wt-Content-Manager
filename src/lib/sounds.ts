@@ -8,6 +8,7 @@ export type SoundPackage = {
   archiveName: string
   sizeBytes: number
   downloadedAt: number
+  fileCount?: number | null
 }
 
 export type SoundDownloadProgress = {
@@ -69,4 +70,12 @@ export function installSoundPackage(gamePath: string, packageId: string): Promis
 
 export function restoreSoundModBackup(gamePath: string): Promise<void> {
   return invoke('restore_sound_mod_backup', { gamePath })
+}
+
+export function openSoundModFolder(gamePath: string): Promise<void> {
+  return invoke('open_sound_mod_folder', { gamePath })
+}
+
+export function openSoundPackageLibraryFolder(): Promise<void> {
+  return invoke('open_sound_package_library_folder')
 }

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { LibraryInsignia } from './LibraryInsignia'
 import { SettingsDials } from './SettingsDials'
 
@@ -32,7 +33,7 @@ const RADAR_BLIPS = RADAR_BLIP_SEEDS.map(({ angle, radius }) => {
 
 export function HeroBanner({ variant, className = 'inset-0' }: HeroBannerProps) {
   // Synchronize radar phase across tab switches using wall-clock time
-  const clockOffset = (Date.now() / 1000) % RADAR_PERIOD_SECONDS
+  const clockOffset = useMemo(() => (Date.now() / 1000) % RADAR_PERIOD_SECONDS, [])
 
   return (
     <div className={`pointer-events-none absolute overflow-hidden ${className}`} aria-hidden="true">

@@ -24,6 +24,8 @@ type Props = {
   error: string
   online: boolean | null
   isSaved: (item: WtLiveItem) => boolean
+  isDownloaded: (item: WtLiveItem) => boolean
+  isInstalled: (item: WtLiveItem) => boolean
   onNavigate: (section: AppSection) => void
   onOpenGameSetup: () => void
   onRetry: () => void
@@ -91,7 +93,7 @@ function HomeRowHeader({
 
 export function HomeDashboard({
   items, favorites, installedSkins, favoritesCount, installedCount, gameConfigured, loading, error, online,
-  isSaved, onNavigate, onOpenGameSetup, onRetry, onOpen, onToggleSaved, onUninstall,
+  isSaved, isDownloaded, isInstalled, onNavigate, onOpenGameSetup, onRetry, onOpen, onToggleSaved, onUninstall,
 }: Props) {
   const { t, locale } = useI18n()
   const { visibleSections, hideSection, showSection } = useHomeSections()
@@ -112,8 +114,10 @@ export function HomeDashboard({
         <div key={item.id} className={FIVE_CARD_VISIBILITY[index] ?? ''}>
           <PostCard
             item={item}
+            contentType={item.contentType === 'sound' ? 'sound' : 'camouflage'}
             isSaved={isSaved(item)}
-            isInstalled={installedSkins.some(s => s.item?.id === item.id)}
+            isDownloaded={isDownloaded(item)}
+            isInstalled={isInstalled(item)}
             masonry={false}
             onOpen={onOpen}
             onToggleSaved={onToggleSaved}

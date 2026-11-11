@@ -16,20 +16,27 @@ import {
 } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'
 
-export function useSoundLibrary(gamePath?: string) {
+export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   const { t } = useI18n()
   const [packages, setPackages] = useState<SoundPackage[]>([])
-  const [status, setStatus] = useState<SoundModStatus | null>(null)
-  const [loading, setLoading] = useState(isTauriRuntime)
-  const [statusLoading, setStatusLoading] = useState(Boolean(gamePath))
+  const [packageLoading, setPackageLoading] = useState(isTauriRuntime)
+  const [statusSnapshot, setStatusSnapshot] = useState<{ gamePath?: string; value: SoundModStatus | null } | null>(null)
+  const [statusRequestLoading, setStatusRequestLoading] = useState(Boolean(gamePath))
   const [downloadProgress, setDownloadProgress] = useState<SoundDownloadProgress | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [downloadingItem, setDownloadingItem] = useState<WtLiveItem | null>(null)
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [paused, setPaused] = useState(false)
   const [error, setError] = useState('')
   const taskIdRef = useRef<string | null>(null)
   const mountedRef = useRef(true)
+  const gamePathRef = useRef(gamePath)
+  const statusRequestRef = useRef(0)
+  const packageRequestRef = useRef(0)
+  gamePathRef.current = gamePath
+  const status = statusSnapshot && statusSnapshot.gamePath === gamePath ? statusSnapshot.value : null
+  const statusLoading = statusRequestLoading || Boolean(shouldLoadStatus && gamePath && statusSnapshot?.gamePath !== gamePath)
 
   const formatError = useCallback((cause: unknown) => {
     const formatted = formatAppError(cause, t)
@@ -38,54 +45,71 @@ export function useSoundLibrary(gamePath?: string) {
 
   const refreshPackages = useCallback(async () => {
     if (!isTauriRuntime) return
-    setLoading(true)
+    const requestId = ++packageRequestRef.current
+    setPackageLoading(true)
     try {
-      setPackages(await listSoundPackages())
+      const nextPackages = await listSoundPackages()
+      if (mountedRef.current && requestId === packageRequestRef.current) setPackages(nextPackages)
     } catch (cause) {
-      if (mountedRef.current) setError(formatError(cause))
+      if (mountedRef.current && requestId === packageRequestRef.current) setError(formatError(cause))
     } finally {
-      if (mountedRef.current) setLoading(false)
+      if (mountedRef.current && requestId === packageRequestRef.current) setPackageLoading(false)
     }
   }, [formatError])
+  const refreshPackagesRef = useRef(refreshPackages)
+  refreshPackagesRef.current = refreshPackages
 
   const refreshStatus = useCallback(async () => {
-    if (!gamePath || !isTauriRuntime) {
-      setStatus(null)
-      setStatusLoading(false)
+    const requestedPath = gamePath
+    if (requestedPath !== gamePathRef.current) return null
+    const requestId = ++statusRequestRef.current
+    if (!requestedPath || !isTauriRuntime) {
+      if (mountedRef.current && requestId === statusRequestRef.current && requestedPath === gamePathRef.current) {
+        setStatusSnapshot({ gamePath: requestedPath, value: null })
+        setStatusRequestLoading(false)
+      }
       return null
     }
-    setStatusLoading(true)
+    setStatusRequestLoading(true)
     try {
-      const nextStatus = await getSoundModStatus(gamePath)
-      if (mountedRef.current) setStatus(nextStatus)
+      const nextStatus = await getSoundModStatus(requestedPath)
+      if (mountedRef.current && requestId === statusRequestRef.current && requestedPath === gamePathRef.current) {
+        setStatusSnapshot({ gamePath: requestedPath, value: nextStatus })
+      }
       return nextStatus
     } catch (cause) {
-      if (mountedRef.current) {
-        setStatus(null)
+      if (mountedRef.current && requestId === statusRequestRef.current && requestedPath === gamePathRef.current) {
+        setStatusSnapshot({ gamePath: requestedPath, value: null })
         setError(formatError(cause))
       }
       return null
     } finally {
-      if (mountedRef.current) setStatusLoading(false)
+      if (mountedRef.current && requestId === statusRequestRef.current && requestedPath === gamePathRef.current) setStatusRequestLoading(false)
     }
   }, [formatError, gamePath])
 
   useEffect(() => {
     mountedRef.current = true
-    void refreshPackages()
-    void refreshStatus()
+    void refreshPackagesRef.current()
     return () => {
       mountedRef.current = false
       const taskId = taskIdRef.current
       if (taskId) void cancelSoundDownload(taskId).catch(() => undefined)
     }
-  }, [refreshPackages, refreshStatus])
+  }, [])
+
+  useEffect(() => {
+    // Invalidate any in-flight response for the previous game installation.
+    statusRequestRef.current += 1
+    if (shouldLoadStatus) void refreshStatus()
+  }, [refreshStatus, shouldLoadStatus])
 
   const download = useCallback(async (item: WtLiveItem) => {
     if (!isTauriRuntime || taskIdRef.current) return
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
     setDownloadingId(item.id)
+    setDownloadingItem(item)
     setDownloadProgress({ phase: 'downloading', downloadedBytes: 0, totalBytes: null, paused: false })
     setPaused(false)
     setError('')
@@ -100,6 +124,7 @@ export function useSoundLibrary(gamePath?: string) {
       taskIdRef.current = null
       if (mountedRef.current) {
         setDownloadingId(null)
+        setDownloadingItem(null)
         setDownloadProgress(null)
         setPaused(false)
       }
@@ -162,10 +187,11 @@ export function useSoundLibrary(gamePath?: string) {
   return {
     packages,
     status,
-    loading,
+    loading: packageLoading,
     statusLoading,
     downloadProgress,
     downloadingId,
+    downloadingItem,
     installingId,
     restoring,
     paused,
@@ -179,3 +205,5 @@ export function useSoundLibrary(gamePath?: string) {
     refreshStatus,
   }
 }
+
+export type SoundLibraryController = ReturnType<typeof useSoundLibrary>

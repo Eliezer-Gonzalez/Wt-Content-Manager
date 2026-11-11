@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isTauriRuntime } from '../lib/gameInstall'
-import { loadLocalLibrary, mergeScannedSkins, saveLocalLibrary, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
+import { loadLocalLibrary, mergeScannedSkins, sameFavorite, saveLocalLibrary, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
 import { scanInstalledSkins, uninstallSkin } from '../lib/skins'
 import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 import { formatAppError } from '../lib/appError'
@@ -49,9 +49,10 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
 
   const toggleFavorite = useCallback((item: WtLiveItem) => {
     setLibrary(current => {
-      const favorites = current.favorites.some(saved => saved.id === item.id)
-        ? current.favorites.filter(saved => saved.id !== item.id)
-        : [item, ...current.favorites]
+      const favorite = { ...item, contentType: item.contentType ?? 'camouflage' }
+      const favorites = current.favorites.some(saved => sameFavorite(saved, favorite))
+        ? current.favorites.filter(saved => !sameFavorite(saved, favorite))
+        : [favorite, ...current.favorites]
       return { ...current, favorites }
     })
   }, [])

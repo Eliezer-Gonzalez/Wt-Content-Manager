@@ -16,6 +16,29 @@ pub struct BankInventory {
     pub size_bytes: u64,
 }
 
+pub fn archive_file_count(archive_path: &Path) -> Result<usize, AppError> {
+    let file = fs::File::open(archive_path)?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|error| AppError::with_detail("sound_archive_open_failed", error.to_string()))?;
+    if archive.is_empty() || archive.len() > MAX_ARCHIVE_ENTRIES {
+        return Err(AppError::new("sound_archive_limits_exceeded"));
+    }
+
+    let mut file_count = 0;
+    for index in 0..archive.len() {
+        let options = ZipReadOptions::new().enforce_header_consistency(true);
+        let entry = archive
+            .by_index_with_options(index, options)
+            .map_err(|error| {
+                AppError::with_detail("sound_archive_entry_invalid", error.to_string())
+            })?;
+        if !entry.is_dir() {
+            file_count += 1;
+        }
+    }
+    Ok(file_count)
+}
+
 pub fn extract_banks(archive_path: &Path, destination: &Path) -> Result<BankInventory, AppError> {
     let file = fs::File::open(archive_path)?;
     let mut archive = ZipArchive::new(file)

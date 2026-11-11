@@ -10,6 +10,8 @@ pub struct SoundPackage {
     pub archive_name: String,
     pub size_bytes: u64,
     pub downloaded_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]

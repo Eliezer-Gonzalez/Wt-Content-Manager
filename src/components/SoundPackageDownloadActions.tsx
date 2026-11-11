@@ -29,22 +29,25 @@ export function SoundPackageDownloadActions({
 
   if (downloaded) {
     return (
-      <p className="flex items-center gap-2 border border-[#586b41] bg-[#202a1d] px-3 py-3 text-sm text-[#c4d79d]">
-        <Check size={16} aria-hidden="true" />{t('soundPackageDownloaded')}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 border border-[#586b41] bg-[#202a1d] px-3 py-3 text-sm text-[#c4d79d]" role="status">
+        <span className="inline-flex shrink-0 items-center gap-1.5 border border-[#6f8252] bg-[#1e271b] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882]">
+          <Check size={12} aria-hidden="true" />{t('soundDownloadedBadge')}
+        </span>
+        <span>{t('soundPackageDownloaded')}</span>
+      </div>
     )
   }
 
   return (
     <div className="space-y-2">
       <Button variant="primary" className="w-full" disabled={!canDownload || downloadBusy} onClick={() => onDownload(item)}>
-        <Download size={15} aria-hidden="true" />{t(downloading ? 'skinDownloading' : 'soundDownloadPackage')}
+        <Download size={15} aria-hidden="true" />{t(downloading ? 'soundDownloading' : 'soundDownloadPackage')}
       </Button>
       {!canDownload && <p className="mb-0 text-xs text-[#a5ad9a]">{t('soundDesktopRequired')}</p>}
       {downloading && (
         <div className="space-y-2 border border-[#343b32] bg-[#1b211b] p-3">
           <div className="flex justify-between gap-2 text-xs text-[#bac2b0]">
-            <span>{percent == null ? t('skinDownloading') : `${percent}%`}</span>
+            <span>{percent == null ? t('soundDownloading') : `${percent}%`}</span>
             <span>{formatFileSize(downloadedBytes, locale)}{totalBytes ? ` / ${formatFileSize(totalBytes, locale)}` : ''}</span>
           </div>
           <div className="h-1.5 bg-[#30372f]" role="progressbar" aria-valuenow={percent ?? undefined} aria-valuemin={0} aria-valuemax={100}>

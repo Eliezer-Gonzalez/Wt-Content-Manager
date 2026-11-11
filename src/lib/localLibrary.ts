@@ -17,6 +17,10 @@ export type LocalLibrary = {
   installedSkins: InstalledSkin[]
 }
 
+export function sameFavorite(left: WtLiveItem, right: WtLiveItem): boolean {
+  return left.id === right.id && (left.contentType ?? 'camouflage') === (right.contentType ?? 'camouflage')
+}
+
 const emptyLibrary: LocalLibrary = { favorites: [], installedSkins: [] }
 
 function safeWtUrl(value: unknown): string | undefined {
@@ -32,6 +36,7 @@ function storedItem(value: unknown): WtLiveItem | null {
   const item = value as Partial<WtLiveItem>
   if (!Number.isSafeInteger(item.id) || !Number.isSafeInteger(item.langGroup) || typeof item.title !== 'string' || typeof item.author !== 'string') return null
   return {
+    contentType: item.contentType === 'sound' ? 'sound' : 'camouflage',
     id: item.id!, langGroup: item.langGroup!, language: typeof item.language === 'string' ? item.language.slice(0, 12) : 'en',
     title: item.title.slice(0, 300), description: typeof item.description === 'string' ? item.description.slice(0, 4000) : '',
     author: item.author.slice(0, 200), createdAt: Number.isFinite(item.createdAt) ? item.createdAt! : 0,
@@ -55,7 +60,10 @@ export function loadLocalLibrary(): LocalLibrary {
       const item = storedItem(saved.item) ?? undefined
       return [{ item, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1000), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
     }) : []
-    return { favorites: [...new Map(favorites.map(item => [item.id, item])).values()], installedSkins }
+    return {
+      favorites: [...new Map(favorites.map(item => [`${item.contentType ?? 'camouflage'}:${item.id}`, item])).values()],
+      installedSkins,
+    }
   } catch { return emptyLibrary }
 }
 

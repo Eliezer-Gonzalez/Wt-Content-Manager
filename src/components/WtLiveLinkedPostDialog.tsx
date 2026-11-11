@@ -138,7 +138,7 @@ export function WtLiveLinkedPostDialog({ langGroup, language, imageQuality, rend
             )) : <p className="mb-0">{post.item.description || t('noDescription')}</p>}
             {renderActions && (
               <>
-                <p className="mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
+                <p className="mb-4 mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
                   {t('likes', { count: post.item.likes })} · {t('downloadsCount', { count: post.item.downloads })}
                 </p>
                 {renderActions(post.item)}

@@ -21,6 +21,31 @@
   --font-display: "Barlow Condensed", sans-serif;
 }
 
+@keyframes favorite-glow {
+  0% {
+    transform: scale(0.9);
+    filter: drop-shadow(0 0 0 rgba(174, 185, 144, 0));
+  }
+  45% {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 6px rgba(190, 207, 145, 0.78));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 1px rgba(190, 207, 145, 0.2));
+  }
+}
+
+.favorite-glow {
+  animation: favorite-glow 420ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favorite-glow {
+    animation: none;
+  }
+}
+
 @layer base {
   html,
   body,
@@ -302,6 +327,17 @@
 @keyframes dial-needle-2 { 0%, 100% { transform: rotate(20deg); } 25% { transform: rotate(-60deg); } 60% { transform: rotate(50deg); } 80% { transform: rotate(-10deg); } }
 @keyframes dial-needle-3 { 0%, 100% { transform: rotate(-30deg); } 35% { transform: rotate(70deg); } 65% { transform: rotate(-50deg); } 85% { transform: rotate(30deg); } }
 @keyframes dial-light { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+@keyframes sound-install-progress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
+}
+
+.sound-install-progress { animation: sound-install-progress 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sound-install-progress { animation: none; }
+}
 
 @media (max-width: 720px) {
   .insignia { right: 20px; height: min(220px, calc(100% + 44px)); opacity: .82; }

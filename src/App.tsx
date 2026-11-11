@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Activity, ChevronDown, RefreshCw, Search } from 'lucide-react'
+import { Activity, ChevronDown, Search } from 'lucide-react'
 import { GameSetupModal } from './components/GameSetupModal'
 import { ConfirmUninstallModal } from './components/ConfirmUninstallModal'
 import { ConfirmRemoveFavoriteModal } from './components/ConfirmRemoveFavoriteModal'
@@ -10,13 +10,13 @@ import { SectionHeader } from './components/HeroBanner'
 import { PostCard } from './components/PostCard'
 import { PostDetailDialog } from './components/PostDetailDialog'
 import { PostCardSkeleton } from './components/PostCardSkeleton'
-import { InstalledSkinCard } from './components/InstalledSkinCard'
-import { DownloadsLibraryControls, DownloadsLibrarySummary } from './components/DownloadsLibraryControls'
+import { DownloadsPage } from './components/DownloadsPage'
 import { PaginatedGrid } from './components/PaginatedGrid'
 import { MasonryPostGrid } from './components/MasonryPostGrid'
 import { SoundManagerPage } from './components/SoundManagerPage'
+import { SoundPostDetailDialog } from './components/SoundPostDetailDialog'
+import { FavoritesPage, type FavoriteCategory, type FavoriteSort } from './components/FavoritesPage'
 import { PeriodFilter } from './components/PeriodFilter'
-import { EmptyLibraryState } from './components/EmptyLibraryState'
 import { HomeDashboard } from './components/HomeDashboard'
 import { SettingsPage } from './components/SettingsPage'
 import { WindowTitleBar } from './components/WindowTitleBar'
@@ -33,8 +33,10 @@ import { usePostDetail } from './hooks/usePostDetail'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useLegalNotice } from './hooks/useLegalNotice'
 import { useImageQualityPreference } from './hooks/useImageQualityPreference'
-import { filterAndSortInstalledSkins, type DownloadOriginFilter, type DownloadSortOrder } from './lib/downloadLibrary'
+import { useSoundLibrary } from './hooks/useSoundLibrary'
+import type { DownloadOriginFilter, DownloadSortOrder, SoundDownloadStatusFilter } from './lib/downloadLibrary'
 import { isTauriRuntime } from './lib/gameInstall'
+import { sameFavorite } from './lib/localLibrary'
 import { useI18n, asTranslationKey } from './i18n/I18nProvider'
 import type { WtLiveFeedSort, WtLiveItem } from './lib/wtLive'
 
@@ -48,18 +50,32 @@ export default function App() {
   const imageQuality = useImageQualityPreference()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
   const [active, setActive] = useState<AppSection>('camouflages')
+  const [downloadsCategory, setDownloadsCategory] = useState<'camouflages' | 'sounds'>('camouflages')
+  const [favoritesCategory, setFavoritesCategory] = useState<FavoriteCategory>('camouflages')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { searches, setSearch } = useSectionSearch()
-  const query = searches[active] ?? ''
+  const query = active === 'favorites'
+    ? searches[favoritesCategory === 'sounds' ? 'favorites-sounds' : 'favorites'] ?? ''
+    : searches[active] ?? ''
+  const camouflageCatalogQuery = active === 'home' ? '' : searches.camouflages ?? ''
   const searchInputRef = useRef<HTMLInputElement>(null)
   const mainScrollRef = useRef<HTMLElement>(null)
   const [sort, setSort] = useState<'recent' | 'popular'>('recent')
   const [downloadsOrigin, setDownloadsOrigin] = useState<DownloadOriginFilter>('all')
   const [downloadsSort, setDownloadsSort] = useState<DownloadSortOrder>('recent')
+  const [soundDownloadsFilter, setSoundDownloadsFilter] = useState<SoundDownloadStatusFilter>('all')
+  const [soundDownloadsSort, setSoundDownloadsSort] = useState<DownloadSortOrder>('recent')
+  const [favoriteCamouflageSort, setFavoriteCamouflageSort] = useState<FavoriteSort>('recent')
+  const [favoriteSoundSort, setFavoriteSoundSort] = useState<FavoriteSort>('recent')
   const [favoriteToRemove, setFavoriteToRemove] = useState<WtLiveItem | null>(null)
   const feedSort: WtLiveFeedSort = active === 'camouflages' && sort === 'popular' ? 'rating' : 'created'
   const feedEnabled = active !== 'favorites' && active !== 'downloads' && active !== 'sounds' && active !== 'settings'
-  const feed = useCamouflageFeed({ enabled: feedEnabled && !legalNotice.isRequired && !imageQuality.isSetupRequired, query, sort: feedSort })
+  const feed = useCamouflageFeed({ enabled: feedEnabled && !legalNotice.isRequired && !imageQuality.isSetupRequired, query: camouflageCatalogQuery, sort: feedSort })
+  const soundLibrary = useSoundLibrary(
+    gameSetup.gameInstall?.path,
+    active === 'sounds' || (active === 'downloads' && downloadsCategory === 'sounds') ||
+      (active === 'favorites' && favoritesCategory === 'sounds') || active === 'home',
+  )
   const skinInstaller = useSkinInstaller({ gamePath: gameSetup.gameInstall?.path, t, onInstalled: library.recordInstallation })
   const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail({
     onResetInstallState: skinInstaller.resetInstallState,
@@ -77,26 +93,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const catalog = active === 'favorites' ? library.favorites : feed.items
-  const visible = useMemo(() => {
-    if (active !== 'favorites') return catalog
-    const filtered = catalog.filter(item => `${item.title} ${item.author} ${item.fileName ?? ''} ${item.description}`.toLowerCase().includes(query.toLowerCase()))
-    return sort === 'popular' ? [...filtered].sort((a, b) => b.likes - a.likes) : [...filtered].sort((a, b) => b.createdAt - a.createdAt)
-  }, [active, catalog, query, sort])
-
-  const visibleInstallations = useMemo(
-    () => filterAndSortInstalledSkins(library.installedSkins, query, downloadsOrigin, downloadsSort),
-    [library.installedSkins, query, downloadsOrigin, downloadsSort],
-  )
-  const installedSkinsTotalBytes = useMemo(
-    () => library.installedSkins.reduce((total, entry) => total + entry.sizeBytes, 0),
-    [library.installedSkins],
-  )
+  const visible = feed.items
 
   const installedIds = useMemo(
     () => new Set(library.installedSkins.flatMap(s => (s.item?.id != null ? [s.item.id] : []))),
     [library.installedSkins],
   )
+  const downloadedSoundLangGroups = useMemo(
+    () => new Set(soundLibrary.packages.map(packageInfo => packageInfo.langGroup)),
+    [soundLibrary.packages],
+  )
+  const isFavoriteSaved = (item: WtLiveItem, contentType: 'camouflage' | 'sound') =>
+    library.favorites.some(saved => sameFavorite(saved, { ...item, contentType }))
 
   const feedLoadMoreRef = useAutoLoadMore({
     enabled: active === 'camouflages' && feed.hasNext && !feed.loading && !feed.loadingMore && !feed.loadMoreError && visible.length > 0 && visible.length % 150 !== 0,
@@ -117,40 +125,18 @@ export default function App() {
     closePost()
   }
 
+  function handleSoundSearchHashtag(tag: string) {
+    setSearch('sounds', `#${tag}`)
+    setActive('sounds')
+    closePost()
+  }
+
   function renderActiveSection() {
     const emptyMessage = <div className="grid min-h-40 place-items-center text-center text-sm text-[#b1b7ab]">{t('notFound')}</div>
-    if (active === 'downloads') {
-      if (visibleInstallations.length === 0) return library.installedSkins.length > 0 ? <div className="grid min-h-40 place-items-center text-center text-sm text-[#b1b7ab]">{t('noMatchingDownloads')}</div> : <EmptyLibraryState kind="downloads" onExplore={() => setActive('camouflages')} />
-      return <PaginatedGrid items={visibleInstallations} resetKey={`downloads-${query}-${downloadsOrigin}-${downloadsSort}`} getKey={entry => entry.path} gridClassName="grid grid-cols-2 gap-3 min-[1600px]:grid-cols-3 min-[2300px]:grid-cols-4 max-[720px]:grid-cols-1" renderItem={entry => <InstalledSkinCard entry={entry} onOpen={openPost} onUninstall={library.requestUninstall} />} />
-    }
-    if (active === 'favorites') {
-      if (visible.length === 0) return query ? emptyMessage : <EmptyLibraryState kind="favorites" onExplore={() => setActive('camouflages')} />
-      return (
-        <PaginatedGrid
-          items={visible}
-          resetKey={`favorites-${query}`}
-          renderGrid={visibleItems => (
-            <MasonryPostGrid
-              items={visibleItems}
-              renderItem={item => (
-                <PostCard
-                  item={item}
-                  isSaved
-                  isInstalled={installedIds.has(item.id)}
-                  onOpen={openPost}
-                  onToggleSaved={() => setFavoriteToRemove(item)}
-                />
-              )}
-            />
-          )}
-        />
-      )
-    }
     if (feed.error) return <div className="grid min-h-40 place-items-center text-center"><div><p className="text-sm text-[#c2c8bb]">{feed.error}</p><Button variant="primary" onClick={feed.retry}>{t('retry')}</Button></div></div>
     if (feed.loading) return <PostCardSkeleton label={t('loading')} />
     if (visible.length === 0) return emptyMessage
 
-    const isItemSaved = (item: WtLiveItem) => library.favorites.some(saved => saved.id === item.id)
     return (
       <>
         <MasonryPostGrid
@@ -158,7 +144,7 @@ export default function App() {
           renderItem={item => (
             <PostCard
               item={item}
-              isSaved={isItemSaved(item)}
+              isSaved={isFavoriteSaved(item, 'camouflage')}
               isInstalled={installedIds.has(item.id)}
               onOpen={openPost}
               onToggleSaved={library.toggleFavorite}
@@ -181,16 +167,13 @@ export default function App() {
     )
   }
 
-  const isLocalLibrary = active === 'downloads' || active === 'favorites'
-  const titleFirstLine = isLocalLibrary ? '' : t('recentTitlePrefix')
-  const titleLastWord = active === 'downloads' ? t('downloads') : active === 'favorites' ? t('favorites') : t('recentTitleHighlight')
   const selectedInstalledSkin = selected ? library.installedSkins.find(s => s.item?.id === selected.id) : null
 
   return <div className={`${isTauriRuntime ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-wt-bg font-sans text-[#e3e4dc]`} onContextMenu={event => event.preventDefault()}>
     {isTauriRuntime && <WindowTitleBar />}
     <NavigationSidebar
       active={active} hasCustomTitleBar={isTauriRuntime} mobileOpen={mobileMenuOpen}
-      installedCount={library.installedSkins.length}
+      installedCount={library.installedSkins.length + soundLibrary.packages.length}
       online={feed.online}
       onNavigate={key => { setActive(key); if (key === 'camouflages' || key === 'home') feed.loadPage(0) }}
       onToggleMobile={() => setMobileMenuOpen(open => !open)} onCloseMobile={closeMobileMenu}
@@ -213,27 +196,91 @@ export default function App() {
           onOpenGameSetup={gameSetup.openSetup}
           onRescanGame={() => void gameSetup.scan()}
           onViewLegalNotice={legalNotice.openNotice}
-        /> : active === 'sounds' ? <SoundManagerPage gamePath={gameSetup.gameInstall?.path} imageQuality={imageQuality.quality} onChooseGame={gameSetup.openSetup} /> : active === 'home' ? <HomeDashboard
+        /> : active === 'sounds' ? <SoundManagerPage
+          imageQuality={imageQuality.quality}
+          soundLibrary={soundLibrary}
+          searchInputRef={searchInputRef}
+          query={searches.sounds ?? ''}
+          onQueryChange={value => setSearch('sounds', value)}
+          isSaved={item => isFavoriteSaved(item, 'sound')}
+          onToggleSaved={library.toggleFavorite}
+        /> : active === 'downloads' ? <DownloadsPage
+          category={downloadsCategory}
+          onCategoryChange={setDownloadsCategory}
+          searchInputRef={searchInputRef}
+          onExploreCamouflages={() => { setActive('camouflages'); feed.loadPage(0) }}
+          camouflages={{
+            entries: library.installedSkins,
+            query: searches.downloads ?? '',
+            onQueryChange: value => setSearch('downloads', value),
+            origin: downloadsOrigin,
+            onOriginChange: setDownloadsOrigin,
+            sort: downloadsSort,
+            onSortChange: setDownloadsSort,
+            gamePath: gameSetup.gameInstall?.path,
+            scanning: library.scanning,
+            onRescan: () => void library.rescanSkins(),
+            onOpenPost: openPost,
+            onUninstall: library.requestUninstall,
+          }}
+          sounds={{
+            library: soundLibrary,
+            query: searches['downloads-sounds'] ?? '',
+            onQueryChange: value => setSearch('downloads-sounds', value),
+            statusFilter: soundDownloadsFilter,
+            onStatusFilterChange: setSoundDownloadsFilter,
+            sort: soundDownloadsSort,
+            onSortChange: setSoundDownloadsSort,
+            gamePath: gameSetup.gameInstall?.path,
+            onChooseGame: gameSetup.openSetup,
+            onExploreSounds: () => setActive('sounds'),
+            onOpenPost: openPost,
+          }}
+        /> : active === 'favorites' ? <FavoritesPage
+          favorites={library.favorites}
+          category={favoritesCategory}
+          onCategoryChange={setFavoritesCategory}
+          camouflageQuery={searches.favorites ?? ''}
+          onCamouflageQueryChange={value => setSearch('favorites', value)}
+          soundQuery={searches['favorites-sounds'] ?? ''}
+          onSoundQueryChange={value => setSearch('favorites-sounds', value)}
+          camouflageSort={favoriteCamouflageSort}
+          onCamouflageSortChange={setFavoriteCamouflageSort}
+          soundSort={favoriteSoundSort}
+          onSoundSortChange={setFavoriteSoundSort}
+          searchInputRef={searchInputRef}
+          onOpen={openPost}
+          onRemove={setFavoriteToRemove}
+          isInstalled={item => item.contentType === 'sound'
+            ? soundLibrary.status?.activePackageId != null && soundLibrary.packages.some(packageInfo => packageInfo.langGroup === item.langGroup && packageInfo.id === soundLibrary.status?.activePackageId)
+            : installedIds.has(item.id)}
+          isDownloaded={item => item.contentType === 'sound' && downloadedSoundLangGroups.has(item.langGroup)}
+          onExplore={category => { setActive(category); if (category === 'camouflages') feed.loadPage(0) }}
+        /> : active === 'home' ? <HomeDashboard
           items={feed.items} favorites={library.favorites} installedSkins={library.installedSkins}
-          favoritesCount={library.favorites.length} installedCount={library.installedSkins.length}
+          favoritesCount={library.favorites.length} installedCount={library.installedSkins.length + soundLibrary.packages.length}
           gameConfigured={Boolean(gameSetup.gameInstall)} loading={feed.loading} error={feed.error} online={feed.online}
-          isSaved={item => library.favorites.some(saved => saved.id === item.id)}
+          isSaved={item => isFavoriteSaved(item, item.contentType ?? 'camouflage')}
+          isDownloaded={item => item.contentType === 'sound' && downloadedSoundLangGroups.has(item.langGroup)}
+          isInstalled={item => item.contentType === 'sound'
+            ? soundLibrary.status?.activePackageId != null && soundLibrary.packages.some(packageInfo => packageInfo.langGroup === item.langGroup && packageInfo.id === soundLibrary.status?.activePackageId)
+            : installedIds.has(item.id)}
           onNavigate={section => { setActive(section); if (section === 'camouflages') feed.loadPage(0) }}
           onOpenGameSetup={gameSetup.openSetup} onRetry={feed.retry}
           onOpen={openPost} onToggleSaved={library.toggleFavorite} onUninstall={library.requestUninstall}
         /> : <div className="flex w-full flex-1 flex-col px-8 pb-5 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
           <SectionHeader
-            variant={active === 'downloads' ? 'downloads' : active === 'favorites' ? 'favorites' : 'radar'}
-            size={isLocalLibrary ? 'compact' : 'catalog'}
-            eyebrow={isLocalLibrary ? t('libraryLocal') : t('communityContent')}
-            titlePrefix={titleFirstLine}
-            titleHighlight={titleLastWord}
-            subtitle={!isLocalLibrary ? t('recentSubtitle') : undefined}
+            variant="radar"
+            size="catalog"
+            eyebrow={t('communityContent')}
+            titlePrefix={t('recentTitlePrefix')}
+            titleHighlight={t('recentTitleHighlight')}
+            subtitle={t('recentSubtitle')}
           />
 
-          <section className={`my-[22px] flex flex-wrap items-center gap-2.5 max-[720px]:mt-[17px] ${active === 'downloads' ? 'mb-3 max-[720px]:mb-3' : 'mb-[31px] max-[720px]:mb-6'}`}>
-            <label className="flex h-11 min-w-[240px] max-w-[490px] flex-1 items-center gap-2.5 border border-[#343b32] bg-wt-panel px-3 text-[#a0aa9b] focus-within:border-[#717d5b]"><Search size={17} /><input ref={searchInputRef} className="min-w-0 flex-1 bg-transparent text-sm text-[#e2e5db] outline-none placeholder:text-[#929a8e]" value={query} onChange={event => { setSearch(active, event.target.value); feed.setSearchInput(event.target.value) }} placeholder={t('searchPlaceholder')} /><kbd className="border border-[#41483d] px-1.5 py-0.5 text-[10px] text-[#929a8e] max-[720px]:hidden">{isApple ? '⌘ K' : 'Ctrl K'}</kbd></label>
-            {(active === 'camouflages' || active === 'favorites') && (
+          <section className="my-[22px] mb-[31px] flex flex-wrap items-center gap-2.5 max-[720px]:mb-6 max-[720px]:mt-[17px]">
+            <label className="flex h-11 min-w-[240px] max-w-[490px] flex-1 items-center gap-2.5 border border-[#343b32] bg-wt-panel px-3 text-[#a0aa9b] focus-within:border-[#717d5b]"><Search size={17} /><input ref={searchInputRef} className="min-w-0 flex-1 bg-transparent text-sm text-[#e2e5db] outline-none placeholder:text-[#929a8e]" value={query} onChange={event => { setSearch(active, event.target.value); if (active === 'camouflages') feed.setSearchInput(event.target.value) }} placeholder={t('searchPlaceholder')} /><kbd className="border border-[#41483d] px-1.5 py-0.5 text-[10px] text-[#929a8e] max-[720px]:hidden">{isApple ? '⌘ K' : 'Ctrl K'}</kbd></label>
+            {active === 'camouflages' && (
               <div className="flex flex-wrap items-center gap-2.5">
                 {active === 'camouflages' && <PeriodFilter value={feed.period} onChange={feed.changePeriod} />}
                 <Button variant="quiet" className="min-h-11 px-3 text-xs" onClick={() => {
@@ -244,26 +291,17 @@ export default function App() {
                 </Button>
               </div>
             )}
-            {active === 'downloads' && <DownloadsLibraryControls origin={downloadsOrigin} sort={downloadsSort} onOriginChange={setDownloadsOrigin} onSortChange={setDownloadsSort} />}
           </section>
 
-          {!isLocalLibrary && <div className="flex min-h-6 items-center"><p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{feed.loading ? t('loading') : <>{t(feed.online ? 'updatedFrom' : 'offlineSource')} <span className={`inline-block size-1.5 rounded-full ${feed.online ? 'bg-[#9cae70]' : 'bg-[#788078]'}`} /></>}</p></div>}
-          {active === 'downloads' && <>
-            <div className="mb-5 mt-1 flex flex-wrap items-center justify-between gap-3">
-              <DownloadsLibrarySummary totalCount={library.installedSkins.length} totalSizeBytes={installedSkinsTotalBytes} />
-              {gameSetup.gameInstall && <Button variant="secondary" size="sm" className="min-h-10" onClick={() => void library.rescanSkins()} disabled={library.scanning}>
-                <RefreshCw size={13} className={library.scanning ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />
-                <span>{t(library.scanning ? 'scanningSkins' : 'rescanSkins')}</span>
-              </Button>}
-            </div>
-          </>}
-          {active !== 'downloads' && <div className="mb-3.5 mt-5 flex items-center gap-2"><span className="ml-auto text-[11px] text-[#929a8e]">{t('posts', { count: visible.length })}</span></div>}
+          <div className="flex min-h-6 items-center"><p className="mb-0 flex items-center gap-2 text-xs text-[#a1a99b]">{feed.loading ? t('loading') : <>{t(feed.online ? 'updatedFrom' : 'offlineSource')} <span className={`inline-block size-1.5 rounded-full ${feed.online ? 'bg-[#9cae70]' : 'bg-[#788078]'}`} /></>}</p></div>
+          <div className="mb-3.5 mt-5 flex items-center gap-2"><span className="ml-auto text-[11px] text-[#929a8e]">{t('posts', { count: visible.length })}</span></div>
 
           {renderActiveSection()}
         </div>}
       </div>
       <BackToTopButton
-        enabled={active === 'camouflages' || active === 'downloads'}
+        key={active}
+        enabled={active === 'camouflages' || active === 'downloads' || active === 'sounds'}
         markerRef={searchInputRef}
         scrollContainerRef={isTauriRuntime ? mainScrollRef : null}
       />
@@ -302,7 +340,26 @@ export default function App() {
       open={imageQuality.isSetupRequired && !legalNotice.isOpen} keepWindowControlsVisible={isTauriRuntime}
       initialQuality={imageQuality.quality} onConfirm={imageQuality.setQuality}
     />
-    {selected && (
+    {selected?.contentType === 'sound' ? (
+      <SoundPostDetailDialog
+        item={selected}
+        detail={detail}
+        loading={detailLoading}
+        error={detailError}
+        imageQuality={imageQuality.quality}
+        canDownload={isTauriRuntime}
+        downloadedLangGroups={downloadedSoundLangGroups}
+        downloadBusy={soundLibrary.downloadingId != null}
+        downloadingId={soundLibrary.downloadingId}
+        progress={soundLibrary.downloadProgress ? { ...soundLibrary.downloadProgress, paused: soundLibrary.paused } : null}
+        downloadError={soundLibrary.error}
+        onDownload={item => void soundLibrary.download(item)}
+        onTogglePause={() => void soundLibrary.togglePause()}
+        onCancel={() => void soundLibrary.cancelDownload()}
+        onSearchHashtag={handleSoundSearchHashtag}
+        onClose={closePost}
+      />
+    ) : selected ? (
       <PostDetailDialog
         item={selected} detail={detail} loading={detailLoading} error={detailError} imageQuality={imageQuality.quality}
         canInstall={isTauriRuntime} installer={skinInstaller}
@@ -313,6 +370,6 @@ export default function App() {
         onChooseGame={gameSetup.openSetup}
         onSearchHashtag={handleSearchHashtag} onClose={closePost}
       />
-    )}
+    ) : null}
   </div>
 }

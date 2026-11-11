@@ -36,34 +36,49 @@ pub async fn download_package(
         "sound_library_permission_denied",
     )
     .await;
-    manager.finish(task_id);
     if let Err(error) = download_result {
+        manager.finish(task_id);
         let _ = fs::remove_dir_all(partial_path.parent().unwrap_or(&partial_path));
         return Err(error);
     }
-    control.check_cancelled()?;
-    fs::rename(&partial_path, &archive_path)
-        .map_err(|error| AppError::with_detail("sound_package_save_failed", error.to_string()))?;
+    let package_result = async {
+        control.check_cancelled()?;
+        fs::rename(&partial_path, &archive_path).map_err(|error| {
+            AppError::with_detail("sound_package_save_failed", error.to_string())
+        })?;
 
-    let archive_name = safe_archive_name(&source_name);
-    let downloaded_at = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| AppError::new("sound_package_clock_error"))?
-        .as_millis() as u64;
-    let package = SoundPackage {
-        id,
-        lang_group,
-        title: bounded_text(title, 200),
-        author: bounded_text(author, 120),
-        archive_name,
-        size_bytes: fs::metadata(&archive_path)?.len(),
-        downloaded_at,
-    };
-    if let Err(error) = library::publish_package(app_data_dir, &package) {
-        let _ = fs::remove_dir_all(archive_path.parent().unwrap_or(&archive_path));
-        return Err(error);
+        let archive_name = safe_archive_name(&source_name);
+        let downloaded_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| AppError::new("sound_package_clock_error"))?
+            .as_millis() as u64;
+        let file_count_path = archive_path.clone();
+        let file_count = tauri::async_runtime::spawn_blocking(move || {
+            super::archive::archive_file_count(&file_count_path)
+        })
+        .await
+        .ok()
+        .and_then(Result::ok);
+        control.check_cancelled()?;
+        let package = SoundPackage {
+            id,
+            lang_group,
+            title: bounded_text(title, 200),
+            author: bounded_text(author, 120),
+            archive_name,
+            size_bytes: fs::metadata(&archive_path)?.len(),
+            downloaded_at,
+            file_count,
+        };
+        library::publish_package(app_data_dir, &package)?;
+        Ok(package)
     }
-    Ok(package)
+    .await;
+    manager.finish(task_id);
+    if package_result.is_err() {
+        let _ = fs::remove_dir_all(archive_path.parent().unwrap_or(&archive_path));
+    }
+    package_result
 }
 
 fn safe_archive_name(name: &str) -> String {

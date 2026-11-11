@@ -15,6 +15,7 @@ export type WtLiveBlock =
 import { invoke } from '@tauri-apps/api/core'
 
 export type WtLiveItem = {
+  contentType?: 'camouflage' | 'sound'
   id: number
   langGroup: number
   language: string
@@ -35,6 +36,7 @@ export type WtLiveDetail = {
   hashtags: string[]
   commentsUrl: string
   images: WtLiveImage[]
+  stats?: Pick<WtLiveItem, 'likes' | 'downloads'>
 }
 
 export type WtLivePostReference = Pick<WtLiveItem, 'langGroup' | 'language'>
@@ -177,6 +179,7 @@ function mapPostDetail(result: ApiPost, item: WtLiveItem): WtLiveDetail {
     hashtags: content.hashtags,
     commentsUrl: `https://live.warthunder.com/post/${item.langGroup}/${item.language}/#comments`,
     images,
+    stats: { likes: result.likes ?? item.likes, downloads: result.downloads ?? item.downloads },
   }
 }
 

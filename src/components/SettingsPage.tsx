@@ -1,8 +1,6 @@
-import { useState } from 'react'
 import { Copy, FileText, FolderOpen, Gamepad2, LoaderCircle, ShieldCheck } from 'lucide-react'
 import { SectionHeader } from './HeroBanner'
 import { Button } from './ui/Button'
-import { openUserSkinsFolder } from '../lib/settings'
 import type { GameInstall } from '../lib/gameInstall'
 import type { useDiagnosticsSettings } from '../hooks/useDiagnosticsSettings'
 import { asTranslationKey, useI18n } from '../i18n/I18nProvider'
@@ -11,7 +9,6 @@ import { TemporaryFilesCard } from './TemporaryFilesCard'
 import { ResetLocalDataCard } from './ResetLocalDataCard'
 import { ImageQualitySettingsCard } from './ImageQualitySettingsCard'
 import type { ImageQualityMode } from '../lib/imageQuality'
-import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 
 type DiagnosticsState = ReturnType<typeof useDiagnosticsSettings>
 
@@ -29,23 +26,6 @@ type Props = {
 export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice }: Props) {
   const { t } = useI18n()
   const diagnosticsEnabled = diagnostics.settings?.enabled ?? diagnostics.supported
-  const [userSkinsError, setUserSkinsError] = useState(false)
-  const [openingUserSkins, setOpeningUserSkins] = useState(false)
-
-  async function handleOpenUserSkins() {
-    if (!gameInstall || openingUserSkins) return
-    const startedAt = Date.now()
-    setOpeningUserSkins(true)
-    setUserSkinsError(false)
-    try {
-      await openUserSkinsFolder(gameInstall.path)
-    } catch {
-      setUserSkinsError(true)
-    } finally {
-      await waitForMinimumLoadingDuration(startedAt)
-      setOpeningUserSkins(false)
-    }
-  }
 
   return (
     <div className="flex w-full flex-1 flex-col px-8 pb-8 pt-8 max-[1100px]:px-6 max-[720px]:px-4 max-[720px]:pt-6">
@@ -90,11 +70,7 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
                 {gameLoading && <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                 {t(gameLoading ? 'gameSetupSearching' : 'gameSetupRescan')}
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => void handleOpenUserSkins()} disabled={!gameInstall || openingUserSkins}>
-                {openingUserSkins ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <FolderOpen size={14} aria-hidden="true" />}{t(openingUserSkins ? 'settingsOpenUserSkinsWorking' : 'settingsOpenUserSkins')}
-              </Button>
             </div>
-            {userSkinsError && <p className="mb-0 text-xs text-amber-200" role="alert">{t('settingsOpenUserSkinsFailed')}</p>}
           </div>
         </section>
 

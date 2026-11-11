@@ -68,14 +68,20 @@ pub fn list_packages(app_data_dir: &Path) -> Result<Vec<SoundPackage>, AppError>
         if !manifest.is_file() {
             continue;
         }
-        let package: SoundPackage =
+        let mut package: SoundPackage =
             serde_json::from_slice(&fs::read(manifest)?).map_err(|error| {
                 AppError::with_detail("sound_package_manifest_invalid", error.to_string())
             })?;
         let expected_directory = package_directory(app_data_dir, &package.id)?;
-        if expected_directory != entry.path() || !expected_directory.join(PACKAGE_ARCHIVE).is_file()
-        {
+        let archive_path = expected_directory.join(PACKAGE_ARCHIVE);
+        if expected_directory != entry.path() {
             return Err(AppError::new("sound_package_manifest_invalid"));
+        }
+        if !archive_path.is_file() {
+            continue;
+        }
+        if package.file_count.is_none() {
+            package.file_count = super::archive::archive_file_count(&archive_path).ok();
         }
         packages.push(package);
     }

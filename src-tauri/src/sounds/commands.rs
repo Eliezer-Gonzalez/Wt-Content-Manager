@@ -1,10 +1,57 @@
-use std::path::PathBuf;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use tauri::{ipc::Channel, AppHandle, Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::commands::record_failure;
 use crate::{logging::DiagnosticLogger, skins::download_task::DownloadManager, AppError};
 
 use super::types::{SoundInstallResult, SoundModStatus, SoundPackage};
+
+#[tauri::command]
+pub async fn open_sound_mod_folder(app: AppHandle, game_path: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _mutation = crate::skins::recovery::lock_game_filesystem();
+        let install = crate::game_install::validate(&game_path)?;
+        let game_root = Path::new(&install.path);
+        super::files::ensure_sound_directory(game_root)?;
+        let folder = super::files::sound_mod_path(game_root)?;
+        if !folder.exists() {
+            fs::create_dir(&folder).map_err(|error| {
+                AppError::with_detail("sound_mod_folder_create_failed", error.to_string())
+            })?;
+        }
+        super::files::reject_symlink_or_non_directory(&folder)?;
+        app.opener()
+            .open_path(folder.to_string_lossy().into_owned(), None::<&str>)
+            .map_err(|error| {
+                AppError::with_detail("sound_mod_folder_open_failed", error.to_string())
+            })
+    })
+    .await
+    .map_err(|error| AppError::with_detail("sound_mod_folder_open_failed", error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn open_sound_package_library_folder(app: AppHandle) -> Result<(), AppError> {
+    let folder = super::library::packages_root(&app_data_dir(&app)?);
+    tauri::async_runtime::spawn_blocking(move || {
+        fs::create_dir_all(&folder).map_err(|error| {
+            AppError::with_detail("sound_package_library_open_failed", error.to_string())
+        })?;
+        app.opener()
+            .open_path(folder.to_string_lossy().into_owned(), None::<&str>)
+            .map_err(|error| {
+                AppError::with_detail("sound_package_library_open_failed", error.to_string())
+            })
+    })
+    .await
+    .map_err(|error| {
+        AppError::with_detail("sound_package_library_open_failed", error.to_string())
+    })?
+}
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
     app.path()
