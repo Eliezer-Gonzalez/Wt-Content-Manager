@@ -33,6 +33,7 @@ function splitVisibleUrls(text: string): Array<string | LinkPart> {
 type Props = {
   block: Extract<WtLiveBlock, { type: 'text' | 'video' }>
   onOverlayChange?: (open: boolean) => void
+  cancelDialogOpen?: boolean
   imageQuality?: ImageQualityMode
   renderLinkedPostActions?: (item: WtLiveItem) => ReactNode
   originPost?: WtLivePostReference
@@ -40,7 +41,7 @@ type Props = {
 }
 
 export function WtLiveDescriptionText({
-  block, onOverlayChange, imageQuality = 'optimized', renderLinkedPostActions, originPost, onOpenWtLivePost,
+  block, onOverlayChange, cancelDialogOpen = false, imageQuality = 'optimized', renderLinkedPostActions, originPost, onOpenWtLivePost,
 }: Props) {
   const { t } = useI18n()
   const [externalTarget, setExternalTarget] = useState<{ url: string; host: string } | null>(null)
@@ -186,6 +187,7 @@ export function WtLiveDescriptionText({
           language={linkedPost.language}
           imageQuality={imageQuality}
           renderActions={renderLinkedPostActions}
+          cancelDialogOpen={cancelDialogOpen}
           originPost={originPost}
           onClose={() => setLinkedPost(null)}
         />

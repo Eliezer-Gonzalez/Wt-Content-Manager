@@ -19,8 +19,14 @@ pub fn extract(
     let file = fs::File::open(archive_path)?;
     let mut archive = ZipArchive::new(file)
         .map_err(|error| AppError::with_detail("archive_open_failed", error.to_string()))?;
-    if archive.is_empty() || archive.len() > MAX_ARCHIVE_ENTRIES {
+    if archive.is_empty() {
         return Err(AppError::new("archive_empty_or_too_many_entries"));
+    }
+    if archive.len() > MAX_ARCHIVE_ENTRIES {
+        return Err(AppError::new("archive_empty_or_too_many_entries")
+            .with_param("reason", "archive_entry_count")
+            .with_param("entry_count", archive.len())
+            .with_param("max_entries", MAX_ARCHIVE_ENTRIES));
     }
 
     let mut written_paths = HashSet::new();
@@ -66,12 +72,24 @@ pub fn extract(
 
         stats.extracted_files += 1;
         if stats.extracted_files > MAX_ARCHIVE_ENTRIES {
-            return Err(AppError::new("archive_limits_exceeded"));
+            return Err(AppError::new("archive_limits_exceeded")
+                .with_param("reason", "allowed_file_count")
+                .with_param("file_count", stats.extracted_files)
+                .with_param("max_files", MAX_ARCHIVE_ENTRIES));
         }
 
         let expected = entry.size();
-        if expected > MAX_ENTRY_BYTES || total_written.saturating_add(expected) > size_limit {
-            return Err(AppError::new("archive_limits_exceeded"));
+        if expected > MAX_ENTRY_BYTES {
+            return Err(AppError::new("archive_limits_exceeded")
+                .with_param("reason", "single_file_uncompressed_size")
+                .with_param("entry_bytes", expected)
+                .with_param("max_entry_bytes", MAX_ENTRY_BYTES));
+        }
+        if total_written.saturating_add(expected) > size_limit {
+            return Err(AppError::new("archive_limits_exceeded")
+                .with_param("reason", "total_uncompressed_size")
+                .with_param("total_bytes", total_written.saturating_add(expected))
+                .with_param("max_total_bytes", size_limit));
         }
         if !written_paths.insert(relative.to_string_lossy().to_lowercase()) {
             return Err(AppError::new("archive_duplicate_paths"));
@@ -92,7 +110,10 @@ pub fn extract(
             |error| AppError::with_detail("archive_extract_file_failed", error.to_string()),
         )?;
         if copied > remaining || copied != expected {
-            return Err(AppError::new("archive_limits_exceeded"));
+            return Err(AppError::new("archive_limits_exceeded")
+                .with_param("reason", "uncompressed_size_mismatch")
+                .with_param("expected_bytes", expected)
+                .with_param("copied_bytes", copied));
         }
         total_written += copied;
     }

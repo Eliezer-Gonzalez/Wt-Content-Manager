@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Download, ExternalLink, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { ImageLightbox } from './ImageLightbox'
@@ -13,6 +13,9 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { isTauriRuntime } from '../lib/gameInstall'
 import { WtLiveDescriptionText } from './WtLiveDescriptionText'
 import { SoundPackageDownloadActions } from './SoundPackageDownloadActions'
+import { SoundReinstallAction } from './SoundReinstallAction'
+import type { SoundLibraryController } from '../hooks/useSoundLibrary'
+import type { SoundPackage } from '../lib/sounds'
 
 type Props = {
   item: WtLiveItem
@@ -26,6 +29,10 @@ type Props = {
   downloadingId: number | null
   progress: SoundDownloadProgress | null
   downloadError: string
+  activePackage: SoundPackage | null
+  soundLibrary: SoundLibraryController
+  canInstallPackage: boolean
+  cancelDialogOpen?: boolean
   onDownload: (item: WtLiveItem) => void
   onTogglePause: () => void
   onCancel: () => void
@@ -35,14 +42,16 @@ type Props = {
 
 export function SoundPostDetailDialog({
   item, detail, loading, error, imageQuality, canDownload, downloadedLangGroups, downloadBusy,
-  downloadingId, progress, downloadError, onDownload, onTogglePause, onCancel,
+  downloadingId, progress, downloadError, activePackage, soundLibrary, canInstallPackage, cancelDialogOpen = false, onDownload, onTogglePause, onCancel,
   onSearchHashtag, onClose,
 }: Props) {
   const { t } = useI18n()
   const dialogRef = useRef<HTMLElement>(null)
+  const downloadActionsRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null)
   const [descriptionOverlayOpen, setDescriptionOverlayOpen] = useState(false)
+  const [reinstallDialogOpen, setReinstallDialogOpen] = useState(false)
   const handleDescriptionOverlay = useCallback((open: boolean) => setDescriptionOverlayOpen(open), [])
   const [linkError, setLinkError] = useState(false)
   const previewImages = useMemo(() => detail?.images.length
@@ -51,7 +60,13 @@ export function SoundPostDetailDialog({
       ? [{ src: item.imageUrl, fullResolutionSrc: getFullResolutionImageUrl(item.imageUrl), aspectRatio: item.imageAspectRatio }]
       : [], [detail?.images, item.imageUrl, item.imageAspectRatio])
 
-  useFocusTrap({ containerRef: dialogRef, initialFocusRef: closeButtonRef, onClose, enabled: !descriptionOverlayOpen })
+  useFocusTrap({ containerRef: dialogRef, initialFocusRef: closeButtonRef, onClose, enabled: !descriptionOverlayOpen && !reinstallDialogOpen && !cancelDialogOpen })
+
+  useEffect(() => {
+    if (downloadingId !== item.id) return
+    const frame = window.requestAnimationFrame(() => downloadActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [downloadingId, item.id, loading])
 
   async function openOriginalPost() {
     const url = getSafeCommentUrl(`https://live.warthunder.com/post/${item.langGroup}/${item.language}/`)
@@ -134,6 +149,7 @@ export function SoundPostDetailDialog({
                     block={block}
                     imageQuality={imageQuality}
                     onOverlayChange={handleDescriptionOverlay}
+                    cancelDialogOpen={cancelDialogOpen}
                     renderLinkedPostActions={renderLinkedPostActions}
                     originPost={item}
                     key={index}
@@ -142,6 +158,7 @@ export function SoundPostDetailDialog({
                   block={{ type: 'text', text: item.description || t('noDescription') }}
                   imageQuality={imageQuality}
                   onOverlayChange={handleDescriptionOverlay}
+                  cancelDialogOpen={cancelDialogOpen}
                   renderLinkedPostActions={renderLinkedPostActions}
                   originPost={item}
                 />}
@@ -166,18 +183,28 @@ export function SoundPostDetailDialog({
           <p className="mb-4 mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
             {t('likes', { count: detail?.stats?.likes ?? item.likes })} · {t('downloadsCount', { count: detail?.stats?.downloads ?? item.downloads })}
           </p>
-          <SoundPackageDownloadActions
-            item={item}
-            canDownload={canDownload}
-            downloaded={downloadedLangGroups.has(item.langGroup)}
-            downloadBusy={downloadBusy}
-            downloading={downloadingId === item.id}
-            progress={downloadingId === item.id ? progress : null}
-            downloadError={downloadError}
-            onDownload={onDownload}
-            onTogglePause={onTogglePause}
-            onCancel={onCancel}
-          />
+          <div ref={downloadActionsRef}>
+            <SoundPackageDownloadActions
+              item={item}
+              canDownload={canDownload}
+              downloaded={downloadedLangGroups.has(item.langGroup)}
+              downloadBusy={downloadBusy}
+              downloading={downloadingId === item.id}
+              progress={downloadingId === item.id ? progress : null}
+              downloadError={downloadError}
+              onDownload={onDownload}
+              onTogglePause={onTogglePause}
+              onCancel={onCancel}
+            />
+            {activePackage && (
+              <SoundReinstallAction
+                packageInfo={activePackage}
+                library={soundLibrary}
+                canInstall={canInstallPackage}
+                onConfirmingChange={setReinstallDialogOpen}
+              />
+            )}
+          </div>
           <button type="button" className="mt-4 inline-flex items-center gap-1.5 text-sm text-[#bdc99e] hover:text-[#dce5c4]" onClick={() => void openOriginalPost()}>
             {t('openOriginalPost')} <ExternalLink size={13} />
           </button>

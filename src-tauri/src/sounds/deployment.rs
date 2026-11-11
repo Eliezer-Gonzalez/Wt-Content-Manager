@@ -6,19 +6,28 @@ use crate::{game_install, skins::recovery::lock_game_filesystem, AppError};
 use super::{
     archive,
     files::{
-        copy_directory, count_banks, ensure_sound_directory, reject_symlink_or_non_directory,
-        sound_mod_path,
+        copy_directory, count_banks, directory_has_content, ensure_sound_directory,
+        reject_symlink_or_non_directory, sound_mod_path,
     },
     game_process::{self, GameProcessStatus},
     journal::{self, InstallState},
     library, recovery,
-    types::{SoundInstallResult, SoundModStatus},
+    types::{ExistingSoundModAction, SoundInstallResult, SoundModStatus},
 };
+
+#[path = "deployment/preflight.rs"]
+mod preflight;
+#[cfg(test)]
+#[path = "deployment/tests.rs"]
+mod tests;
+
+pub use preflight::install_preflight;
 
 pub fn install(
     app_data_dir: &Path,
     game_path: &str,
     package_id: &str,
+    existing_mod_action: Option<ExistingSoundModAction>,
 ) -> Result<SoundInstallResult, AppError> {
     let game_root = validated_game_root(game_path)?;
     let _mutation = lock_game_filesystem();
@@ -44,7 +53,7 @@ pub fn install(
         }
     };
     ensure_game_stopped(&game_root)?;
-    let mut state = match load_or_create_state(&paths, &game_root, &target) {
+    let mut state = match load_or_create_state(&paths, &game_root, &target, existing_mod_action) {
         Ok(state) => state,
         Err(error) => {
             let _ = fs::remove_dir_all(&stage);
@@ -139,6 +148,7 @@ pub fn status(app_data_dir: &Path, game_path: &str) -> Result<SoundModStatus, Ap
         .to_owned(),
         installed_banks,
         backup_available: state.is_some(),
+        original_backup_available: state.as_ref().is_some_and(|state| state.original_existed),
         active_package_id: state.and_then(|state| state.active_package_id),
     })
 }
@@ -222,6 +232,7 @@ fn load_or_create_state(
     paths: &journal::StoragePaths,
     game_root: &Path,
     target: &Path,
+    existing_mod_action: Option<ExistingSoundModAction>,
 ) -> Result<InstallState, AppError> {
     if let Some(state) = journal::read_state(paths)? {
         if state.game_root != game_root.to_string_lossy() {
@@ -230,12 +241,17 @@ fn load_or_create_state(
         return Ok(state);
     }
     fs::create_dir_all(&paths.root)?;
-    let original_existed = target.exists();
+    if paths.original_backup.exists() {
+        return Err(AppError::new("sound_backup_conflict"));
+    }
+    let existing_content = target.is_dir() && directory_has_content(target)?;
+    if existing_content && existing_mod_action.is_none() {
+        return Err(AppError::new("sound_existing_mod_decision_required"));
+    }
+    let original_existed =
+        existing_content && matches!(existing_mod_action, Some(ExistingSoundModAction::Backup));
     if original_existed {
         reject_symlink_or_non_directory(target)?;
-        if paths.original_backup.exists() {
-            return Err(AppError::new("sound_backup_conflict"));
-        }
         copy_directory(target, &paths.original_backup)?;
     }
     let state = InstallState {

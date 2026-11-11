@@ -28,8 +28,11 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
   const [error, setError] = useState('')
   const [installedPath, setInstalledPath] = useState('')
   const [warning, setWarning] = useState<SkinInstallWarning | null>(null)
+  const [activeLangGroup, setActiveLangGroup] = useState<number | null>(null)
+  const [resultLangGroup, setResultLangGroup] = useState<number | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const cancelRequestedRef = useRef(false)
+  const wasPausedBeforeCancelPromptRef = useRef(false)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -51,6 +54,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     setInstalledPath('')
     setWarning(null)
     setCancelled(false)
+    setResultLangGroup(null)
   }, [])
 
   useEffect(() => {
@@ -59,8 +63,10 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
 
   const install = useCallback(async (item: WtLiveItem, replaceFolderName?: string) => {
     if (!gamePath) return
+    if (taskIdRef.current) return
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
+    setActiveLangGroup(item.langGroup)
     cancelRequestedRef.current = false
     setInstalling(true)
     setProgress({ phase: 'preparing', downloadedBytes: 0, totalBytes: null, paused: false })
@@ -75,6 +81,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
         if (mountedRef.current) setProgress(progressUpdate)
       }, replaceFolderName)
       if (!mountedRef.current) return
+      setResultLangGroup(item.langGroup)
       setInstalledPath(result.path)
       if (result.skippedFiles > 0 || result.missingTextureCount > 0) {
         setWarning({
@@ -91,14 +98,17 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     } catch (cause) {
       if (!mountedRef.current) return
       if (cancelRequestedRef.current) {
+        setResultLangGroup(item.langGroup)
         setCancelled(true)
       } else {
+        setResultLangGroup(item.langGroup)
         const formatted = formatAppError(cause, t)
         setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
       }
     } finally {
       taskIdRef.current = null
       if (mountedRef.current) {
+        setActiveLangGroup(null)
         setInstalling(false)
         setProgress(null)
         setPaused(false)
@@ -121,6 +131,55 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     }
   }, [paused, t])
 
+  const prepareCancel = useCallback(async () => {
+    const taskId = taskIdRef.current
+    if (!taskId) return false
+    wasPausedBeforeCancelPromptRef.current = paused
+    if (!paused) {
+      try {
+        await setSkinDownloadPaused(taskId, true)
+      } catch (cause) {
+        wasPausedBeforeCancelPromptRef.current = false
+        if (taskIdRef.current !== taskId) return false
+        const formatted = formatAppError(cause, t)
+        setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+        return false
+      }
+    }
+    if (taskIdRef.current !== taskId) return false
+    setPaused(true)
+    return true
+  }, [paused, t])
+
+  const continueAfterCancelPrompt = useCallback(async () => {
+    const taskId = taskIdRef.current
+    wasPausedBeforeCancelPromptRef.current = false
+    if (!taskId) return
+    setPaused(false)
+    try {
+      await setSkinDownloadPaused(taskId, false)
+    } catch (cause) {
+      setPaused(true)
+      const formatted = formatAppError(cause, t)
+      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+    }
+  }, [t])
+
+  const dismissCancelPrompt = useCallback(async () => {
+    const taskId = taskIdRef.current
+    const wasPaused = wasPausedBeforeCancelPromptRef.current
+    wasPausedBeforeCancelPromptRef.current = false
+    if (!taskId || wasPaused) return
+    setPaused(false)
+    try {
+      await setSkinDownloadPaused(taskId, false)
+    } catch (cause) {
+      setPaused(true)
+      const formatted = formatAppError(cause, t)
+      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+    }
+  }, [t])
+
   const cancel = useCallback(async () => {
     const taskId = taskIdRef.current
     if (!taskId) return
@@ -136,7 +195,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled }: Opt
     }
   }, [t])
 
-  return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, install, togglePause, cancel, resetInstallState }
+  return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, activeLangGroup, resultLangGroup, install, togglePause, cancel, prepareCancel, continueAfterCancelPrompt, dismissCancelPrompt, resetInstallState }
 }
 
 export type SkinInstaller = ReturnType<typeof useSkinInstaller>

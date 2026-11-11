@@ -8,6 +8,8 @@ import { PaginatedGrid } from './PaginatedGrid'
 import { SectionHeader } from './HeroBanner'
 import { DownloadsLibraryControls, DownloadsLibrarySummary, SoundDownloadsLibraryControls } from './DownloadsLibraryControls'
 import { SoundDownloadsSection } from './SoundDownloadsSection'
+import { SoundUpdateControls } from './SoundUpdateControls'
+import type { SoundPackageUpdateController } from '../hooks/useSoundPackageUpdates'
 import type { WtLiveItem } from '../lib/wtLive'
 import { useI18n } from '../i18n/I18nProvider'
 import { openUserSkinsFolder } from '../lib/settings'
@@ -44,6 +46,7 @@ type SoundDownloads = {
   onChooseGame: () => void
   onExploreSounds: () => void
   onOpenPost: (item: WtLiveItem) => void
+  updates: SoundPackageUpdateController
 }
 
 type Props = {
@@ -195,15 +198,19 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
             )}
           </>
         ) : (
+          <>
+          <SoundUpdateControls updates={sounds.updates} packages={sounds.library.packages} />
           <SoundDownloadsSection
             gamePath={sounds.gamePath}
             library={sounds.library}
             packages={visibleSoundPackages}
+            updateResults={sounds.updates.results}
             hasPackages={sounds.library.packages.length > 0}
             onChooseGame={sounds.onChooseGame}
             onExploreSounds={sounds.onExploreSounds}
             onOpenPost={sounds.onOpenPost}
           />
+          </>
         )}
       </section>
     </div>

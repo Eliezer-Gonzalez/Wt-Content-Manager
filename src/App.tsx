@@ -3,6 +3,7 @@ import { Activity, ChevronDown, Search } from 'lucide-react'
 import { GameSetupModal } from './components/GameSetupModal'
 import { ConfirmUninstallModal } from './components/ConfirmUninstallModal'
 import { ConfirmRemoveFavoriteModal } from './components/ConfirmRemoveFavoriteModal'
+import { DownloadCancelConfirmDialog } from './components/DownloadCancelConfirmDialog'
 import { LegalNoticeDialog } from './components/LegalNoticeDialog'
 import { ImageQualitySetupDialog } from './components/ImageQualitySetupDialog'
 import { NavigationSidebar, type AppSection } from './components/NavigationSidebar'
@@ -34,6 +35,7 @@ import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useLegalNotice } from './hooks/useLegalNotice'
 import { useImageQualityPreference } from './hooks/useImageQualityPreference'
 import { useSoundLibrary } from './hooks/useSoundLibrary'
+import { useSoundPackageUpdates } from './hooks/useSoundPackageUpdates'
 import type { DownloadOriginFilter, DownloadSortOrder, SoundDownloadStatusFilter } from './lib/downloadLibrary'
 import { isTauriRuntime } from './lib/gameInstall'
 import { sameFavorite } from './lib/localLibrary'
@@ -76,11 +78,53 @@ export default function App() {
     active === 'sounds' || (active === 'downloads' && downloadsCategory === 'sounds') ||
       (active === 'favorites' && favoritesCategory === 'sounds') || active === 'home',
   )
+  const soundUpdates = useSoundPackageUpdates(
+    soundLibrary.packages,
+    active === 'downloads' && downloadsCategory === 'sounds' && !soundLibrary.loading,
+  )
   const skinInstaller = useSkinInstaller({ gamePath: gameSetup.gameInstall?.path, t, onInstalled: library.recordInstallation })
+  const pendingCancellationRef = useRef<'skin' | 'sound' | null>(null)
+  const [pendingCancellation, setPendingCancellation] = useState<'skin' | 'sound' | null>(null)
   const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail({
     onResetInstallState: skinInstaller.resetInstallState,
   })
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
+
+  const requestSkinCancellation = useCallback(async () => {
+    if (pendingCancellationRef.current) return
+    pendingCancellationRef.current = 'skin'
+    if (await skinInstaller.prepareCancel()) setPendingCancellation('skin')
+    else pendingCancellationRef.current = null
+  }, [skinInstaller.prepareCancel])
+  const requestSoundCancellation = useCallback(async () => {
+    if (pendingCancellationRef.current) return
+    pendingCancellationRef.current = 'sound'
+    if (await soundLibrary.prepareCancelDownload()) setPendingCancellation('sound')
+    else pendingCancellationRef.current = null
+  }, [soundLibrary.prepareCancelDownload])
+  const continuePendingCancellation = useCallback(() => {
+    const contentType = pendingCancellationRef.current
+    pendingCancellationRef.current = null
+    setPendingCancellation(null)
+    if (contentType === 'skin') void skinInstaller.continueAfterCancelPrompt()
+    if (contentType === 'sound') void soundLibrary.continueAfterCancelPrompt()
+  }, [skinInstaller.continueAfterCancelPrompt, soundLibrary.continueAfterCancelPrompt])
+  const confirmPendingCancellation = useCallback(() => {
+    const contentType = pendingCancellationRef.current
+    pendingCancellationRef.current = null
+    setPendingCancellation(null)
+    if (contentType === 'skin') void skinInstaller.cancel()
+    if (contentType === 'sound') void soundLibrary.cancelDownload()
+  }, [skinInstaller.cancel, soundLibrary.cancelDownload])
+  const dismissPendingCancellation = useCallback(() => {
+    const contentType = pendingCancellationRef.current
+    pendingCancellationRef.current = null
+    setPendingCancellation(null)
+    if (contentType === 'skin') void skinInstaller.dismissCancelPrompt()
+    if (contentType === 'sound') void soundLibrary.dismissCancelPrompt()
+  }, [skinInstaller.dismissCancelPrompt, soundLibrary.dismissCancelPrompt])
+  const skinInstallerForUi = { ...skinInstaller, cancel: requestSkinCancellation }
+  const soundLibraryForUi = { ...soundLibrary, cancelDownload: requestSoundCancellation }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -103,6 +147,9 @@ export default function App() {
     () => new Set(soundLibrary.packages.map(packageInfo => packageInfo.langGroup)),
     [soundLibrary.packages],
   )
+  const currentSoundLangGroups = useMemo(() => new Set(soundLibrary.packages
+    .filter(packageInfo => soundUpdates.results[packageInfo.id]?.status !== 'possible')
+    .map(packageInfo => packageInfo.langGroup)), [soundLibrary.packages, soundUpdates.results])
   const isFavoriteSaved = (item: WtLiveItem, contentType: 'camouflage' | 'sound') =>
     library.favorites.some(saved => sameFavorite(saved, { ...item, contentType }))
 
@@ -146,6 +193,12 @@ export default function App() {
               item={item}
               isSaved={isFavoriteSaved(item, 'camouflage')}
               isInstalled={installedIds.has(item.id)}
+              skinProgress={skinInstaller.activeLangGroup === item.langGroup && skinInstaller.installing
+                ? { ...(skinInstaller.progress ?? { phase: 'preparing' as const, downloadedBytes: 0, totalBytes: null, paused: false }), paused: skinInstaller.paused }
+                : null}
+              cancellingDownload={skinInstaller.cancelling}
+              onToggleDownloadPause={() => void skinInstaller.togglePause()}
+              onCancelDownload={requestSkinCancellation}
               onOpen={openPost}
               onToggleSaved={library.toggleFavorite}
             />
@@ -198,7 +251,9 @@ export default function App() {
           onViewLegalNotice={legalNotice.openNotice}
         /> : active === 'sounds' ? <SoundManagerPage
           imageQuality={imageQuality.quality}
-          soundLibrary={soundLibrary}
+          soundLibrary={soundLibraryForUi}
+          cancelDialogOpen={pendingCancellation === 'sound'}
+          downloadableLangGroups={currentSoundLangGroups}
           searchInputRef={searchInputRef}
           query={searches.sounds ?? ''}
           onQueryChange={value => setSearch('sounds', value)}
@@ -224,7 +279,7 @@ export default function App() {
             onUninstall: library.requestUninstall,
           }}
           sounds={{
-            library: soundLibrary,
+            library: soundLibraryForUi,
             query: searches['downloads-sounds'] ?? '',
             onQueryChange: value => setSearch('downloads-sounds', value),
             statusFilter: soundDownloadsFilter,
@@ -235,6 +290,7 @@ export default function App() {
             onChooseGame: gameSetup.openSetup,
             onExploreSounds: () => setActive('sounds'),
             onOpenPost: openPost,
+            updates: soundUpdates,
           }}
         /> : active === 'favorites' ? <FavoritesPage
           favorites={library.favorites}
@@ -329,6 +385,13 @@ export default function App() {
         setFavoriteToRemove(null)
       }}
     />
+    {pendingCancellation && (
+      <DownloadCancelConfirmDialog
+        onContinue={continuePendingCancellation}
+        onConfirmCancel={confirmPendingCancellation}
+        onDismiss={dismissPendingCancellation}
+      />
+    )}
     <LegalNoticeDialog
       open={legalNotice.isOpen}
       required={legalNotice.isRequired}
@@ -348,21 +411,26 @@ export default function App() {
         error={detailError}
         imageQuality={imageQuality.quality}
         canDownload={isTauriRuntime}
-        downloadedLangGroups={downloadedSoundLangGroups}
+        downloadedLangGroups={currentSoundLangGroups}
         downloadBusy={soundLibrary.downloadingId != null}
         downloadingId={soundLibrary.downloadingId}
         progress={soundLibrary.downloadProgress ? { ...soundLibrary.downloadProgress, paused: soundLibrary.paused } : null}
         downloadError={soundLibrary.error}
+        activePackage={soundLibrary.packages.find(packageInfo => packageInfo.id === soundLibrary.status?.activePackageId && packageInfo.langGroup === selected.langGroup) ?? null}
+        soundLibrary={soundLibraryForUi}
+        canInstallPackage={isTauriRuntime}
+        cancelDialogOpen={pendingCancellation === 'sound'}
         onDownload={item => void soundLibrary.download(item)}
         onTogglePause={() => void soundLibrary.togglePause()}
-        onCancel={() => void soundLibrary.cancelDownload()}
+        onCancel={requestSoundCancellation}
         onSearchHashtag={handleSoundSearchHashtag}
         onClose={closePost}
       />
     ) : selected ? (
       <PostDetailDialog
         item={selected} detail={detail} loading={detailLoading} error={detailError} imageQuality={imageQuality.quality}
-        canInstall={isTauriRuntime} installer={skinInstaller}
+        canInstall={isTauriRuntime} installer={skinInstallerForUi}
+        cancelDialogOpen={pendingCancellation === 'skin'}
         installedEntry={selectedInstalledSkin}
         onInstall={() => void handleInstallSkin()}
         onReinstall={entry => { if (selected) void skinInstaller.install(selected, entry.folderName) }}

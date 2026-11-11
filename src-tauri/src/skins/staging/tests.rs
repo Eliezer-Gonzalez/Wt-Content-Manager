@@ -1,7 +1,6 @@
 use super::{
     cleanup_orphan_staging_with_threshold, inspect_orphan_staging_with_threshold,
-    is_orphan_staging_dir, register_active_staging,
-    unregister_active_staging,
+    is_orphan_staging_dir, register_active_staging, unregister_active_staging,
 };
 use std::fs;
 use std::time::Duration;

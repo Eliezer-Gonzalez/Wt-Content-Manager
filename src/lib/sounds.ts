@@ -23,6 +23,7 @@ export type SoundModStatus = {
   processStatus: 'running' | 'stopped' | 'unknown'
   installedBanks: number
   backupAvailable: boolean
+  originalBackupAvailable: boolean
   activePackageId: string | null
 }
 
@@ -30,6 +31,12 @@ export type SoundInstallResult = {
   packageId: string
   installedBanks: number
   backupCreated: boolean
+}
+
+export type ExistingSoundModAction = 'backup' | 'delete'
+
+export type SoundInstallPreflight = {
+  existingContent: boolean
 }
 
 export function listSoundPackages(): Promise<SoundPackage[]> {
@@ -64,8 +71,16 @@ export function getSoundModStatus(gamePath: string): Promise<SoundModStatus> {
   return invoke<SoundModStatus>('get_sound_mod_status', { gamePath })
 }
 
-export function installSoundPackage(gamePath: string, packageId: string): Promise<SoundInstallResult> {
-  return invoke<SoundInstallResult>('install_sound_package', { gamePath, packageId })
+export function getSoundInstallPreflight(gamePath: string): Promise<SoundInstallPreflight> {
+  return invoke<SoundInstallPreflight>('get_sound_install_preflight', { gamePath })
+}
+
+export function installSoundPackage(
+  gamePath: string,
+  packageId: string,
+  existingModAction?: ExistingSoundModAction,
+): Promise<SoundInstallResult> {
+  return invoke<SoundInstallResult>('install_sound_package', { gamePath, packageId, existingModAction })
 }
 
 export function restoreSoundModBackup(gamePath: string): Promise<void> {

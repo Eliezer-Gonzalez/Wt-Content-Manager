@@ -57,7 +57,10 @@ pub fn safe_archive_path(raw: &str) -> Result<PathBuf, AppError> {
             Component::Normal(value) => {
                 depth += 1;
                 if depth > MAX_ARCHIVE_DEPTH {
-                    return Err(AppError::new("archive_limits_exceeded"));
+                    return Err(AppError::new("archive_limits_exceeded")
+                        .with_param("reason", "archive_path_depth")
+                        .with_param("path_depth", depth)
+                        .with_param("max_depth", MAX_ARCHIVE_DEPTH));
                 }
                 let value = value.to_string_lossy();
                 if value.ends_with([' ', '.']) || is_windows_reserved(&value) {

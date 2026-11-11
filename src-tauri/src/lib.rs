@@ -65,6 +65,7 @@ pub fn run() {
             sounds::commands::set_sound_download_paused,
             sounds::commands::cancel_sound_download,
             sounds::commands::get_sound_mod_status,
+            sounds::commands::get_sound_install_preflight,
             sounds::commands::install_sound_package,
             sounds::commands::restore_sound_mod_backup,
             sounds::commands::open_sound_mod_folder,

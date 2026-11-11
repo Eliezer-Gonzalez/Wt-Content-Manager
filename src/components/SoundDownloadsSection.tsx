@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { FolderOpen, HardDrive, LoaderCircle, RefreshCw } from 'lucide-react'
+import { FolderOpen, HardDrive, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import { Button } from './ui/Button'
-import { SoundActionConfirmDialog } from './SoundActionConfirmDialog'
+import { SoundInstallDialogs } from './SoundInstallDialogs'
 import { SoundPackageCard } from './SoundPackageCard'
 import { SoundPackageDownloadActions } from './SoundPackageDownloadActions'
 import { DownloadsLibrarySummary } from './DownloadsLibraryControls'
 import { PaginatedGrid } from './PaginatedGrid'
 import { AppTooltip } from './ui/AppTooltip'
 import { useI18n } from '../i18n/I18nProvider'
-import { openSoundModFolder, openSoundPackageLibraryFolder } from '../lib/sounds'
+import { getSoundInstallPreflight, openSoundModFolder, openSoundPackageLibraryFolder, type ExistingSoundModAction } from '../lib/sounds'
 import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 import type { SoundLibraryController } from '../hooks/useSoundLibrary'
 import type { SoundPackage } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'
+import type { SoundPackageUpdateResult } from '../hooks/useSoundPackageUpdates'
 
 type Props = {
   gamePath?: string
@@ -22,13 +23,15 @@ type Props = {
   onChooseGame: () => void
   onExploreSounds: () => void
   onOpenPost: (item: WtLiveItem) => void
+  updateResults: Record<string, SoundPackageUpdateResult>
 }
 
 export function SoundDownloadsSection({
-  gamePath, library, packages, hasPackages, onChooseGame, onExploreSounds, onOpenPost,
+  gamePath, library, packages, hasPackages, updateResults, onChooseGame, onExploreSounds, onOpenPost,
 }: Props) {
   const { t, locale } = useI18n()
   const [pendingInstall, setPendingInstall] = useState<SoundPackage | null>(null)
+  const [pendingExistingMod, setPendingExistingMod] = useState<SoundPackage | null>(null)
   const [confirmRestore, setConfirmRestore] = useState(false)
   const [openingModFolder, setOpeningModFolder] = useState(false)
   const [modFolderError, setModFolderError] = useState(false)
@@ -68,6 +71,12 @@ export function SoundDownloadsSection({
     }
   }
 
+  async function confirmExistingModAction(action: ExistingSoundModAction) {
+    if (!pendingExistingMod) return
+    await library.install(pendingExistingMod.id, action)
+    setPendingExistingMod(null)
+  }
+
   async function handleRequestInstall(packageInfo: SoundPackage) {
     if (!gamePath || checkingInstallStatus || busy) return
     setCheckingInstallStatus(true)
@@ -78,7 +87,9 @@ export function SoundDownloadsSection({
         setInstallStatusWarning(freshStatus?.processStatus === 'running' ? 'running' : 'unknown')
         return
       }
-      setPendingInstall(packageInfo)
+      const preflight = await getSoundInstallPreflight(gamePath)
+      if (preflight.existingContent) setPendingExistingMod(packageInfo)
+      else setPendingInstall(packageInfo)
     } catch {
       setInstallStatusWarning('unknown')
     } finally {
@@ -189,17 +200,22 @@ export function SoundDownloadsSection({
       </p>
       {packagesFolderError && <p className="mb-3 text-xs text-amber-200" role="alert">{t('soundPackageFolderOpenFailed')}</p>}
 
-      {activePackage && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 border border-[#586b41] bg-[#202a1d] px-3 py-3 text-sm text-[#c4d79d]">
-          <span className="min-w-0 flex-1"><strong className="font-medium">{t('soundCurrentPackage')}:</strong> {activePackage.title || activePackage.archiveName}</span>
-          <span className="text-xs">{t('soundInstalledBanks', { count: library.status?.installedBanks ?? 0 })}</span>
-          <Button size="sm" variant="danger" disabled={!gameReady || busy} onClick={() => setConfirmRestore(true)}>{t('soundRestore')}</Button>
-        </div>
-      )}
-      {library.status?.backupAvailable && !activePackage && (
+      {library.status?.backupAvailable && library.status.originalBackupAvailable && !activePackage && (
         <div className="mb-4 flex flex-wrap items-center gap-3 border border-[#41483d] bg-[#1d231d] px-3 py-3 text-sm text-[#c0c5bb]">
           <span className="min-w-0 flex-1">{t('soundBackupAvailable')}</span>
           <Button size="sm" variant="secondary" disabled={!gameReady || busy} onClick={() => setConfirmRestore(true)}>{t('soundRestore')}</Button>
+        </div>
+      )}
+      {activePackage && !packages.some(packageInfo => packageInfo.id === activePackage.id) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 border border-[#586b41] bg-[#202a1d] px-3 py-2 text-xs text-[#c4d79d]">
+          <span className="min-w-0 flex-1">{t('soundActivePackageFiltered')}</span>
+          <Button size="sm" variant="secondary" disabled={!gameReady || busy} onClick={() => setConfirmRestore(true)}>{t(library.status?.originalBackupAvailable ? 'soundRestore' : 'soundUninstall')}</Button>
+        </div>
+      )}
+      {library.status?.activePackageId && !activePackage && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 border border-[#586b41] bg-[#202a1d] px-3 py-3 text-sm text-[#c4d79d]">
+          <span className="min-w-0 flex-1">{t('soundActivePackageMissing')}</span>
+          <Button size="sm" variant="danger" disabled={!gameReady || busy} onClick={() => setConfirmRestore(true)}>{t(library.status.originalBackupAvailable ? 'soundRestore' : 'soundUninstall')}</Button>
         </div>
       )}
 
@@ -243,8 +259,15 @@ export function SoundDownloadsSection({
           />
         </div>
       )}
-      {library.error && <p className="mb-4 text-sm text-amber-200" role="alert">{library.error}</p>}
-      {library.loading ? (
+      {library.error && (
+        <div className="mb-4 flex items-start justify-between gap-3 border border-[#766638] bg-[#302b1d] px-3 py-2.5 text-sm text-amber-100" role="alert">
+          <p className="mb-0 min-w-0">{library.error}</p>
+          <Button variant="icon" size="sm" className="-mr-1 -mt-1 shrink-0" onClick={library.dismissError} aria-label={t('close')}>
+            <X size={15} aria-hidden="true" />
+          </Button>
+        </div>
+      )}
+      {library.loading && library.packages.length === 0 ? (
         <div className="py-7 text-center text-sm text-[#9fa89b]">{t('loading')}</div>
       ) : packages.length === 0 ? (
         hasPackages ? (
@@ -265,30 +288,28 @@ export function SoundDownloadsSection({
             <SoundPackageCard
               packageInfo={packageInfo}
               status={library.status}
+              updateStatus={updateResults[packageInfo.id]}
               gameReady={gameReady}
               checkingStatus={checkingInstallStatus}
               busy={busy || checkingInstallStatus}
               onInstall={packageInfo => void handleRequestInstall(packageInfo)}
+              onRestore={() => setConfirmRestore(true)}
               onOpenPost={onOpenPost}
             />
           )}
         />
       )}
 
-      {(pendingInstall || confirmRestore) && (
-        <SoundActionConfirmDialog
-          title={t(pendingInstall ? 'confirmSoundInstall' : 'confirmSoundRestore')}
-          description={pendingInstall
-            ? t('confirmSoundInstallDescription', { title: pendingInstall.title || pendingInstall.archiveName })
-            : t('confirmSoundRestoreDescription')}
-          actionLabel={t(pendingInstall ? 'soundInstallPackage' : 'soundRestore')}
-          busy={busy}
-          busyLabel={busy ? t(pendingInstall ? 'soundInstallWorking' : 'soundRestoreWorking') : undefined}
-          busyDescription={busy ? t(pendingInstall ? 'soundInstallWorkingDescription' : 'soundRestoreWorkingDescription') : undefined}
-          onConfirm={() => void confirmAction()}
-          onClose={() => { setPendingInstall(null); setConfirmRestore(false) }}
-        />
-      )}
+      <SoundInstallDialogs
+        library={library}
+        pendingInstall={pendingInstall}
+        pendingExistingMod={pendingExistingMod}
+        confirmRestore={confirmRestore}
+        busy={busy}
+        onConfirm={() => void confirmAction()}
+        onConfirmExistingMod={action => void confirmExistingModAction(action)}
+        onClose={() => { setPendingInstall(null); setPendingExistingMod(null); setConfirmRestore(false) }}
+      />
     </section>
   )
 }

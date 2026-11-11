@@ -1,22 +1,25 @@
-import { CalendarDays, Check, Download, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, LoaderCircle, Volume2 } from 'lucide-react'
+import { CalendarDays, Check, Download, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, LoaderCircle, RefreshCw, Trash2, Volume2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { AppTooltip } from './ui/AppTooltip'
 import { useI18n } from '../i18n/I18nProvider'
 import { formatFileSize, truncateMiddle } from '../lib/format'
 import type { SoundModStatus, SoundPackage } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'
+import type { SoundPackageUpdateResult } from '../hooks/useSoundPackageUpdates'
 
 type Props = {
   packageInfo: SoundPackage
   status: SoundModStatus | null
+  updateStatus?: SoundPackageUpdateResult
   gameReady: boolean
   checkingStatus: boolean
   busy: boolean
   onInstall: (packageInfo: SoundPackage) => void
+  onRestore: () => void
   onOpenPost: (item: WtLiveItem) => void
 }
 
-export function SoundPackageCard({ packageInfo, status, gameReady, checkingStatus, busy, onInstall, onOpenPost }: Props) {
+export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady, checkingStatus, busy, onInstall, onRestore, onOpenPost }: Props) {
   const { t, locale } = useI18n()
   const active = status?.activePackageId === packageInfo.id
   const date = new Date(packageInfo.downloadedAt)
@@ -39,7 +42,7 @@ export function SoundPackageCard({ packageInfo, status, gameReady, checkingStatu
   }
 
   return (
-    <article className="h-full flex min-w-0 flex-col border border-[#30372f] bg-wt-panel p-4 transition-colors hover:border-[#687354]">
+    <article className={`h-full flex min-w-0 flex-col border bg-wt-panel p-4 transition-colors ${active ? 'border-[#91ad5f] shadow-[0_0_0_1px_rgba(177,216,130,0.24)]' : 'border-[#30372f] hover:border-[#687354]'}`}>
       <div className="flex items-start gap-3">
         <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><Volume2 size={18} aria-hidden="true" /></span>
         <div className="min-w-0 flex-1">
@@ -60,6 +63,15 @@ export function SoundPackageCard({ packageInfo, status, gameReady, checkingStatu
           <FileArchive size={13} className="shrink-0" aria-hidden="true" />{packageInfo.archiveName}
         </p>
       </AppTooltip>
+      {updateStatus?.status === 'possible' && (
+        <p className="mb-0 mt-2 border border-[#766638] bg-[#302b1d] px-2.5 py-2 text-xs leading-5 text-[#dfd5b6]">
+          <strong className="font-semibold text-[#f1e6c5]">{t('soundUpdatePossible')}</strong>
+          {updateStatus.remoteArchiveName && <span className="block break-all text-[11px]">{t('soundUpdateRemoteFile', { file: updateStatus.remoteArchiveName })}</span>}
+        </p>
+      )}
+      {updateStatus?.status === 'unavailable' && (
+        <p className="mb-0 mt-2 text-xs text-[#c1aa7a]">{t('soundUpdateUnavailable')}</p>
+      )}
 
       <dl className="mb-0 mt-4 grid grid-cols-2 gap-3 border-t border-[#333a32] pt-3 text-xs">
         <div className="min-w-0">
@@ -97,13 +109,13 @@ export function SoundPackageCard({ packageInfo, status, gameReady, checkingStatu
           variant={active ? 'secondary' : 'primary'}
           size="sm"
           className="min-w-0 flex-1 justify-center"
-          disabled={!gameReady || checkingStatus || busy || active}
-          onClick={() => onInstall(packageInfo)}
+          disabled={!gameReady || checkingStatus || busy}
+          onClick={() => active ? onRestore() : onInstall(packageInfo)}
         >
           {checkingStatus
             ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            : <Download size={14} aria-hidden="true" />}
-          {t(checkingStatus ? 'checkingSoundStatus' : active ? 'soundActive' : 'soundInstallPackage')}
+            : active ? status?.originalBackupAvailable ? <RefreshCw size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
+          {t(checkingStatus ? 'checkingSoundStatus' : active ? status?.originalBackupAvailable ? 'soundRestore' : 'soundUninstall' : 'soundInstallPackage')}
         </Button>
       </div>
     </article>

@@ -14,6 +14,7 @@ import type { InstalledSkin } from '../lib/localLibrary'
 type Props = {
   downloadUrl?: string
   canInstall: boolean
+  operationBusy?: boolean
   installer: SkinInstaller
   installedEntry?: InstalledSkin | null
   onInstall: () => void
@@ -25,6 +26,7 @@ type Props = {
 export function PostInstallActions({
   downloadUrl,
   canInstall,
+  operationBusy = false,
   installer,
   installedEntry,
   onInstall,
@@ -104,7 +106,7 @@ export function PostInstallActions({
           <Button
             variant={installedEntry ? 'secondary' : 'primary'}
             className="w-full"
-            disabled={!canInstall}
+            disabled={!canInstall || operationBusy}
             onClick={() => installedEntry ? setReinstallTarget(installedEntry) : onInstall()}
           >
             {installedEntry ? <RefreshCw size={16} /> : <Download size={16} />}

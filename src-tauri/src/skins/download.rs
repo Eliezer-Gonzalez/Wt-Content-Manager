@@ -63,7 +63,12 @@ pub(crate) async fn download_archive(
     let mut response = tokio::time::timeout(DEFAULT_DOWNLOAD_TIMEOUT, client.get(parsed).send())
         .await
         .map_err(|_| AppError::new("download_timeout"))?
-        .map_err(|error| AppError::with_detail("download_connection_failed", error.without_url().to_string()))?;
+        .map_err(|error| {
+            AppError::with_detail(
+                "download_connection_failed",
+                error.without_url().to_string(),
+            )
+        })?;
     control.check_cancelled()?;
     if !response.status().is_success() {
         return Err(AppError::new("download_http_error")

@@ -66,6 +66,25 @@ pub fn copy_directory(source: &Path, destination: &Path) -> Result<(), AppError>
     result
 }
 
+pub fn directory_has_content(root: &Path) -> Result<bool, AppError> {
+    reject_symlink_or_non_directory(root)?;
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path)?;
+        if metadata.file_type().is_symlink() || metadata.is_file() {
+            return Ok(true);
+        }
+        if metadata.is_dir() && directory_has_content(&path)? {
+            return Ok(true);
+        }
+        if !metadata.is_dir() && !metadata.is_file() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub fn count_banks(root: &Path) -> Result<usize, AppError> {
     let mut count = 0;
     for entry in fs::read_dir(root)? {
@@ -81,4 +100,27 @@ pub fn count_banks(root: &Path) -> Result<usize, AppError> {
         }
     }
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::directory_has_content;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn empty_nested_directories_do_not_count_as_content() {
+        let temp = tempdir().unwrap();
+        fs::create_dir_all(temp.path().join("empty/nested")).unwrap();
+        assert!(!directory_has_content(temp.path()).unwrap());
+    }
+
+    #[test]
+    fn nested_file_counts_as_content() {
+        let temp = tempdir().unwrap();
+        let nested = temp.path().join("mod/banks");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(nested.join("master.bank"), b"bank").unwrap();
+        assert!(directory_has_content(temp.path()).unwrap());
+    }
 }

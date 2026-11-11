@@ -11,6 +11,7 @@ import {
   restoreSoundModBackup,
   setSoundDownloadPaused,
   type SoundDownloadProgress,
+  type ExistingSoundModAction,
   type SoundModStatus,
   type SoundPackage,
 } from '../lib/sounds'
@@ -30,6 +31,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   const [paused, setPaused] = useState(false)
   const [error, setError] = useState('')
   const taskIdRef = useRef<string | null>(null)
+  const wasPausedBeforeCancelPromptRef = useRef(false)
   const mountedRef = useRef(true)
   const gamePathRef = useRef(gamePath)
   const statusRequestRef = useRef(0)
@@ -154,16 +156,66 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     }
   }, [formatError])
 
-  const install = useCallback(async (packageId: string) => {
-    if (!gamePath) return
+  const prepareCancelDownload = useCallback(async () => {
+    const taskId = taskIdRef.current
+    if (!taskId) return false
+    wasPausedBeforeCancelPromptRef.current = paused
+    if (!paused) {
+      try {
+        await setSoundDownloadPaused(taskId, true)
+      } catch (cause) {
+        wasPausedBeforeCancelPromptRef.current = false
+        if (taskIdRef.current !== taskId) return false
+        setError(formatError(cause))
+        return false
+      }
+    }
+    if (taskIdRef.current !== taskId) return false
+    setPaused(true)
+    return true
+  }, [formatError, paused])
+
+  const continueAfterCancelPrompt = useCallback(async () => {
+    const taskId = taskIdRef.current
+    wasPausedBeforeCancelPromptRef.current = false
+    if (!taskId) return
+    setPaused(false)
+    try {
+      await setSoundDownloadPaused(taskId, false)
+    } catch (cause) {
+      setPaused(true)
+      setError(formatError(cause))
+    }
+  }, [formatError])
+
+  const dismissCancelPrompt = useCallback(async () => {
+    const taskId = taskIdRef.current
+    const wasPaused = wasPausedBeforeCancelPromptRef.current
+    wasPausedBeforeCancelPromptRef.current = false
+    if (!taskId || wasPaused) return
+    setPaused(false)
+    try {
+      await setSoundDownloadPaused(taskId, false)
+    } catch (cause) {
+      setPaused(true)
+      setError(formatError(cause))
+    }
+  }, [formatError])
+
+  const dismissError = useCallback(() => setError(''), [])
+
+  const install = useCallback(async (packageId: string, existingModAction?: ExistingSoundModAction) => {
+    if (!gamePath) return false
     setInstallingId(packageId)
     setError('')
     try {
-      await installSoundPackage(gamePath, packageId)
+      await installSoundPackage(gamePath, packageId, existingModAction)
       await refreshStatus()
+      return true
     } catch (cause) {
       setError(formatError(cause))
       await refreshStatus()
+      return false
     } finally {
       setInstallingId(null)
     }
@@ -196,9 +248,13 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     restoring,
     paused,
     error,
+    dismissError,
     download,
     togglePause,
     cancelDownload,
+    prepareCancelDownload,
+    continueAfterCancelPrompt,
+    dismissCancelPrompt,
     install,
     restore,
     refreshPackages,

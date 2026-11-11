@@ -73,7 +73,7 @@ pub async fn install_skin(
         staging
             .download(&download_url, &control, &on_progress)
             .await?;
-        control.check_cancelled()?;
+        control.wait_until_resumed().await?;
         control.begin_extraction();
         on_progress
             .send(SkinInstallProgress {

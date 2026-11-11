@@ -15,6 +15,7 @@
       "allow": [
         { "url": "https://live.warthunder.com/**" },
         { "url": "https://wiki.warthunder.com/cdk/creation_camo" },
+        { "url": "https://wiki.warthunder.com/cdk/creation_sound" },
         { "url": "https://github.com/Eliezer-Gonzalez/Wt-Content-Manager" },
         { "url": "https://github.com/Eliezer-Gonzalez/Wt-Content-Manager/**" }
       ]

@@ -99,6 +99,14 @@ impl DownloadControl {
         self.paused.load(Ordering::SeqCst)
     }
 
+    pub async fn wait_until_resumed(&self) -> Result<(), AppError> {
+        while self.is_paused() {
+            self.check_cancelled()?;
+            tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+        }
+        self.check_cancelled()
+    }
+
     pub fn check_cancelled(&self) -> Result<(), AppError> {
         if self.cancelled.load(Ordering::SeqCst) {
             Err(AppError::new("download_cancelled"))
@@ -118,6 +126,7 @@ impl DownloadControl {
 #[cfg(test)]
 mod tests {
     use super::DownloadManager;
+    use std::sync::Arc;
 
     #[test]
     fn pause_and_cancel_are_only_available_while_downloading() {
@@ -136,5 +145,31 @@ mod tests {
         assert!(manager.cancel("test-task").is_err());
         manager.finish("test-task");
         assert!(manager.set_paused("test-task", false).is_err());
+    }
+
+    #[tokio::test]
+    async fn wait_until_resumed_stays_paused_and_stops_when_cancelled() {
+        let manager = DownloadManager::default();
+        let control = manager.register("wait-task").unwrap();
+        control.begin_download();
+        manager.set_paused("wait-task", true).unwrap();
+
+        let waiting_control = Arc::clone(&control);
+        let waiting = tokio::spawn(async move { waiting_control.wait_until_resumed().await });
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(!waiting.is_finished());
+
+        manager.set_paused("wait-task", false).unwrap();
+        assert!(waiting.await.unwrap().is_ok());
+
+        manager.set_paused("wait-task", true).unwrap();
+        let waiting_control = Arc::clone(&control);
+        let waiting = tokio::spawn(async move { waiting_control.wait_until_resumed().await });
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        manager.cancel("wait-task").unwrap();
+        assert_eq!(
+            waiting.await.unwrap().unwrap_err().code,
+            "download_cancelled"
+        );
     }
 }

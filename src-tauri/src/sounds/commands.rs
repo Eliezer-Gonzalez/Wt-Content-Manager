@@ -8,7 +8,9 @@ use tauri_plugin_opener::OpenerExt;
 use crate::commands::record_failure;
 use crate::{logging::DiagnosticLogger, skins::download_task::DownloadManager, AppError};
 
-use super::types::{SoundInstallResult, SoundModStatus, SoundPackage};
+use super::types::{
+    ExistingSoundModAction, SoundInstallPreflight, SoundInstallResult, SoundModStatus, SoundPackage,
+};
 
 #[tauri::command]
 pub async fn open_sound_mod_folder(app: AppHandle, game_path: String) -> Result<(), AppError> {
@@ -125,15 +127,27 @@ pub async fn get_sound_mod_status(
 }
 
 #[tauri::command]
+pub async fn get_sound_install_preflight(
+    app: AppHandle,
+    game_path: String,
+) -> Result<SoundInstallPreflight, AppError> {
+    let path = app_data_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || super::install_preflight(&path, &game_path))
+        .await
+        .map_err(|error| AppError::with_detail("sound_status_interrupted", error.to_string()))?
+}
+
+#[tauri::command]
 pub async fn install_sound_package(
     app: AppHandle,
     game_path: String,
     package_id: String,
+    existing_mod_action: Option<ExistingSoundModAction>,
     logger: State<'_, DiagnosticLogger>,
 ) -> Result<SoundInstallResult, AppError> {
     let result = match app_data_dir(&app) {
         Ok(path) => tauri::async_runtime::spawn_blocking(move || {
-            super::install(&path, &game_path, &package_id)
+            super::install(&path, &game_path, &package_id, existing_mod_action)
         })
         .await
         .map_err(|error| AppError::with_detail("sound_install_interrupted", error.to_string()))

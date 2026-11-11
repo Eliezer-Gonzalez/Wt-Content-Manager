@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bookmark, Check, Download, ExternalLink, Star } from 'lucide-react'
 import { Button } from './ui/Button'
+import { PostCardDownloadProgress } from './PostCardDownloadProgress'
 import { formatNumber, relativeDate } from '../lib/format'
 import type { WtLiveItem } from '../lib/wtLive'
+import type { SkinInstallProgress } from '../lib/skins'
+import type { SoundDownloadProgress } from '../lib/sounds'
 import { useI18n } from '../i18n/I18nProvider'
 
 type Props = {
@@ -13,11 +16,16 @@ type Props = {
   contentType?: 'camouflage' | 'sound'
   showSave?: boolean
   masonry?: boolean
+  skinProgress?: SkinInstallProgress | null
+  soundProgress?: SoundDownloadProgress | null
+  cancellingDownload?: boolean
+  onToggleDownloadPause?: () => void
+  onCancelDownload?: () => void
   onOpen: (item: WtLiveItem) => void
   onToggleSaved: (item: WtLiveItem) => void
 }
 
-export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType = 'camouflage', showSave = true, masonry = true, onOpen, onToggleSaved }: Props) {
+export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType = 'camouflage', showSave = true, masonry = true, skinProgress, soundProgress, cancellingDownload, onToggleDownloadPause, onCancelDownload, onOpen, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
   const [favoriteGlow, setFavoriteGlow] = useState(false)
@@ -75,13 +83,18 @@ export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType
                 <Download size={11} aria-hidden="true" />{t('soundDownloadedBadge')}
               </span>
             )}
-            {isInstalled && (
+            {isInstalled && contentType !== 'sound' && (
               <span className="flex items-center gap-1 border border-[#6f8252] bg-[#1e271be8] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882] shadow-sm backdrop-blur-xs">
                 <Check size={11} strokeWidth={3} aria-hidden="true" />
-                {t(contentType === 'sound' ? 'soundActive' : 'installedBadge')}
+                {t('installedBadge')}
               </span>
             )}
           </div>
+          {isInstalled && contentType === 'sound' && (
+            <span className="pointer-events-none absolute bottom-2.5 left-2.5 flex items-center gap-1 border border-[#6f8252] bg-[#1e271be8] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882] shadow-sm backdrop-blur-xs">
+              <Check size={11} strokeWidth={3} aria-hidden="true" />{t('soundActive')}
+            </span>
+          )}
           <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 text-[11px] text-[#e4e2d4]">
             <Star size={12} className="text-[#bcc793]" fill="currentColor"/>
             <span className="sr-only">{t('likes', { count: item.likes })}</span>
@@ -114,6 +127,16 @@ export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType
           <span className="flex shrink-0 items-center gap-1.5 text-[#bdc99e]">{t('viewPost')} <ExternalLink size={13}/></span>
         </span>
       </button>
+      {(skinProgress || soundProgress) && (
+        <PostCardDownloadProgress
+          contentType={contentType}
+          skinProgress={skinProgress}
+          soundProgress={soundProgress}
+          cancelling={cancellingDownload}
+          onTogglePause={onToggleDownloadPause ?? (() => {})}
+          onCancel={onCancelDownload ?? (() => {})}
+        />
+      )}
     </article>
   )
 }

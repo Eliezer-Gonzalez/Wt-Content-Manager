@@ -1,5 +1,18 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExistingSoundModAction {
+    Backup,
+    Delete,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SoundInstallPreflight {
+    pub existing_content: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SoundPackage {
@@ -21,6 +34,7 @@ pub struct SoundModStatus {
     pub process_status: String,
     pub installed_banks: usize,
     pub backup_available: bool,
+    pub original_backup_available: bool,
     pub active_package_id: Option<String>,
 }
 

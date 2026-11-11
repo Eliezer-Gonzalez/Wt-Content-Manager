@@ -1,5 +1,6 @@
-import { useMemo, useState, type RefObject } from 'react'
-import { ChevronDown, Search, Volume2 } from 'lucide-react'
+import { useState, type RefObject } from 'react'
+import { ChevronDown, ExternalLink, Search, Volume2 } from 'lucide-react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { Button } from './ui/Button'
 import { MasonryPostGrid } from './MasonryPostGrid'
 import { PeriodFilter } from './PeriodFilter'
@@ -20,6 +21,8 @@ import type { ImageQualityMode } from '../lib/imageQuality'
 type Props = {
   imageQuality: ImageQualityMode
   soundLibrary: SoundLibraryController
+  cancelDialogOpen?: boolean
+  downloadableLangGroups: ReadonlySet<number>
   searchInputRef: RefObject<HTMLInputElement | null>
   query: string
   onQueryChange: (value: string) => void
@@ -27,12 +30,12 @@ type Props = {
   onToggleSaved: (item: WtLiveItem) => void
 }
 
-export function SoundManagerPage({ imageQuality, soundLibrary, searchInputRef, query, onQueryChange, isSaved, onToggleSaved }: Props) {
+export function SoundManagerPage({ imageQuality, soundLibrary, downloadableLangGroups, cancelDialogOpen = false, searchInputRef, query, onQueryChange, isSaved, onToggleSaved }: Props) {
   const { t } = useI18n()
   const [sort, setSort] = useState<WtLiveFeedSort>('created')
   const feed = useSoundFeed(query, sort)
   const postDetail = usePostDetail()
-  const downloadedLangGroups = useMemo(() => new Set(soundLibrary.packages.map(packageInfo => packageInfo.langGroup)), [soundLibrary.packages])
+  const [activationGuideError, setActivationGuideError] = useState(false)
 
   const canDownloadMore = feed.hasNext && !feed.loading && !feed.loadingMore && !feed.loadMoreError
   const feedLoadMoreRef = useAutoLoadMore({
@@ -45,6 +48,17 @@ export function SoundManagerPage({ imageQuality, soundLibrary, searchInputRef, q
     onQueryChange(nextQuery)
     feed.loadFirstPage()
     postDetail.closePost()
+  }
+
+  async function openActivationGuide() {
+    setActivationGuideError(false)
+    try {
+      const url = 'https://wiki.warthunder.com/cdk/creation_sound'
+      if (isTauriRuntime) await openUrl(url)
+      else window.open(url, '_blank', 'noopener,noreferrer')
+    } catch {
+      setActivationGuideError(true)
+    }
   }
 
   return (
@@ -60,9 +74,24 @@ export function SoundManagerPage({ imageQuality, soundLibrary, searchInputRef, q
       <section className="my-5 flex items-center justify-between gap-4 border border-[#343b32] bg-[#20261f] px-4 py-2.5 max-[720px]:px-3" aria-label={t('soundManualActivationTitle')}>
         <div className="flex min-w-0 items-start gap-3 text-sm text-[#c0c5bb]">
           <Volume2 size={17} className="mt-0.5 shrink-0 text-[#bdc99e]" aria-hidden="true" />
-          <div>
+          <div className="min-w-0">
             <p className="mb-0 font-medium text-[#d8dfcb]">{t('soundManualActivationTitle')}</p>
             <p className="mb-0 mt-1 text-xs leading-5 text-[#aab2a4]">{t('soundManualActivation')}</p>
+            <details className="mt-2 text-xs leading-5 text-[#bdc5b4]">
+              <summary className="w-fit cursor-pointer text-[#cdd9b5] underline decoration-[#687354] underline-offset-2 hover:text-[#e0e8d2]">
+                {t('soundActivationGuideTitle')}
+              </summary>
+              <ol className="mb-0 mt-2 list-decimal space-y-1 pl-5">
+                <li>{t('soundActivationStepOne')}</li>
+                <li>{t('soundActivationStepTwo')}</li>
+                <li>{t('soundActivationStepThree')}</li>
+              </ol>
+              <p className="mb-0 mt-2 text-[#d3e2ad]">{t('soundActivationAppNote')}</p>
+              <button type="button" className="mt-2 inline-flex items-center gap-1 text-[#cdd9b5] underline decoration-[#687354] underline-offset-2 hover:text-[#e0e8d2]" onClick={() => void openActivationGuide()}>
+                {t('soundActivationOfficialGuide')} <ExternalLink size={12} aria-hidden="true" />
+              </button>
+              {activationGuideError && <p className="mb-0 mt-1 text-amber-200" role="alert">{t('soundActivationGuideFailed')}</p>}
+            </details>
           </div>
         </div>
         <div className="w-[170px] shrink-0 max-[720px]:hidden">
@@ -102,8 +131,13 @@ export function SoundManagerPage({ imageQuality, soundLibrary, searchInputRef, q
                 item={item}
                 contentType="sound"
                 isSaved={isSaved(item)}
-                isDownloaded={downloadedLangGroups.has(item.langGroup)}
+                isDownloaded={downloadableLangGroups.has(item.langGroup)}
                 isInstalled={soundLibrary.packages.some(packageInfo => packageInfo.langGroup === item.langGroup && packageInfo.id === soundLibrary.status?.activePackageId)}
+                soundProgress={soundLibrary.downloadingItem?.langGroup === item.langGroup && soundLibrary.downloadProgress
+                  ? { ...soundLibrary.downloadProgress, paused: soundLibrary.paused }
+                  : null}
+                onToggleDownloadPause={() => void soundLibrary.togglePause()}
+                onCancelDownload={() => void soundLibrary.cancelDownload()}
                 onOpen={postDetail.openPost}
                 onToggleSaved={itemToSave => onToggleSaved({ ...itemToSave, contentType: 'sound' })}
               />
@@ -128,13 +162,17 @@ export function SoundManagerPage({ imageQuality, soundLibrary, searchInputRef, q
           error={postDetail.detailError}
           imageQuality={imageQuality}
           canDownload={isTauriRuntime}
-          downloadedLangGroups={downloadedLangGroups}
+          downloadedLangGroups={downloadableLangGroups}
           downloadBusy={soundLibrary.downloadingId != null}
           downloadingId={soundLibrary.downloadingId}
           progress={soundLibrary.downloadProgress
             ? { ...soundLibrary.downloadProgress, paused: soundLibrary.paused }
             : null}
           downloadError={soundLibrary.error}
+          activePackage={soundLibrary.packages.find(packageInfo => packageInfo.id === soundLibrary.status?.activePackageId && packageInfo.langGroup === postDetail.selected?.langGroup) ?? null}
+          soundLibrary={soundLibrary}
+          canInstallPackage={isTauriRuntime}
+          cancelDialogOpen={cancelDialogOpen}
           onDownload={item => void soundLibrary.download(item)}
           onTogglePause={() => void soundLibrary.togglePause()}
           onCancel={() => void soundLibrary.cancelDownload()}

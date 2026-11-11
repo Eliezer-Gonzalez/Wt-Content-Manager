@@ -15,11 +15,12 @@ type Props = {
   language: string
   imageQuality: ImageQualityMode
   renderActions?: (item: WtLiveItem) => ReactNode
+  cancelDialogOpen?: boolean
   originPost?: WtLivePostReference
   onClose: () => void
 }
 
-export function WtLiveLinkedPostDialog({ langGroup, language, imageQuality, renderActions, originPost, onClose }: Props) {
+export function WtLiveLinkedPostDialog({ langGroup, language, imageQuality, renderActions, cancelDialogOpen = false, originPost, onClose }: Props) {
   const { t } = useI18n()
   const dialogRef = useRef<HTMLElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -71,7 +72,7 @@ export function WtLiveLinkedPostDialog({ langGroup, language, imageQuality, rend
 
   useFocusTrap({ containerRef: dialogRef, initialFocusRef: closeRef, onClose: () => {
     if (!zoomedImage) onClose()
-  }, enabled: !zoomedImage && !descriptionOverlayOpen })
+  }, enabled: !zoomedImage && !descriptionOverlayOpen && !cancelDialogOpen })
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/85 p-4" onClick={onClose}>
@@ -129,6 +130,7 @@ export function WtLiveLinkedPostDialog({ langGroup, language, imageQuality, rend
               <WtLiveDescriptionText
                 block={block}
                 imageQuality={imageQuality}
+                cancelDialogOpen={cancelDialogOpen}
                 onOverlayChange={handleDescriptionOverlay}
                 renderLinkedPostActions={renderActions}
                 originPost={originPost}

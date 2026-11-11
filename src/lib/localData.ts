@@ -7,6 +7,7 @@ const localDataKeys = [
   'wt-content-manager-independent-notice-v4',
   'wt-content-manager-language',
   'wt-content-manager-image-quality-v1',
+  'wt-content-manager-sound-package-updates',
 ] as const
 
 export function resetLocalData(): void {

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Shield, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { PostInstallActions } from './PostInstallActions'
@@ -26,6 +26,7 @@ type Props = {
   error: string
   canInstall: boolean
   installer: SkinInstaller
+  cancelDialogOpen?: boolean
   installedEntry?: InstalledSkin | null
   onInstall: () => void
   onReinstall: (entry: InstalledSkin) => void
@@ -36,7 +37,7 @@ type Props = {
 }
 
 export function PostDetailDialog({
-  item, imageQuality, detail, loading, error, canInstall, installer,
+  item, imageQuality, detail, loading, error, canInstall, installer, cancelDialogOpen = false,
   installedEntry, onInstall, onReinstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
 }: Props) {
   const { t } = useI18n()
@@ -44,9 +45,25 @@ export function PostDetailDialog({
   const [descriptionOverlayOpen, setDescriptionOverlayOpen] = useState(false)
   const [commentError, setCommentError] = useState(false)
   const dialogRef = useRef<HTMLElement>(null)
+  const installActionsRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const handleDescriptionOverlay = useCallback((open: boolean) => setDescriptionOverlayOpen(open), [])
-  const { installing } = installer
+  const activeInstallMatches = installer.installing && installer.activeLangGroup === item.langGroup
+  const resultMatches = installer.resultLangGroup === item.langGroup
+  const itemInstaller = activeInstallMatches || resultMatches
+    ? installer
+    : {
+        ...installer,
+        installing: false,
+        progress: null,
+        paused: false,
+        cancelling: false,
+        cancelled: false,
+        error: '',
+        installedPath: '',
+        warning: null,
+      }
+  const { installing } = itemInstaller
   const hasDescription = detail?.description.some(block => block.type !== 'image') ?? false
   const previewImage = useMemo(() => item.imageUrl
     ? {
@@ -89,9 +106,14 @@ export function PostDetailDialog({
     containerRef: dialogRef,
     initialFocusRef: closeButtonRef,
     onClose,
-    enabled: !zoomedImage && !descriptionOverlayOpen,
-    canEscape: !installing,
+    enabled: !zoomedImage && !descriptionOverlayOpen && !cancelDialogOpen,
   })
+
+  useEffect(() => {
+    if (!installing || installer.activeLangGroup !== item.langGroup) return
+    const frame = window.requestAnimationFrame(() => installActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [installer.activeLangGroup, installer.installing, installing, item.langGroup, loading])
 
   async function handleOpenComments() {
     if (!detail?.commentsUrl) return
@@ -112,9 +134,7 @@ export function PostDetailDialog({
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"
-      onClick={() => {
-        if (!installing) onClose()
-      }}
+      onClick={onClose}
     >
       <section
         ref={dialogRef}
@@ -129,7 +149,6 @@ export function PostDetailDialog({
           variant="icon"
           className="sticky right-2 top-2 z-10 float-right -mb-9 mr-2 border border-[#454d42] bg-[#151a16]"
           onClick={onClose}
-          disabled={installing}
           aria-label={t('close')}
         >
           <X size={18} />
@@ -246,16 +265,19 @@ export function PostDetailDialog({
             {t('likes', { count: item.likes })} · {t('downloadsCount', { count: item.downloads })}
           </p>
 
-          <PostInstallActions
-            downloadUrl={item.downloadUrl}
-            canInstall={canInstall}
-            installer={installer}
-            installedEntry={installedEntry}
-            onInstall={onInstall}
-            onReinstall={onReinstall}
-            onUninstall={onUninstall}
-            onChooseGame={onChooseGame}
-          />
+          <div ref={installActionsRef}>
+            <PostInstallActions
+              downloadUrl={item.downloadUrl}
+              canInstall={canInstall}
+              operationBusy={installer.installing}
+              installer={itemInstaller}
+              installedEntry={installedEntry}
+              onInstall={onInstall}
+              onReinstall={onReinstall}
+              onUninstall={onUninstall}
+              onChooseGame={onChooseGame}
+            />
+          </div>
 
           {detail?.commentsUrl && (
             <button
