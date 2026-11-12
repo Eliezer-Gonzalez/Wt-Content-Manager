@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { LoaderCircle, RefreshCw } from 'lucide-react'
 import { Button } from './ui/Button'
 import { SoundActionConfirmDialog } from './SoundActionConfirmDialog'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import type { SoundLibraryController } from '../hooks/useSoundLibrary'
 import type { SoundPackage } from '../lib/sounds'
 

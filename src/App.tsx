@@ -32,7 +32,7 @@ import { useDownloadCancellation } from './hooks/useDownloadCancellation'
 import type { DownloadOriginFilter, DownloadSortOrder, SoundDownloadStatusFilter } from './lib/downloadLibrary'
 import { isTauriRuntime } from './lib/gameInstall'
 import { sameFavorite } from './lib/localLibrary'
-import { useI18n } from './i18n/I18nProvider'
+import { useI18n } from './i18n/I18nContext'
 import type { WtLiveFeedSort, WtLiveItem } from './lib/wtLive'
 
 const isApple = typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(navigator.userAgent || navigator.platform || '')

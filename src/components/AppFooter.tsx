@@ -1,5 +1,5 @@
 import { APP_VERSION } from '../lib/appInfo'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 export function AppFooter() {
   const { t } = useI18n()

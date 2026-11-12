@@ -1,5 +1,5 @@
 import { Image } from 'lucide-react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import type { ImageQualityMode } from '../lib/imageQuality'
 import { ImageQualitySelector } from './ImageQualitySelector'
 import { ConfirmImageQualityChangeModal } from './ConfirmImageQualityChangeModal'

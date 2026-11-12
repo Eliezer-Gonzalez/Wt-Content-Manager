@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import en from './locales/en.json'
+import { Context } from './I18nContext'
 
 type Messages = Record<string, string>
 
@@ -8,14 +9,10 @@ type PluralSuffix = '_zero' | '_one' | '_two' | '_few' | '_many' | '_other'
 type PluralBaseKey<K extends string> = K extends `${infer Base}${PluralSuffix}` ? Base : never
 export type TranslationKey = RawTranslationKey | PluralBaseKey<RawTranslationKey>
 
-export function asTranslationKey(key: string): TranslationKey {
-  return key as TranslationKey
-}
-
 export type TranslationParams = Record<string, string | number>
 export type TranslateFn = (key: TranslationKey, params?: TranslationParams) => string
 
-type LocaleContextValue = {
+export type LocaleContextValue = {
   locale: string
   languages: Array<{ code: string; name: string }>
   setLocale: (code: string) => void
@@ -28,8 +25,6 @@ const locales: Record<string, Messages> = Object.fromEntries(
 )
 
 const defaultLocale = 'en'
-const Context = createContext<LocaleContextValue | null>(null)
-
 const pluralRulesCache = new Map<string, Intl.PluralRules>()
 const numberFormatCache = new Map<string, Intl.NumberFormat>()
 const warnedMissingKeys = new Set<string>()
@@ -156,10 +151,4 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ locale, languages, setLocale, t }), [locale, languages, setLocale, t])
 
   return <Context.Provider value={value}>{children}</Context.Provider>
-}
-
-export function useI18n() {
-  const context = useContext(Context)
-  if (!context) throw new Error('useI18n must be used inside I18nProvider')
-  return context
 }

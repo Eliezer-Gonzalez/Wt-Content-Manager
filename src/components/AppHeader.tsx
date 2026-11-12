@@ -1,5 +1,6 @@
 import { Activity } from 'lucide-react'
-import { asTranslationKey, useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
+import { asTranslationKey } from '../i18n/translationKey'
 import type { AppSection } from './NavigationSidebar'
 
 type Props = { active: AppSection }

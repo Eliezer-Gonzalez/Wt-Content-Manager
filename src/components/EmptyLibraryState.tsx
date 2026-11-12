@@ -1,6 +1,6 @@
 import { ArrowRight, Bookmark, Download } from 'lucide-react'
 import { Button } from './ui/Button'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   kind: 'favorites' | 'downloads'

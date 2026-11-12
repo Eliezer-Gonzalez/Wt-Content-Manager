@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { getFullResolutionImageUrl, type WtLiveDetail, type WtLiveImage, type WtLiveItem } from '../lib/wtLive'
 import { imageSourceForQuality, type ImageQualityMode } from '../lib/imageQuality'
 import { HashtagList } from './HashtagList'

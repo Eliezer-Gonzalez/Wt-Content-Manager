@@ -1,18 +1,20 @@
 import { CalendarDays, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, Info, Trash2 } from 'lucide-react'
 import { Button } from './ui/Button'
+import { InstalledSkinPreview } from './InstalledSkinPreview'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../lib/wtLive'
 import { formatFileSize, truncateMiddle } from '../lib/format'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { AppTooltip } from './ui/AppTooltip'
 
 type Props = {
   entry: InstalledSkin
+  showPreview?: boolean
   onOpen: (item: WtLiveItem) => void
   onUninstall: (entry: InstalledSkin) => void
 }
 
-export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
+export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninstall }: Props) {
   const { t, locale } = useI18n()
   const installedDate = entry.installedAt ? new Date(entry.installedAt) : null
   const date = installedDate && !Number.isNaN(installedDate.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(installedDate) : t('unknownDate')
@@ -20,6 +22,7 @@ export function InstalledSkinCard({ entry, onOpen, onUninstall }: Props) {
   const subtitle = entry.item?.fileName || (entry.item ? entry.folderName : t('installedExternalSource'))
 
   return <article className="h-full flex min-w-0 flex-col border border-[#30372f] bg-wt-panel p-4 transition-colors hover:border-[#687354]">
+    {showPreview && <InstalledSkinPreview imageUrl={entry.item?.imageUrl} title={title} />}
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><HardDriveDownload size={18}/></span>
       <div className="min-w-0 flex-1">

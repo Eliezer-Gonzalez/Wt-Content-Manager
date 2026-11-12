@@ -2,7 +2,7 @@ import { SoundActionConfirmDialog } from './SoundActionConfirmDialog'
 import { SoundExistingModDecisionDialog } from './SoundExistingModDecisionDialog'
 import type { SoundLibraryController } from '../hooks/useSoundLibrary'
 import type { ExistingSoundModAction, SoundPackage } from '../lib/sounds'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   library: SoundLibraryController

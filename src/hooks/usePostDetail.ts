@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchPostDetail, type WtLiveDetail, type WtLiveItem } from '../lib/wtLive'
 import { formatWtLiveError } from '../lib/appError'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Options = {
   onResetInstallState?: () => void

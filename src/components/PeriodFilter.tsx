@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react'
-import { useI18n, type TranslationKey } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
+import type { TranslationKey } from '../i18n/I18nProvider'
 
 export type Period = 0 | 7 | 90 | 180
 type Props = { value: Period; onChange: (period: Period) => void }

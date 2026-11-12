@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { PostImage } from './PostImage'
 import type { WtLiveImage } from '../lib/wtLive'
 import type { ImageQualityMode } from '../lib/imageQuality'

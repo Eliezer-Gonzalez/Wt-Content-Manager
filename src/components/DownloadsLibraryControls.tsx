@@ -1,7 +1,7 @@
 import type { DownloadOriginFilter, DownloadSortOrder, SoundDownloadStatusFilter } from '../lib/downloadLibrary'
 import { HardDriveDownload, PackageOpen } from 'lucide-react'
 import { formatFileSize } from '../lib/format'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type SummaryProps = { totalCount: number; totalSizeBytes: number; kind?: 'camouflages' | 'sounds' }
 

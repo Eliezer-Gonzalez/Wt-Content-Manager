@@ -1,7 +1,7 @@
 import { CalendarDays, Check, Download, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, LoaderCircle, Trash2, Volume2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { AppTooltip } from './ui/AppTooltip'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { formatFileSize, truncateMiddle } from '../lib/format'
 import type { SoundModStatus, SoundPackage } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'

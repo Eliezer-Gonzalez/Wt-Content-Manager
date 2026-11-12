@@ -6,7 +6,7 @@ import { MasonryPostGrid } from './MasonryPostGrid'
 import { PostCard } from './PostCard'
 import { SectionHeader } from './HeroBanner'
 import { PaginatedGrid } from './PaginatedGrid'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import type { WtLiveItem } from '../lib/wtLive'
 
 export type FavoriteCategory = 'camouflages' | 'sounds'

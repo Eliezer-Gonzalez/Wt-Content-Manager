@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { resetLocalData } from '../lib/localData'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { ConfirmResetLocalDataModal } from './ConfirmResetLocalDataModal'
 import { Button } from './ui/Button'
 

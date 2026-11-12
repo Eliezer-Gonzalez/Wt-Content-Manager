@@ -3,7 +3,7 @@ import { Button } from './ui/Button'
 import type { SkinInstallProgress } from '../lib/skins'
 import { formatFileSize } from '../lib/format'
 import { getDownloadPercentage } from '../lib/downloadProgress'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   progress: SkinInstallProgress | null

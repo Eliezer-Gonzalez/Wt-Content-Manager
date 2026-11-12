@@ -3,7 +3,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from './ui/Button'
 import { AppTooltip } from './ui/AppTooltip'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import type { InstalledSkin } from '../lib/localLibrary'
 
 type Props = {

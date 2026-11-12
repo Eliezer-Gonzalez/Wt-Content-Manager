@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Copy, Minus, Shield, Square, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { AppTooltip } from './ui/AppTooltip'
 
 export function WindowTitleBar() {

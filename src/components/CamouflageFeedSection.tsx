@@ -1,5 +1,5 @@
 import { useAutoLoadMore } from '../hooks/useAutoLoadMore'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
 import type { useCamouflageFeed } from '../hooks/useCamouflageFeed'
 import type { WtLiveItem } from '../lib/wtLive'

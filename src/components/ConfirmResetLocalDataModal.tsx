@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { Button } from './ui/Button'
 
 type Props = {

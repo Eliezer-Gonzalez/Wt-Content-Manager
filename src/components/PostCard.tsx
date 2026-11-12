@@ -6,7 +6,7 @@ import { formatNumber, relativeDate } from '../lib/format'
 import type { WtLiveItem } from '../lib/wtLive'
 import type { SkinInstallProgress } from '../lib/skins'
 import type { SoundDownloadProgress } from '../lib/sounds'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   item: WtLiveItem

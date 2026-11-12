@@ -3,7 +3,7 @@ import { ExternalLink, Info, ShieldAlert } from 'lucide-react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { APP_LICENSE, APP_LICENSE_URL, APP_REPOSITORY_URL, APP_VERSION, THIRD_PARTY_NOTICES_URL } from '../lib/appInfo'
 import { isTauriRuntime } from '../lib/gameInstall'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { Button } from './ui/Button'
 
 type Props = { onViewLegalNotice: () => void }

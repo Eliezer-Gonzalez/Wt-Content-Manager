@@ -1,5 +1,5 @@
 import type { TranslateFn } from '../i18n/I18nProvider'
-import { asTranslationKey } from '../i18n/I18nProvider'
+import { asTranslationKey } from '../i18n/translationKey'
 import { WtLiveError } from './wtLive'
 
 export type BackendErrorPayload = {

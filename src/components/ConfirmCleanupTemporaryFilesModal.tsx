@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { Broom, X } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { formatFileSize } from '../lib/format'
 import { Button } from './ui/Button'
 

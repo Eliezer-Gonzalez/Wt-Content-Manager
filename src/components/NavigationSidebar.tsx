@@ -3,7 +3,7 @@ import { Bookmark, Download, Grid2X2, Headphones, Menu, Settings2, Shield, X } f
 import { Button } from './ui/Button'
 import { APP_VERSION } from '../lib/appInfo'
 import { formatNumber } from '../lib/format'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 const navigation = [
   { group: 'discover', items: [['home', Grid2X2], ['camouflages', Shield], ['sounds', Headphones]] },

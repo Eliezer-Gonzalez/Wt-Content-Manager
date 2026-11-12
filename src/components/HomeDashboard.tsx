@@ -9,7 +9,7 @@ import type { InstalledSkin } from '../lib/localLibrary'
 import { SectionHeader } from './HeroBanner'
 import type { AppSection } from './NavigationSidebar'
 import { formatNumber } from '../lib/format'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { AppTooltip } from './ui/AppTooltip'
 import { useHomeSections, type HomeSectionKey } from '../hooks/useHomeSections'
 

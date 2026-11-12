@@ -1,6 +1,6 @@
 import { LoaderCircle, Pause, Play, X } from 'lucide-react'
 import { Button } from './ui/Button'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { formatFileSize } from '../lib/format'
 import { getDownloadPercentage } from '../lib/downloadProgress'
 import type { SkinInstallProgress } from '../lib/skins'

@@ -3,7 +3,7 @@ import { Bookmark, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { WtLiveItem } from '../lib/wtLive'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   item: WtLiveItem | null

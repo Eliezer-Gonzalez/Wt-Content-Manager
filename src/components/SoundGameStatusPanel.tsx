@@ -1,5 +1,5 @@
 import { FolderOpen, HardDrive, LoaderCircle, RefreshCw } from 'lucide-react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import type { SoundModStatus } from '../lib/sounds'
 import { Button } from './ui/Button'
 

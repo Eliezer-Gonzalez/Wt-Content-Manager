@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Image } from 'lucide-react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { ImageQualityMode } from '../lib/imageQuality'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { Button } from './ui/Button'
 import { ImageQualitySelector } from './ImageQualitySelector'
 

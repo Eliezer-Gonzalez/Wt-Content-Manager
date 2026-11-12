@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { ShieldAlert, X } from 'lucide-react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { Button } from './ui/Button'
 

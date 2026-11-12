@@ -11,7 +11,7 @@ import { SoundDownloadsSection } from './SoundDownloadsSection'
 import { SoundUpdateControls } from './SoundUpdateControls'
 import type { SoundPackageUpdateController } from '../hooks/useSoundPackageUpdates'
 import type { WtLiveItem } from '../lib/wtLive'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 import { openUserSkinsFolder } from '../lib/settings'
 import { filterAndSortInstalledSkins, filterAndSortSoundPackages, type DownloadOriginFilter, type DownloadSortOrder, type SoundDownloadStatusFilter } from '../lib/downloadLibrary'
 import type { InstalledSkin } from '../lib/localLibrary'
@@ -192,8 +192,8 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
                 items={visibleSkins}
                 resetKey={`downloads-camouflages-${camouflages.query}-${camouflages.origin}-${camouflages.sort}`}
                 getKey={entry => entry.path}
-                gridClassName="grid grid-cols-2 gap-3 min-[1600px]:grid-cols-3 min-[2300px]:grid-cols-4 max-[720px]:grid-cols-1"
-                renderItem={entry => <InstalledSkinCard entry={entry} onOpen={camouflages.onOpenPost} onUninstall={camouflages.onUninstall} />}
+                gridClassName="grid grid-cols-2 gap-3 min-[1100px]:grid-cols-3 min-[1600px]:grid-cols-4 min-[2300px]:grid-cols-5 max-[720px]:grid-cols-1"
+                renderItem={entry => <InstalledSkinCard entry={entry} showPreview onOpen={camouflages.onOpenPost} onUninstall={camouflages.onUninstall} />}
               />
             )}
           </>

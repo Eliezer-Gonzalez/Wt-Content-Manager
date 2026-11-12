@@ -10,7 +10,7 @@ import type { useLegalNotice } from '../hooks/useLegalNotice'
 import type { useImageQualityPreference } from '../hooks/useImageQualityPreference'
 import type { useDownloadCancellation } from '../hooks/useDownloadCancellation'
 import type { WtLiveItem } from '../lib/wtLive'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   gameSetup: ReturnType<typeof useGameInstallation>
