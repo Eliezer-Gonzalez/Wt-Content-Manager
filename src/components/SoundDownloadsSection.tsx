@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { FolderOpen, HardDrive, LoaderCircle, RefreshCw, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FolderOpen, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { SoundInstallDialogs } from './SoundInstallDialogs'
 import { SoundPackageCard } from './SoundPackageCard'
 import { SoundPackageDownloadActions } from './SoundPackageDownloadActions'
+import { SoundGameStatusPanel } from './SoundGameStatusPanel'
 import { DownloadsLibrarySummary } from './DownloadsLibraryControls'
 import { PaginatedGrid } from './PaginatedGrid'
 import { AppTooltip } from './ui/AppTooltip'
@@ -33,6 +34,10 @@ export function SoundDownloadsSection({
   const [pendingInstall, setPendingInstall] = useState<SoundPackage | null>(null)
   const [pendingExistingMod, setPendingExistingMod] = useState<SoundPackage | null>(null)
   const [confirmRestore, setConfirmRestore] = useState(false)
+  const [confirmUninstall, setConfirmUninstall] = useState(false)
+  const [chooseUninstallAction, setChooseUninstallAction] = useState(false)
+  const [uninstallFeedbackBusy, setUninstallFeedbackBusy] = useState(false)
+  const [uninstallSuccess, setUninstallSuccess] = useState(false)
   const [openingModFolder, setOpeningModFolder] = useState(false)
   const [modFolderError, setModFolderError] = useState(false)
   const [openingPackagesFolder, setOpeningPackagesFolder] = useState(false)
@@ -43,23 +48,16 @@ export function SoundDownloadsSection({
   const [installStatusWarning, setInstallStatusWarning] = useState<'running' | 'unknown' | null>(null)
   const activePackage = library.packages.find(packageInfo => packageInfo.id === library.status?.activePackageId)
   const gameReady = Boolean(gamePath && !library.statusLoading && !checkingInstallStatus && library.status?.processStatus === 'stopped')
-  const busy = Boolean(library.installingId || library.restoring)
+  const uninstallBusy = library.uninstalling || uninstallFeedbackBusy
+  const busy = Boolean(library.installingId || library.restoring || uninstallBusy)
   const totalSizeBytes = library.packages.reduce((total, packageInfo) => total + packageInfo.sizeBytes, 0)
   const isCheckingStatus = checkingStatus || library.statusLoading
-  const gameStatusKey = isCheckingStatus
-    ? 'checkingSoundStatus'
-    : library.status?.processStatus === 'running'
-      ? 'soundProcessRunning'
-      : library.status?.processStatus === 'stopped'
-        ? 'soundProcessStopped'
-        : 'soundProcessUnknown'
-  const gameStatusTone = isCheckingStatus
-    ? 'text-[#e6d39d]'
-    : library.status?.processStatus === 'running'
-      ? 'text-[#f0b6a1]'
-      : library.status?.processStatus === 'stopped'
-        ? 'text-[#d3e2ad]'
-        : 'text-[#d4cba9]'
+
+  useEffect(() => {
+    if (!uninstallSuccess) return
+    const timer = window.setTimeout(() => setUninstallSuccess(false), 4000)
+    return () => window.clearTimeout(timer)
+  }, [uninstallSuccess])
 
   async function confirmAction() {
     if (pendingInstall) {
@@ -69,6 +67,32 @@ export function SoundDownloadsSection({
       await library.restore()
       setConfirmRestore(false)
     }
+  }
+
+  function requestUninstall() {
+    if (library.status?.originalBackupAvailable) setChooseUninstallAction(true)
+    else setConfirmUninstall(true)
+  }
+
+  async function performUninstall() {
+    const startedAt = Date.now()
+    setUninstallFeedbackBusy(true)
+    try {
+      const [success] = await Promise.all([
+        library.uninstall(),
+        waitForMinimumLoadingDuration(startedAt, 500),
+      ])
+      setConfirmUninstall(false)
+      setChooseUninstallAction(false)
+      setUninstallSuccess(success)
+    } finally {
+      setUninstallFeedbackBusy(false)
+    }
+  }
+
+  async function performRestoreFromChoice() {
+    await library.restore()
+    setChooseUninstallAction(false)
   }
 
   async function confirmExistingModAction(action: ExistingSoundModAction) {
@@ -161,40 +185,19 @@ export function SoundDownloadsSection({
           </p>
         </div>
       </div>
-      {installStatusWarning && (
-        <p className="mb-4 border border-[#766638] bg-[#302b1d] px-3 py-2.5 text-sm leading-5 text-[#dfd5b6]" role="alert">
-          <strong className="font-semibold text-[#f1e6c5]">{t('soundGameName')}</strong>{' '}
-          {t(installStatusWarning === 'running' ? 'soundInstallBlockedRunning' : 'soundInstallStatusUnknown')}
-        </p>
-      )}
-
-      <div className="mb-4 flex flex-wrap items-center gap-2 border border-[#343b32] bg-[#1d231d] px-3 py-3 text-xs text-[#bac2b0]">
-        {gamePath ? (
-          <>
-            <span role="status" aria-live="polite" aria-busy={isCheckingStatus} className={`inline-flex items-center gap-2 text-sm font-semibold ${gameStatusTone}`}>
-              <HardDrive size={15} aria-hidden="true" />
-              <span>{t('soundGameStatus')}:</span>
-              <strong>{t(gameStatusKey)}</strong>
-            </span>
-            <span className="text-[#798473]">·</span>
-            <span>{t('soundInstalledBanks', { count: library.status?.installedBanks ?? 0 })}</span>
-            <Button size="sm" variant="quiet" className="ml-auto" onClick={() => void handleRefreshStatus()} disabled={isCheckingStatus}>
-              <RefreshCw size={14} className={isCheckingStatus ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />
-              {t(isCheckingStatus ? 'checkingSoundStatus' : 'refreshSoundStatus')}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => void handleOpenModFolder()} disabled={openingModFolder || busy}>
-              {openingModFolder ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <FolderOpen size={14} aria-hidden="true" />}
-              {t(openingModFolder ? 'openSoundModFolderWorking' : 'openSoundModFolder')}
-            </Button>
-          </>
-        ) : (
-          <>
-            <span>{t('soundChooseGame')}</span>
-            <Button size="sm" variant="secondary" className="ml-auto" onClick={onChooseGame}>{t('chooseGame')}</Button>
-          </>
-        )}
-      </div>
-      {modFolderError && <p className="mb-4 text-xs text-amber-200" role="alert">{t('openSoundModFolderFailed')}</p>}
+      <SoundGameStatusPanel
+        gamePath={gamePath}
+        status={library.status}
+        statusLoading={library.statusLoading}
+        checkingStatus={checkingStatus}
+        installWarning={installStatusWarning}
+        openingModFolder={openingModFolder}
+        modFolderError={modFolderError}
+        busy={busy}
+        onRefreshStatus={() => void handleRefreshStatus()}
+        onOpenModFolder={() => void handleOpenModFolder()}
+        onChooseGame={onChooseGame}
+      />
       <p className="mb-3 text-xs leading-5 text-[#9fa89b]">
         {t('soundPackageDeleteWarningPrefix')} <strong className="font-medium text-[#d3e2ad]">{t('soundPackageDeleteWarningHighlight')}</strong> {t('soundPackageDeleteWarningSuffix')}
       </p>
@@ -209,13 +212,13 @@ export function SoundDownloadsSection({
       {activePackage && !packages.some(packageInfo => packageInfo.id === activePackage.id) && (
         <div className="mb-4 flex flex-wrap items-center gap-3 border border-[#586b41] bg-[#202a1d] px-3 py-2 text-xs text-[#c4d79d]">
           <span className="min-w-0 flex-1">{t('soundActivePackageFiltered')}</span>
-          <Button size="sm" variant="secondary" disabled={!gameReady || busy} onClick={() => setConfirmRestore(true)}>{t(library.status?.originalBackupAvailable ? 'soundRestore' : 'soundUninstall')}</Button>
+          <Button size="sm" variant="secondary" disabled={!gameReady || busy} onClick={requestUninstall}>{t('soundUninstall')}</Button>
         </div>
       )}
       {library.status?.activePackageId && !activePackage && (
         <div className="mb-4 flex flex-wrap items-center gap-3 border border-[#586b41] bg-[#202a1d] px-3 py-3 text-sm text-[#c4d79d]">
           <span className="min-w-0 flex-1">{t('soundActivePackageMissing')}</span>
-          <Button size="sm" variant="danger" disabled={!gameReady || busy} onClick={() => setConfirmRestore(true)}>{t(library.status.originalBackupAvailable ? 'soundRestore' : 'soundUninstall')}</Button>
+          <Button size="sm" variant="danger" disabled={!gameReady || busy} onClick={requestUninstall}>{t('soundUninstall')}</Button>
         </div>
       )}
 
@@ -267,6 +270,14 @@ export function SoundDownloadsSection({
           </Button>
         </div>
       )}
+      {uninstallSuccess && (
+        <div className="mb-4 flex items-center justify-between gap-3 border border-[#586b41] bg-[#202a1d] px-3 py-2.5 text-sm text-[#d3e2ad]" role="status" aria-live="polite">
+          <p className="mb-0">{t('soundUninstallSuccess')}</p>
+          <Button variant="icon" size="sm" className="shrink-0" onClick={() => setUninstallSuccess(false)} aria-label={t('close')}>
+            <X size={15} aria-hidden="true" />
+          </Button>
+        </div>
+      )}
       {library.loading && library.packages.length === 0 ? (
         <div className="py-7 text-center text-sm text-[#9fa89b]">{t('loading')}</div>
       ) : packages.length === 0 ? (
@@ -293,7 +304,7 @@ export function SoundDownloadsSection({
               checkingStatus={checkingInstallStatus}
               busy={busy || checkingInstallStatus}
               onInstall={packageInfo => void handleRequestInstall(packageInfo)}
-              onRestore={() => setConfirmRestore(true)}
+              onUninstall={requestUninstall}
               onOpenPost={onOpenPost}
             />
           )}
@@ -305,10 +316,16 @@ export function SoundDownloadsSection({
         pendingInstall={pendingInstall}
         pendingExistingMod={pendingExistingMod}
         confirmRestore={confirmRestore}
+        confirmUninstall={confirmUninstall}
+        chooseUninstallAction={chooseUninstallAction}
+        uninstallBusy={uninstallBusy}
         busy={busy}
         onConfirm={() => void confirmAction()}
         onConfirmExistingMod={action => void confirmExistingModAction(action)}
-        onClose={() => { setPendingInstall(null); setPendingExistingMod(null); setConfirmRestore(false) }}
+        onConfirmUninstall={() => void performUninstall()}
+        onRestoreInstead={() => void performRestoreFromChoice()}
+        onUninstallInstead={() => void performUninstall()}
+        onClose={() => { setPendingInstall(null); setPendingExistingMod(null); setConfirmRestore(false); setConfirmUninstall(false); setChooseUninstallAction(false) }}
       />
     </section>
   )

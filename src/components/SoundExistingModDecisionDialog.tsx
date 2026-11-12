@@ -9,6 +9,7 @@ type Props = {
   description: string
   backupLabel: string
   deleteLabel: string
+  warningText?: string
   busy: boolean
   busyLabel?: string
   busyDescription?: string
@@ -18,7 +19,7 @@ type Props = {
 }
 
 export function SoundExistingModDecisionDialog({
-  title, description, backupLabel, deleteLabel, busy, busyLabel, busyDescription,
+  title, description, backupLabel, deleteLabel, warningText, busy, busyLabel, busyDescription,
   onBackup, onDelete, onClose,
 }: Props) {
   const { t } = useI18n()
@@ -66,7 +67,7 @@ export function SoundExistingModDecisionDialog({
           </div>
         ) : (
           <div id="sound-existing-warning" className="mt-4 border border-[#766638] bg-[#302b1d] px-3 py-2.5 text-sm leading-5 text-[#dfd5b6]" role="note">
-            {t('soundExistingModWarning')}
+            {warningText ?? t('soundExistingModWarning')}
           </div>
         )}
 

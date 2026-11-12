@@ -2,6 +2,7 @@ import { LoaderCircle, Pause, Play, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import type { SkinInstallProgress } from '../lib/skins'
 import { formatFileSize } from '../lib/format'
+import { getDownloadPercentage } from '../lib/downloadProgress'
 import { useI18n } from '../i18n/I18nProvider'
 
 type Props = {
@@ -18,7 +19,7 @@ export function SkinDownloadProgress({ progress, paused, cancelling, onTogglePau
   const isExtracting = progress?.phase === 'extracting'
   const isPreparing = !progress || progress.phase === 'preparing'
   const percentage = downloading && progress.totalBytes
-    ? Math.min(100, Math.floor(progress.downloadedBytes / progress.totalBytes * 100))
+    ? getDownloadPercentage(progress.downloadedBytes, progress.totalBytes)
     : isExtracting ? 100 : isPreparing ? 0 : null
   const status = isExtracting ? t('skinExtracting')
     : isPreparing ? t('skinPreparing')

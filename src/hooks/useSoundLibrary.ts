@@ -9,6 +9,7 @@ import {
   installSoundPackage,
   listSoundPackages,
   restoreSoundModBackup,
+  uninstallSoundMod,
   setSoundDownloadPaused,
   type SoundDownloadProgress,
   type ExistingSoundModAction,
@@ -28,6 +29,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   const [downloadingItem, setDownloadingItem] = useState<WtLiveItem | null>(null)
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
+  const [uninstalling, setUninstalling] = useState(false)
   const [paused, setPaused] = useState(false)
   const [error, setError] = useState('')
   const taskIdRef = useRef<string | null>(null)
@@ -236,6 +238,23 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     }
   }, [formatError, gamePath, refreshStatus])
 
+  const uninstall = useCallback(async () => {
+    if (!gamePath) return false
+    setUninstalling(true)
+    setError('')
+    try {
+      await uninstallSoundMod(gamePath)
+      await refreshStatus()
+      return true
+    } catch (cause) {
+      setError(formatError(cause))
+      await refreshStatus()
+      return false
+    } finally {
+      setUninstalling(false)
+    }
+  }, [formatError, gamePath, refreshStatus])
+
   return {
     packages,
     status,
@@ -246,6 +265,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     downloadingItem,
     installingId,
     restoring,
+    uninstalling,
     paused,
     error,
     dismissError,
@@ -257,6 +277,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     dismissCancelPrompt,
     install,
     restore,
+    uninstall,
     refreshPackages,
     refreshStatus,
   }

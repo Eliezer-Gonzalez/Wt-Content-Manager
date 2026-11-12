@@ -59,9 +59,9 @@ import {
   getFullResolutionImageUrl,
   mapPostImages,
   mapPost,
-  parseDescription,
   type ApiPost,
 } from './wtLiveParser'
+import { parseDescription } from './wtLiveDescriptionParser'
 
 export { getFullResolutionImageUrl }
 

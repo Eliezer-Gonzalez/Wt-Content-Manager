@@ -2,6 +2,7 @@ import { LoaderCircle, Pause, Play, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useI18n } from '../i18n/I18nProvider'
 import { formatFileSize } from '../lib/format'
+import { getDownloadPercentage } from '../lib/downloadProgress'
 import type { SkinInstallProgress } from '../lib/skins'
 import type { SoundDownloadProgress } from '../lib/sounds'
 
@@ -24,7 +25,7 @@ export function PostCardDownloadProgress({ contentType, skinProgress, soundProgr
   const extracting = contentType === 'camouflage' && skinProgress?.phase === 'extracting'
   const preparing = contentType === 'camouflage' && skinProgress?.phase === 'preparing'
   const percentage = progress.totalBytes
-    ? Math.min(100, Math.floor(progress.downloadedBytes / progress.totalBytes * 100))
+    ? getDownloadPercentage(progress.downloadedBytes, progress.totalBytes)
     : extracting ? 100 : null
   const indeterminate = percentage == null && contentType === 'camouflage'
   const phaseLabel = contentType === 'sound'

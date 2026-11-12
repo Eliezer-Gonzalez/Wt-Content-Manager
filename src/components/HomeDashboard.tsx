@@ -27,6 +27,7 @@ type Props = {
   isDownloaded: (item: WtLiveItem) => boolean
   isInstalled: (item: WtLiveItem) => boolean
   onNavigate: (section: AppSection) => void
+  onSeeRecentCamouflages: () => void
   onOpenGameSetup: () => void
   onRetry: () => void
   onOpen: (item: WtLiveItem) => void
@@ -93,7 +94,7 @@ function HomeRowHeader({
 
 export function HomeDashboard({
   items, favorites, installedSkins, favoritesCount, installedCount, gameConfigured, loading, error, online,
-  isSaved, isDownloaded, isInstalled, onNavigate, onOpenGameSetup, onRetry, onOpen, onToggleSaved, onUninstall,
+  isSaved, isDownloaded, isInstalled, onNavigate, onSeeRecentCamouflages, onOpenGameSetup, onRetry, onOpen, onToggleSaved, onUninstall,
 }: Props) {
   const { t, locale } = useI18n()
   const { visibleSections, hideSection, showSection } = useHomeSections()
@@ -165,7 +166,7 @@ export function HomeDashboard({
             online={online}
             sectionKey="recent"
             onHide={hideSection}
-            onSeeAll={() => onNavigate('camouflages')}
+            onSeeAll={onSeeRecentCamouflages}
           />
 
           {error ? (

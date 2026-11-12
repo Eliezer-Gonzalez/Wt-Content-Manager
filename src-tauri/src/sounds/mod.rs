@@ -9,6 +9,6 @@ mod library;
 mod recovery;
 pub mod types;
 
-pub use deployment::{install, install_preflight, restore, status};
+pub use deployment::{install, install_preflight, restore, status, uninstall};
 pub use download::download_package;
 pub use library::list_packages;

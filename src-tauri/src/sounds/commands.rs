@@ -172,3 +172,23 @@ pub async fn restore_sound_mod_backup(
     };
     record_failure(&logger, "restore_sound_mod_backup", result)
 }
+
+#[tauri::command]
+pub async fn uninstall_sound_mod(
+    app: AppHandle,
+    game_path: String,
+    logger: State<'_, DiagnosticLogger>,
+) -> Result<(), AppError> {
+    let result = match app_data_dir(&app) {
+        Ok(path) => {
+            tauri::async_runtime::spawn_blocking(move || super::uninstall(&path, &game_path))
+                .await
+                .map_err(|error| {
+                    AppError::with_detail("sound_uninstall_interrupted", error.to_string())
+                })
+                .and_then(|result| result)
+        }
+        Err(error) => Err(error),
+    };
+    record_failure(&logger, "uninstall_sound_mod", result)
+}

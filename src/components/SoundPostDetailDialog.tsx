@@ -13,6 +13,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { isTauriRuntime } from '../lib/gameInstall'
 import { WtLiveDescriptionText } from './WtLiveDescriptionText'
 import { SoundPackageDownloadActions } from './SoundPackageDownloadActions'
+import { HashtagList } from './HashtagList'
 import { SoundReinstallAction } from './SoundReinstallAction'
 import type { SoundLibraryController } from '../hooks/useSoundLibrary'
 import type { SoundPackage } from '../lib/sounds'
@@ -163,20 +164,7 @@ export function SoundPostDetailDialog({
                   originPost={item}
                 />}
               </section>
-              {!!detail?.hashtags.length && (
-                <section className="mt-6 border-t border-[#343b32] pt-4" aria-labelledby="sound-post-hashtags-heading">
-                  <h3 id="sound-post-hashtags-heading" className="mb-3 text-xs font-semibold uppercase tracking-[.12em] text-[#aeb990]">
-                    {t('hashtags')}
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {detail.hashtags.map(tag => (
-                      <button key={tag} type="button" onClick={() => onSearchHashtag(tag)} className="border border-[#46513e] bg-[#283026] px-2.5 py-1 text-xs text-[#d2dcc1] hover:border-[#9eae7b]">
-                        #{tag}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
+              <HashtagList hashtags={detail?.hashtags ?? []} id="sound-post-hashtags-heading" onSelect={onSearchHashtag} />
             </>
           )}
 

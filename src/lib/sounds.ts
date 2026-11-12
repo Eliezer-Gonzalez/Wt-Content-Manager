@@ -87,6 +87,10 @@ export function restoreSoundModBackup(gamePath: string): Promise<void> {
   return invoke('restore_sound_mod_backup', { gamePath })
 }
 
+export function uninstallSoundMod(gamePath: string): Promise<void> {
+  return invoke('uninstall_sound_mod', { gamePath })
+}
+
 export function openSoundModFolder(gamePath: string): Promise<void> {
   return invoke('open_sound_mod_folder', { gamePath })
 }

@@ -2,6 +2,7 @@ import { Check, Download, Pause, Play } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useI18n } from '../i18n/I18nProvider'
 import { formatFileSize } from '../lib/format'
+import { getDownloadPercentage } from '../lib/downloadProgress'
 import type { SoundDownloadProgress } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'
 
@@ -25,7 +26,7 @@ export function SoundPackageDownloadActions({
   const { t, locale } = useI18n()
   const downloadedBytes = progress?.downloadedBytes ?? 0
   const totalBytes = progress?.totalBytes ?? null
-  const percent = totalBytes ? Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100)) : null
+  const percent = getDownloadPercentage(downloadedBytes, totalBytes)
 
   if (downloaded) {
     return (

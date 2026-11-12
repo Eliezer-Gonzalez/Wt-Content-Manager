@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Download, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, LoaderCircle, RefreshCw, Trash2, Volume2 } from 'lucide-react'
+import { CalendarDays, Check, Download, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, LoaderCircle, Trash2, Volume2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { AppTooltip } from './ui/AppTooltip'
 import { useI18n } from '../i18n/I18nProvider'
@@ -15,11 +15,11 @@ type Props = {
   checkingStatus: boolean
   busy: boolean
   onInstall: (packageInfo: SoundPackage) => void
-  onRestore: () => void
+  onUninstall: () => void
   onOpenPost: (item: WtLiveItem) => void
 }
 
-export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady, checkingStatus, busy, onInstall, onRestore, onOpenPost }: Props) {
+export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady, checkingStatus, busy, onInstall, onUninstall, onOpenPost }: Props) {
   const { t, locale } = useI18n()
   const active = status?.activePackageId === packageInfo.id
   const date = new Date(packageInfo.downloadedAt)
@@ -46,15 +46,15 @@ export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady,
       <div className="flex items-start gap-3">
         <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><Volume2 size={18} aria-hidden="true" /></span>
         <div className="min-w-0 flex-1">
-          <h3 className="m-0 min-h-[2.5rem] line-clamp-2 break-words font-display text-lg font-semibold leading-5 text-[#e2e4da]">{packageInfo.title || packageInfo.archiveName}</h3>
-          <p className="mb-0 mt-1 truncate text-xs text-[#bdc99e]">{t('by')} {packageInfo.author || t('unknownAuthor')}</p>
-          {active && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              <span className="flex items-center gap-1 border border-[#6f8252] bg-[#1e271b] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882]">
+          <div className="flex min-h-[2.5rem] items-start gap-2">
+            <h3 className="m-0 min-w-0 flex-1 line-clamp-2 break-words font-display text-lg font-semibold leading-5 text-[#e2e4da]">{packageInfo.title || packageInfo.archiveName}</h3>
+            {active && (
+              <span className="flex shrink-0 items-center gap-1 border border-[#6f8252] bg-[#1e271b] px-2 py-1 text-[10px] font-bold tracking-[.08em] text-[#b4d882]">
                 <Check size={11} aria-hidden="true" />{t('soundActive')}
               </span>
-            </div>
-          )}
+            )}
+          </div>
+          <p className="mb-0 mt-1 truncate text-xs text-[#bdc99e]">{t('by')} {packageInfo.author || t('unknownAuthor')}</p>
         </div>
       </div>
 
@@ -110,12 +110,12 @@ export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady,
           size="sm"
           className="min-w-0 flex-1 justify-center"
           disabled={!gameReady || checkingStatus || busy}
-          onClick={() => active ? onRestore() : onInstall(packageInfo)}
+          onClick={() => active ? onUninstall() : onInstall(packageInfo)}
         >
           {checkingStatus
             ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            : active ? status?.originalBackupAvailable ? <RefreshCw size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
-          {t(checkingStatus ? 'checkingSoundStatus' : active ? status?.originalBackupAvailable ? 'soundRestore' : 'soundUninstall' : 'soundInstallPackage')}
+            : active ? <Trash2 size={14} aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
+          {t(checkingStatus ? 'checkingSoundStatus' : active ? 'soundUninstall' : 'soundInstallPackage')}
         </Button>
       </div>
     </article>

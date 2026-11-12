@@ -120,6 +120,40 @@ pub fn restore(app_data_dir: &Path, game_path: &str) -> Result<(), AppError> {
     )
 }
 
+pub fn uninstall(app_data_dir: &Path, game_path: &str) -> Result<(), AppError> {
+    let game_root = validated_game_root(game_path)?;
+    let _mutation = lock_game_filesystem();
+    ensure_game_stopped(&game_root)?;
+    recovery::recover_pending(app_data_dir, &game_root)?;
+    ensure_sound_directory(&game_root)?;
+    let target = sound_mod_path(&game_root)?;
+    let paths = journal::storage_paths(app_data_dir, &game_root);
+    let mut state =
+        journal::read_state(&paths)?.ok_or_else(|| AppError::new("sound_install_state_invalid"))?;
+    if state.game_root != game_root.to_string_lossy() || state.active_package_id.is_none() {
+        return Err(AppError::new("sound_install_state_invalid"));
+    }
+    let sound_dir = target
+        .parent()
+        .ok_or_else(|| AppError::new("sound_game_path_invalid"))?;
+    let stage_name = recovery::unique_name(".wtcm-sound-stage-")?;
+    let stage = sound_dir.join(&stage_name);
+    fs::create_dir(&stage)
+        .map_err(|error| AppError::with_detail("sound_stage_create_failed", error.to_string()))?;
+    let _stage_cleanup = StageCleanup(stage.clone());
+    ensure_game_stopped(&game_root)?;
+    replace_directory(
+        app_data_dir,
+        &game_root,
+        &paths,
+        &target,
+        &stage,
+        &stage_name,
+        &mut state,
+        None,
+    )
+}
+
 pub fn status(app_data_dir: &Path, game_path: &str) -> Result<SoundModStatus, AppError> {
     let game_root = validated_game_root(game_path)?;
     let _mutation = lock_game_filesystem();

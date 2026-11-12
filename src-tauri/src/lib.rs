@@ -68,6 +68,7 @@ pub fn run() {
             sounds::commands::get_sound_install_preflight,
             sounds::commands::install_sound_package,
             sounds::commands::restore_sound_mod_backup,
+            sounds::commands::uninstall_sound_mod,
             sounds::commands::open_sound_mod_folder,
             sounds::commands::open_sound_package_library_folder,
             settings::get_orphan_temporary_files,
