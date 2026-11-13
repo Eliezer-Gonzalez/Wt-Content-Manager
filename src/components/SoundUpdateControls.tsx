@@ -14,12 +14,12 @@ export function SoundUpdateControls({ updates, packages }: Props) {
   if (packages.length === 0) return null
 
   const currentGroups = new Set(packages
-    .filter(packageInfo => updates.results[packageInfo.id]?.status === 'no-change')
+    .filter(packageInfo => updates.results[packageInfo.id]?.revision === packageInfo.revision && updates.results[packageInfo.id]?.status === 'no-change')
     .map(packageInfo => packageInfo.langGroup))
   const possibleCount = new Set(packages
-    .filter(packageInfo => updates.results[packageInfo.id]?.status === 'possible' && !currentGroups.has(packageInfo.langGroup))
+    .filter(packageInfo => updates.results[packageInfo.id]?.revision === packageInfo.revision && updates.results[packageInfo.id]?.status === 'possible' && !currentGroups.has(packageInfo.langGroup))
     .map(packageInfo => packageInfo.langGroup)).size
-  const unavailableCount = packages.filter(packageInfo => updates.results[packageInfo.id]?.status === 'unavailable').length
+  const unavailableCount = packages.filter(packageInfo => updates.results[packageInfo.id]?.revision === packageInfo.revision && updates.results[packageInfo.id]?.status === 'unavailable').length
   const checkedAt = updates.lastCheckedAt == null
     ? t('soundUpdatesNeverChecked')
     : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(updates.lastCheckedAt)

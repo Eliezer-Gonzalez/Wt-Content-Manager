@@ -37,6 +37,7 @@ pub fn install(
     let target = sound_mod_path(&game_root)?;
     let paths = journal::storage_paths(app_data_dir, &game_root);
     let archive = library::package_archive(app_data_dir, package_id)?;
+    let package = library::read_package(app_data_dir, package_id)?;
     let sound_dir = target
         .parent()
         .ok_or_else(|| AppError::new("sound_game_path_invalid"))?;
@@ -68,7 +69,7 @@ pub fn install(
         &stage,
         &stage_name,
         &mut state,
-        Some(package_id.to_owned()),
+        Some((package_id.to_owned(), package.revision)),
     )?;
     Ok(SoundInstallResult {
         package_id: package_id.to_owned(),
@@ -183,7 +184,8 @@ pub fn status(app_data_dir: &Path, game_path: &str) -> Result<SoundModStatus, Ap
         installed_banks,
         backup_available: state.is_some(),
         original_backup_available: state.as_ref().is_some_and(|state| state.original_existed),
-        active_package_id: state.and_then(|state| state.active_package_id),
+        active_package_id: state.as_ref().and_then(|state| state.active_package_id.clone()),
+        active_package_revision: state.and_then(|state| state.active_package_revision),
     })
 }
 
@@ -195,7 +197,7 @@ fn replace_directory(
     stage: &Path,
     stage_name: &str,
     state: &mut InstallState,
-    next_package_id: Option<String>,
+    next_package: Option<(String, u64)>,
 ) -> Result<(), AppError> {
     ensure_game_stopped(game_root)?;
     let had_current = target.exists();
@@ -208,8 +210,10 @@ fn replace_directory(
         stage_name,
         &old_name,
         had_current,
-        next_package_id.clone(),
+        next_package.as_ref().map(|(id, _)| id.clone()),
         state.active_package_id.clone(),
+        next_package.as_ref().map(|(_, revision)| *revision),
+        state.active_package_revision,
     ) {
         let _ = fs::remove_dir_all(stage);
         return Err(error);
@@ -224,7 +228,7 @@ fn replace_directory(
             return Err(file_change_error("sound_deployment_failed", error));
         }
     }
-    if let Some(package_id) = next_package_id {
+    if let Some((package_id, revision)) = next_package {
         if let Err(error) = fs::rename(stage, target) {
             if had_current && fs::rename(&old, target).is_err() {
                 return Err(AppError::with_detail(
@@ -237,6 +241,7 @@ fn replace_directory(
             return Err(file_change_error("sound_deployment_failed", error));
         }
         state.active_package_id = Some(package_id);
+        state.active_package_revision = Some(revision);
     } else {
         if stage.exists() {
             if let Err(error) = fs::rename(stage, target) {
@@ -252,6 +257,7 @@ fn replace_directory(
             }
         }
         state.active_package_id = None;
+        state.active_package_revision = None;
     }
     journal::write_state(paths, state)?;
     recovery::mark_committed(paths)?;
@@ -292,6 +298,7 @@ fn load_or_create_state(
         game_root: game_root.to_string_lossy().into_owned(),
         original_existed,
         active_package_id: None,
+        active_package_revision: None,
     };
     journal::write_state(paths, &state)?;
     Ok(state)

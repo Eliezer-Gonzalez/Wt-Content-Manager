@@ -46,7 +46,7 @@ export function PostDetailsOverlay({
         imageQuality={imageQuality}
         canDownload={canInstall}
         downloadedLangGroups={downloadableSoundLangGroups}
-        downloadBusy={soundLibrary.downloadingId != null}
+        downloadBusy={soundLibrary.downloadingId != null || soundLibrary.updatePackageId != null}
         downloadingId={soundLibrary.downloadingId}
         progress={soundLibrary.downloadProgress ? { ...soundLibrary.downloadProgress, paused: soundLibrary.paused } : null}
         downloadError={soundLibrary.error}

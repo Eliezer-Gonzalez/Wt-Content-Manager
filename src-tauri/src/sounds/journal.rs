@@ -9,6 +9,8 @@ pub struct InstallState {
     pub game_root: String,
     pub original_existed: bool,
     pub active_package_id: Option<String>,
+    #[serde(default = "legacy_package_revision")]
+    pub active_package_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,7 +21,15 @@ pub struct InstallJournal {
     pub had_current: bool,
     pub next_package_id: Option<String>,
     pub previous_package_id: Option<String>,
+    #[serde(default = "legacy_package_revision")]
+    pub next_package_revision: Option<u64>,
+    #[serde(default = "legacy_package_revision")]
+    pub previous_package_revision: Option<u64>,
     pub committed: bool,
+}
+
+fn legacy_package_revision() -> Option<u64> {
+    Some(0)
 }
 
 pub struct StoragePaths {

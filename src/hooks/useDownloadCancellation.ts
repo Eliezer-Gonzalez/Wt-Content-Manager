@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { SkinInstaller } from './useSkinInstaller'
 import type { SoundLibraryController } from './useSoundLibrary'
 
-type DownloadKind = 'skin' | 'sound'
+type DownloadKind = 'skin' | 'sound' | 'sound-update'
 
 type Props = {
   skinInstaller: SkinInstaller
@@ -27,13 +27,21 @@ export function useDownloadCancellation({ skinInstaller, soundLibrary }: Props) 
     else pendingKindRef.current = null
   }, [soundLibrary.prepareCancelDownload])
 
+  const requestSoundUpdateCancellation = useCallback(async () => {
+    if (pendingKindRef.current) return
+    pendingKindRef.current = 'sound-update'
+    if (await soundLibrary.prepareCancelUpdate()) setPendingKind('sound')
+    else pendingKindRef.current = null
+  }, [soundLibrary.prepareCancelUpdate])
+
   const continueDownload = useCallback(() => {
     const kind = pendingKindRef.current
     pendingKindRef.current = null
     setPendingKind(null)
     if (kind === 'skin') void skinInstaller.continueAfterCancelPrompt()
     if (kind === 'sound') void soundLibrary.continueAfterCancelPrompt()
-  }, [skinInstaller.continueAfterCancelPrompt, soundLibrary.continueAfterCancelPrompt])
+    if (kind === 'sound-update') void soundLibrary.continueAfterUpdateCancelPrompt()
+  }, [skinInstaller.continueAfterCancelPrompt, soundLibrary.continueAfterCancelPrompt, soundLibrary.continueAfterUpdateCancelPrompt])
 
   const confirmCancellation = useCallback(() => {
     const kind = pendingKindRef.current
@@ -41,7 +49,8 @@ export function useDownloadCancellation({ skinInstaller, soundLibrary }: Props) 
     setPendingKind(null)
     if (kind === 'skin') void skinInstaller.cancel()
     if (kind === 'sound') void soundLibrary.cancelDownload()
-  }, [skinInstaller.cancel, soundLibrary.cancelDownload])
+    if (kind === 'sound-update') void soundLibrary.cancelUpdate()
+  }, [skinInstaller.cancel, soundLibrary.cancelDownload, soundLibrary.cancelUpdate])
 
   const dismissCancellation = useCallback(() => {
     const kind = pendingKindRef.current
@@ -49,12 +58,14 @@ export function useDownloadCancellation({ skinInstaller, soundLibrary }: Props) 
     setPendingKind(null)
     if (kind === 'skin') void skinInstaller.dismissCancelPrompt()
     if (kind === 'sound') void soundLibrary.dismissCancelPrompt()
-  }, [skinInstaller.dismissCancelPrompt, soundLibrary.dismissCancelPrompt])
+    if (kind === 'sound-update') void soundLibrary.dismissUpdateCancelPrompt()
+  }, [skinInstaller.dismissCancelPrompt, soundLibrary.dismissCancelPrompt, soundLibrary.dismissUpdateCancelPrompt])
 
   return {
     pendingKind,
     requestSkinCancellation,
     requestSoundCancellation,
+    requestSoundUpdateCancellation,
     continueDownload,
     confirmCancellation,
     dismissCancellation,

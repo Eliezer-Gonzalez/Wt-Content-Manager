@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::AppError;
+use crate::{skins::recovery::lock_game_filesystem, AppError};
 
 use super::types::SoundPackage;
 
@@ -41,6 +41,10 @@ pub fn prepare_download(
 
 pub fn publish_package(app_data_dir: &Path, package: &SoundPackage) -> Result<(), AppError> {
     let directory = package_directory(app_data_dir, &package.id)?;
+    write_package_manifest(&directory, package)
+}
+
+pub fn write_package_manifest(directory: &Path, package: &SoundPackage) -> Result<(), AppError> {
     if !directory.join(PACKAGE_ARCHIVE).is_file() {
         return Err(AppError::new("sound_package_archive_missing"));
     }
@@ -53,7 +57,26 @@ pub fn publish_package(app_data_dir: &Path, package: &SoundPackage) -> Result<()
     Ok(())
 }
 
+pub fn read_package(app_data_dir: &Path, package_id: &str) -> Result<SoundPackage, AppError> {
+    let directory = package_directory(app_data_dir, package_id)?;
+    let manifest_path = directory.join(PACKAGE_MANIFEST);
+    let package: SoundPackage = serde_json::from_slice(&fs::read(manifest_path).map_err(|error| {
+        AppError::with_detail("sound_package_not_found", error.to_string())
+    })?)
+    .map_err(|error| AppError::with_detail("sound_package_manifest_invalid", error.to_string()))?;
+    if package.id != package_id || !directory.join(PACKAGE_ARCHIVE).is_file() {
+        return Err(AppError::new("sound_package_manifest_invalid"));
+    }
+    Ok(package)
+}
+
+pub fn package_path(app_data_dir: &Path, package_id: &str) -> Result<PathBuf, AppError> {
+    package_directory(app_data_dir, package_id)
+}
+
 pub fn list_packages(app_data_dir: &Path) -> Result<Vec<SoundPackage>, AppError> {
+    let _mutation = lock_game_filesystem();
+    super::package_update::recover_pending_locked(app_data_dir)?;
     let root = packages_root(app_data_dir);
     if !root.exists() {
         return Ok(Vec::new());

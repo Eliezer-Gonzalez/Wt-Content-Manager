@@ -4,6 +4,8 @@ import { Button } from './ui/Button'
 import { SoundInstallDialogs } from './SoundInstallDialogs'
 import { SoundPackageCard } from './SoundPackageCard'
 import { SoundPackageDownloadActions } from './SoundPackageDownloadActions'
+import { SoundPackageUpdateDialog } from './SoundPackageUpdateDialog'
+import { SoundPackageUpdateProgress } from './SoundPackageUpdateProgress'
 import { SoundGameStatusPanel } from './SoundGameStatusPanel'
 import { DownloadsLibrarySummary } from './DownloadsLibraryControls'
 import { PaginatedGrid } from './PaginatedGrid'
@@ -25,14 +27,16 @@ type Props = {
   onExploreSounds: () => void
   onOpenPost: (item: WtLiveItem) => void
   updateResults: Record<string, SoundPackageUpdateResult>
+  onMarkUpdated: (packageId: string, revision: number, archiveName: string) => void
 }
 
 export function SoundDownloadsSection({
-  gamePath, library, packages, hasPackages, updateResults, onChooseGame, onExploreSounds, onOpenPost,
+  gamePath, library, packages, hasPackages, updateResults, onMarkUpdated, onChooseGame, onExploreSounds, onOpenPost,
 }: Props) {
   const { t, locale } = useI18n()
   const [pendingInstall, setPendingInstall] = useState<SoundPackage | null>(null)
   const [pendingExistingMod, setPendingExistingMod] = useState<SoundPackage | null>(null)
+  const [pendingUpdate, setPendingUpdate] = useState<SoundPackage | null>(null)
   const [confirmRestore, setConfirmRestore] = useState(false)
   const [confirmUninstall, setConfirmUninstall] = useState(false)
   const [chooseUninstallAction, setChooseUninstallAction] = useState(false)
@@ -49,7 +53,7 @@ export function SoundDownloadsSection({
   const activePackage = library.packages.find(packageInfo => packageInfo.id === library.status?.activePackageId)
   const gameReady = Boolean(gamePath && !library.statusLoading && !checkingInstallStatus && library.status?.processStatus === 'stopped')
   const uninstallBusy = library.uninstalling || uninstallFeedbackBusy
-  const busy = Boolean(library.installingId || library.restoring || uninstallBusy)
+  const busy = Boolean(library.installingId || library.restoring || uninstallBusy || library.updatePackageId || library.downloadingId !== null)
   const totalSizeBytes = library.packages.reduce((total, packageInfo) => total + packageInfo.sizeBytes, 0)
   const isCheckingStatus = checkingStatus || library.statusLoading
 
@@ -99,6 +103,14 @@ export function SoundDownloadsSection({
     if (!pendingExistingMod) return
     await library.install(pendingExistingMod.id, action)
     setPendingExistingMod(null)
+  }
+
+  async function confirmPackageUpdate() {
+    if (!pendingUpdate) return
+    const packageInfo = pendingUpdate
+    setPendingUpdate(null)
+    const updated = await library.updatePackage(packageInfo)
+    if (updated) onMarkUpdated(updated.id, updated.revision, updated.archiveName)
   }
 
   async function handleRequestInstall(packageInfo: SoundPackage) {
@@ -262,6 +274,15 @@ export function SoundDownloadsSection({
           />
         </div>
       )}
+      {library.updatePackageId && library.updateProgress && (
+        <SoundPackageUpdateProgress
+          title={library.packages.find(packageInfo => packageInfo.id === library.updatePackageId)?.title ?? library.updatePackageId}
+          progress={{ ...library.updateProgress, paused: library.updatePaused }}
+          paused={library.updatePaused}
+          onTogglePause={() => void library.toggleUpdatePause()}
+          onCancel={() => void library.cancelUpdate()}
+        />
+      )}
       {library.error && (
         <div className="mb-4 flex items-start justify-between gap-3 border border-[#766638] bg-[#302b1d] px-3 py-2.5 text-sm text-amber-100" role="alert">
           <p className="mb-0 min-w-0">{library.error}</p>
@@ -299,13 +320,14 @@ export function SoundDownloadsSection({
             <SoundPackageCard
               packageInfo={packageInfo}
               status={library.status}
-              updateStatus={updateResults[packageInfo.id]}
+              updateStatus={updateResults[packageInfo.id]?.revision === packageInfo.revision ? updateResults[packageInfo.id] : undefined}
               gameReady={gameReady}
               checkingStatus={checkingInstallStatus}
               busy={busy || checkingInstallStatus}
               onInstall={packageInfo => void handleRequestInstall(packageInfo)}
               onUninstall={requestUninstall}
               onOpenPost={onOpenPost}
+              onRequestUpdate={setPendingUpdate}
             />
           )}
         />
@@ -327,6 +349,14 @@ export function SoundDownloadsSection({
         onUninstallInstead={() => void performUninstall()}
         onClose={() => { setPendingInstall(null); setPendingExistingMod(null); setConfirmRestore(false); setConfirmUninstall(false); setChooseUninstallAction(false) }}
       />
+      {pendingUpdate && (
+        <SoundPackageUpdateDialog
+          packageInfo={pendingUpdate}
+          remoteArchiveName={updateResults[pendingUpdate.id]?.remoteArchiveName}
+          onConfirm={() => void confirmPackageUpdate()}
+          onClose={() => setPendingUpdate(null)}
+        />
+      )}
     </section>
   )
 }

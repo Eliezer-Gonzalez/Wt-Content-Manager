@@ -73,6 +73,7 @@ pub fn run() {
             commands::open_diagnostics_folder,
             sounds::commands::list_sound_packages,
             sounds::commands::download_sound_package,
+            sounds::commands::update_sound_package,
             sounds::commands::set_sound_download_paused,
             sounds::commands::cancel_sound_download,
             sounds::commands::get_sound_mod_status,

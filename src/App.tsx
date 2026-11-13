@@ -18,6 +18,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { WindowTitleBar } from './components/WindowTitleBar'
 import { BackToTopButton } from './components/BackToTopButton'
 import { Button } from './components/ui/Button'
+import { DownloadCompletionNotifications } from './components/DownloadCompletionNotifications'
 import { useGameInstallation } from './hooks/useGameInstallation'
 import { useLocalLibrary } from './hooks/useLocalLibrary'
 import { useCamouflageManagement } from './hooks/useCamouflageManagement'
@@ -30,6 +31,7 @@ import { useImageQualityPreference } from './hooks/useImageQualityPreference'
 import { useSoundLibrary } from './hooks/useSoundLibrary'
 import { useSoundPackageUpdates } from './hooks/useSoundPackageUpdates'
 import { useDownloadCancellation } from './hooks/useDownloadCancellation'
+import { useCompletionNotificationSettings } from './hooks/useCompletionNotificationSettings'
 import type { DownloadOriginFilter, DownloadSortOrder, SoundDownloadStatusFilter } from './lib/downloadLibrary'
 import { isTauriRuntime } from './lib/gameInstall'
 import { sameFavorite } from './lib/localLibrary'
@@ -44,6 +46,7 @@ export default function App() {
   const diagnostics = useDiagnosticsSettings()
   const legalNotice = useLegalNotice()
   const imageQuality = useImageQualityPreference()
+  const notificationSettings = useCompletionNotificationSettings()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
   const [active, setActive] = useState<AppSection>('camouflages')
   const [downloadsCategory, setDownloadsCategory] = useState<'camouflages' | 'sounds'>('camouflages')
@@ -86,7 +89,11 @@ export default function App() {
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
 
   const skinInstallerForUi = { ...skinInstaller, cancel: cancellation.requestSkinCancellation }
-  const soundLibraryForUi = { ...soundLibrary, cancelDownload: cancellation.requestSoundCancellation }
+  const soundLibraryForUi = {
+    ...soundLibrary,
+    cancelDownload: cancellation.requestSoundCancellation,
+    cancelUpdate: cancellation.requestSoundUpdateCancellation,
+  }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -104,7 +111,10 @@ export default function App() {
     [soundLibrary.packages],
   )
   const currentSoundLangGroups = useMemo(() => new Set(soundLibrary.packages
-    .filter(packageInfo => soundUpdates.results[packageInfo.id]?.status !== 'possible')
+    .filter(packageInfo => {
+      const result = soundUpdates.results[packageInfo.id]
+      return result?.revision !== packageInfo.revision || result.status !== 'possible'
+    })
     .map(packageInfo => packageInfo.langGroup)), [soundLibrary.packages, soundUpdates.results])
   const isFavoriteSaved = (item: WtLiveItem, contentType: 'camouflage' | 'sound') =>
     library.favorites.some(saved => sameFavorite(saved, { ...item, contentType }))
@@ -144,6 +154,7 @@ export default function App() {
           onOpenGameSetup={gameSetup.openSetup}
           onRescanGame={() => void gameSetup.scan()}
           onViewLegalNotice={legalNotice.openNotice}
+          notificationSettings={notificationSettings}
         /> : active === 'sounds' ? <SoundManagerPage
           imageQuality={imageQuality.quality}
           soundLibrary={soundLibraryForUi}
@@ -318,6 +329,11 @@ export default function App() {
       onReplaceExisting={folderName => void skinInstaller.resolveDuplicate('replace_existing', folderName)}
       onInstallCopy={() => void skinInstaller.resolveDuplicate('install_copy')}
       onCancel={() => void skinInstaller.resolveDuplicate('cancel')}
+    />
+    <DownloadCompletionNotifications
+      showNotifications={notificationSettings.preferences.showNotifications}
+      soundEnabled={notificationSettings.preferences.soundEnabled}
+      volume={notificationSettings.preferences.volume}
     />
   </div>
 }

@@ -8,11 +8,12 @@ export type SoundPackage = {
   archiveName: string
   sizeBytes: number
   downloadedAt: number
+  revision: number
   fileCount?: number | null
 }
 
 export type SoundDownloadProgress = {
-  phase: 'downloading'
+  phase: 'downloading' | 'extracting'
   downloadedBytes: number
   totalBytes: number | null
   paused: boolean
@@ -25,6 +26,7 @@ export type SoundModStatus = {
   backupAvailable: boolean
   originalBackupAvailable: boolean
   activePackageId: string | null
+  activePackageRevision: number | null
 }
 
 export type SoundInstallResult = {
@@ -57,6 +59,17 @@ export function downloadSoundPackage(
     taskId,
     onProgress: channel,
   })
+}
+
+export function updateSoundPackage(
+  packageId: string,
+  expectedRevision: number,
+  taskId: string,
+  onProgress: (progress: SoundDownloadProgress) => void,
+): Promise<SoundPackage> {
+  const channel = new Channel<SoundDownloadProgress>()
+  channel.onmessage = onProgress
+  return invoke<SoundPackage>('update_sound_package', { packageId, expectedRevision, taskId, onProgress: channel })
 }
 
 export function setSoundDownloadPaused(taskId: string, paused: boolean): Promise<void> {

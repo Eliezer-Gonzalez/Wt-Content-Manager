@@ -23,6 +23,8 @@ pub struct SoundPackage {
     pub archive_name: String,
     pub size_bytes: u64,
     pub downloaded_at: u64,
+    #[serde(default)]
+    pub revision: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_count: Option<usize>,
 }
@@ -36,6 +38,7 @@ pub struct SoundModStatus {
     pub backup_available: bool,
     pub original_backup_available: bool,
     pub active_package_id: Option<String>,
+    pub active_package_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

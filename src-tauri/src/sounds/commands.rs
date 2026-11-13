@@ -99,6 +99,33 @@ pub async fn download_sound_package(
 }
 
 #[tauri::command]
+pub async fn update_sound_package(
+    app: AppHandle,
+    package_id: String,
+    expected_revision: u64,
+    task_id: String,
+    on_progress: Channel<crate::skins::download_task::SkinInstallProgress>,
+    manager: State<'_, DownloadManager>,
+    logger: State<'_, DiagnosticLogger>,
+) -> Result<SoundPackage, AppError> {
+    let result = match app_data_dir(&app) {
+        Ok(path) => {
+            super::update_package(
+                &path,
+                &package_id,
+                expected_revision,
+                &task_id,
+                on_progress,
+                &manager,
+            )
+            .await
+        }
+        Err(error) => Err(error),
+    };
+    record_failure(&logger, "update_sound_package", result)
+}
+
+#[tauri::command]
 pub fn set_sound_download_paused(
     task_id: String,
     paused: bool,

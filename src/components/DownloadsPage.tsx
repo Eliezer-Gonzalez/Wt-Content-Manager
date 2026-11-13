@@ -207,6 +207,7 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
             library={sounds.library}
             packages={visibleSoundPackages}
             updateResults={sounds.updates.results}
+            onMarkUpdated={sounds.updates.markDownloaded}
             hasPackages={sounds.library.packages.length > 0}
             onChooseGame={sounds.onChooseGame}
             onExploreSounds={sounds.onExploreSounds}

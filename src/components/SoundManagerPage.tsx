@@ -163,7 +163,7 @@ export function SoundManagerPage({ imageQuality, soundLibrary, downloadableLangG
           imageQuality={imageQuality}
           canDownload={isTauriRuntime}
           downloadedLangGroups={downloadableLangGroups}
-          downloadBusy={soundLibrary.downloadingId != null}
+          downloadBusy={soundLibrary.downloadingId != null || soundLibrary.updatePackageId != null}
           downloadingId={soundLibrary.downloadingId}
           progress={soundLibrary.downloadProgress
             ? { ...soundLibrary.downloadProgress, paused: soundLibrary.paused }

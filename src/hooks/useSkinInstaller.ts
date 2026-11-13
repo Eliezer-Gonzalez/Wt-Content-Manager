@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { cancelPreparedSkinInstall, cancelSkinDownload, installSkin, resolvePreparedSkinInstall, setSkinDownloadPaused, type DuplicateSkinCandidate, type SkinInstallProgress, type SkinInstallResult } from '../lib/skins'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../lib/wtLive'
+import { announceDownloadCompletion } from '../lib/downloadCompletion'
 import type { TranslateFn } from '../i18n/I18nProvider'
 import { formatAppError } from '../lib/appError'
 
@@ -137,6 +138,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
   }, [externalFolderNames, gamePath, onInstalled, onLinkedExternal, t])
 
   function applyInstallResult(item: WtLiveItem, result: SkinInstallResult) {
+    announceDownloadCompletion('camouflage', item.title || item.fileName || t('camouflage'))
     setInstalledPath(result.path)
     setWarning(result.skippedFiles > 0 || result.missingTextureCount > 0 ? {
       skippedFiles: result.skippedFiles,

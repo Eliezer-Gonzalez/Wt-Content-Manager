@@ -7,7 +7,8 @@ const automaticCheckIntervalMs = 24 * 60 * 60 * 1000
 const maxConcurrentChecks = 2
 
 export type SoundPackageUpdateResult = {
-  status: 'possible' | 'no-change' | 'unavailable'
+  status: 'possible' | 'no-change' | 'unavailable' | 'downloaded'
+  revision: number
   remoteArchiveName?: string
   checkedAt: number
 }
@@ -24,7 +25,8 @@ function validTimestamp(value: unknown): value is number {
 function validResult(value: unknown): value is SoundPackageUpdateResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const result = value as Partial<SoundPackageUpdateResult>
-  return (result.status === 'possible' || result.status === 'no-change' || result.status === 'unavailable') &&
+  return (result.status === 'possible' || result.status === 'no-change' || result.status === 'unavailable' || result.status === 'downloaded') &&
+    typeof result.revision === 'number' && Number.isSafeInteger(result.revision) && result.revision >= 0 &&
     validTimestamp(result.checkedAt) &&
     (result.remoteArchiveName === undefined || (typeof result.remoteArchiveName === 'string' && result.remoteArchiveName.length <= 256))
 }
@@ -36,6 +38,7 @@ export type SoundPackageUpdateController = {
   total: number
   lastCheckedAt: number | null
   refresh: () => Promise<void>
+  markDownloaded: (packageId: string, revision: number, archiveName: string) => void
 }
 
 function readCache(): UpdateCache {
@@ -71,7 +74,9 @@ export function useSoundPackageUpdates(packages: SoundPackage[], enabled: boolea
   const [total, setTotal] = useState(0)
   const inFlightRef = useRef(false)
   const cacheRef = useRef(cache)
+  const packagesRef = useRef(packages)
   cacheRef.current = cache
+  packagesRef.current = packages
 
   const refresh = useCallback(async (force = true) => {
     if (inFlightRef.current || packages.length === 0) return
@@ -79,8 +84,8 @@ export function useSoundPackageUpdates(packages: SoundPackage[], enabled: boolea
     const targets = force
       ? packages
       : packages.filter(packageInfo => {
-          const checkedAt = cacheRef.current.results[packageInfo.id]?.checkedAt ?? 0
-          return now - checkedAt >= automaticCheckIntervalMs
+          const result = cacheRef.current.results[packageInfo.id]
+          return result?.revision !== packageInfo.revision || now - (result?.checkedAt ?? 0) >= automaticCheckIntervalMs
         })
     if (targets.length === 0) return
 
@@ -108,17 +113,21 @@ export function useSoundPackageUpdates(packages: SoundPackage[], enabled: boolea
     try {
       await Promise.all(Array.from({ length: Math.min(maxConcurrentChecks, groups.length) }, () => worker()))
       const checkedAt = Date.now()
-      const packageIds = new Set(packages.map(packageInfo => packageInfo.id))
+      const currentPackages = packagesRef.current
+      const packageIds = new Set(currentPackages.map(packageInfo => packageInfo.id))
       const retainedResults = Object.fromEntries(Object.entries(cacheRef.current.results)
         .filter(([packageId]) => packageIds.has(packageId)))
       const nextCache: UpdateCache = { ...cacheRef.current, lastCheckedAt: checkedAt, results: retainedResults }
       const checkedGroups = new Set(groups)
-      for (const packageInfo of packages) {
+      for (const checkedPackage of targets) {
+        const packageInfo = currentPackages.find(candidate => candidate.id === checkedPackage.id)
+        if (!packageInfo || packageInfo.revision !== checkedPackage.revision) continue
         if (!checkedGroups.has(packageInfo.langGroup)) continue
         const latest = latestByGroup.get(packageInfo.langGroup)
         const sameName = latest?.available && normalizeFileName(latest.name) === normalizeFileName(packageInfo.archiveName)
         nextCache.results[packageInfo.id] = {
           status: !latest?.available ? 'unavailable' : sameName ? 'no-change' : 'possible',
+          revision: packageInfo.revision,
           remoteArchiveName: latest?.name,
           checkedAt,
         }
@@ -132,9 +141,25 @@ export function useSoundPackageUpdates(packages: SoundPackage[], enabled: boolea
     }
   }, [packages])
 
+  const markDownloaded = useCallback((packageId: string, revision: number, archiveName: string) => {
+    packagesRef.current = packagesRef.current.map(packageInfo =>
+      packageInfo.id === packageId ? { ...packageInfo, revision, archiveName } : packageInfo,
+    )
+    const nextCache: UpdateCache = {
+      ...cacheRef.current,
+      results: {
+        ...cacheRef.current.results,
+        [packageId]: { status: 'downloaded', revision, remoteArchiveName: archiveName, checkedAt: Date.now() },
+      },
+    }
+    cacheRef.current = nextCache
+    setCache(nextCache)
+    writeCache(nextCache)
+  }, [])
+
   useEffect(() => {
     if (enabled) void refresh(false)
   }, [enabled, refresh, checking])
 
-  return { ...cache, checking, completed, total, refresh: () => refresh(true) }
+  return { ...cache, checking, completed, total, refresh: () => refresh(true), markDownloaded }
 }

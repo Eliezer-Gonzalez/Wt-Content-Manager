@@ -17,6 +17,8 @@ import {
   type SoundPackage,
 } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'
+import { useSoundPackageUpdateTransfer } from './useSoundPackageUpdateTransfer'
+import { announceDownloadCompletion } from '../lib/downloadCompletion'
 
 export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   const { t } = useI18n()
@@ -62,6 +64,12 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   }, [formatError])
   const refreshPackagesRef = useRef(refreshPackages)
   refreshPackagesRef.current = refreshPackages
+  const updateTransfer = useSoundPackageUpdateTransfer({
+    canStart: () => taskIdRef.current === null,
+    refreshPackages,
+    formatError,
+    setError,
+  })
 
   const refreshStatus = useCallback(async () => {
     const requestedPath = gamePath
@@ -109,7 +117,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   }, [refreshStatus, shouldLoadStatus])
 
   const download = useCallback(async (item: WtLiveItem) => {
-    if (!isTauriRuntime || taskIdRef.current) return
+    if (!isTauriRuntime || taskIdRef.current || updateTransfer.busy) return
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
     setDownloadingId(item.id)
@@ -121,6 +129,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
       await downloadSoundPackage(item, taskId, progress => {
         if (mountedRef.current) setDownloadProgress(progress)
       })
+      announceDownloadCompletion('sound', item.title || item.fileName || t('soundMod'))
       await refreshPackages()
     } catch (cause) {
       if (mountedRef.current) setError(formatError(cause))
@@ -133,7 +142,7 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
         setPaused(false)
       }
     }
-  }, [formatError, refreshPackages])
+  }, [formatError, refreshPackages, t, updateTransfer.busy])
 
   const togglePause = useCallback(async () => {
     const taskId = taskIdRef.current
@@ -261,6 +270,9 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     loading: packageLoading,
     statusLoading,
     downloadProgress,
+    updatePackageId: updateTransfer.packageId,
+    updateProgress: updateTransfer.progress,
+    updatePaused: updateTransfer.paused,
     downloadingId,
     downloadingItem,
     installingId,
@@ -270,6 +282,12 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     error,
     dismissError,
     download,
+    updatePackage: updateTransfer.update,
+    toggleUpdatePause: updateTransfer.togglePause,
+    cancelUpdate: updateTransfer.cancel,
+    prepareCancelUpdate: updateTransfer.prepareCancel,
+    continueAfterUpdateCancelPrompt: updateTransfer.continueAfterCancelPrompt,
+    dismissUpdateCancelPrompt: updateTransfer.dismissCancelPrompt,
     togglePause,
     cancelDownload,
     prepareCancelDownload,

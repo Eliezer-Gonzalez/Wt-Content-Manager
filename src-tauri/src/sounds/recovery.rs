@@ -52,6 +52,7 @@ pub fn recover_pending(app_data_dir: &Path, game_root: &Path) -> Result<bool, Ap
     if !committed {
         if let Some(mut state) = journal::read_state(&paths)? {
             state.active_package_id = journal_record.previous_package_id;
+            state.active_package_revision = journal_record.previous_package_revision;
             journal::write_state(&paths, &state)?;
         }
     }
@@ -71,6 +72,8 @@ pub fn write_transaction(
     had_current: bool,
     next_package_id: Option<String>,
     previous_package_id: Option<String>,
+    next_package_revision: Option<u64>,
+    previous_package_revision: Option<u64>,
 ) -> Result<(), AppError> {
     journal::write_journal(
         paths,
@@ -80,6 +83,8 @@ pub fn write_transaction(
             had_current,
             next_package_id,
             previous_package_id,
+            next_package_revision,
+            previous_package_revision,
             committed: false,
         },
     )

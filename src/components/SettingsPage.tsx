@@ -9,7 +9,9 @@ import { SettingsAboutCard } from './SettingsAboutCard'
 import { TemporaryFilesCard } from './TemporaryFilesCard'
 import { ResetLocalDataCard } from './ResetLocalDataCard'
 import { ImageQualitySettingsCard } from './ImageQualitySettingsCard'
+import { NotificationSettingsCard } from './NotificationSettingsCard'
 import type { ImageQualityMode } from '../lib/imageQuality'
+import type { useCompletionNotificationSettings } from '../hooks/useCompletionNotificationSettings'
 
 type DiagnosticsState = ReturnType<typeof useDiagnosticsSettings>
 
@@ -22,9 +24,10 @@ type Props = {
   onOpenGameSetup: () => void
   onRescanGame: () => void
   onViewLegalNotice: () => void
+  notificationSettings: ReturnType<typeof useCompletionNotificationSettings>
 }
 
-export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice }: Props) {
+export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice, notificationSettings }: Props) {
   const { t } = useI18n()
   const diagnosticsEnabled = diagnostics.settings?.enabled ?? diagnostics.supported
 
@@ -119,6 +122,14 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
         </section>
 
         <ImageQualitySettingsCard value={imageQuality} onChange={onChangeImageQuality} />
+        <div className="min-w-0 xl:col-span-2">
+          <NotificationSettingsCard
+            preferences={notificationSettings.preferences}
+            onShowNotificationsChange={notificationSettings.setShowNotifications}
+            onSoundEnabledChange={notificationSettings.setSoundEnabled}
+            onVolumeChange={notificationSettings.setVolume}
+          />
+        </div>
         <div className="min-w-0 xl:col-span-2"><TemporaryFilesCard gameInstall={gameInstall} /></div>
         <div className="min-w-0 xl:col-span-2">
           <SettingsAboutCard onViewLegalNotice={onViewLegalNotice} />

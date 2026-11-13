@@ -17,11 +17,13 @@ type Props = {
   onInstall: (packageInfo: SoundPackage) => void
   onUninstall: () => void
   onOpenPost: (item: WtLiveItem) => void
+  onRequestUpdate: (packageInfo: SoundPackage) => void
 }
 
-export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady, checkingStatus, busy, onInstall, onUninstall, onOpenPost }: Props) {
+export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady, checkingStatus, busy, onInstall, onUninstall, onOpenPost, onRequestUpdate }: Props) {
   const { t, locale } = useI18n()
   const active = status?.activePackageId === packageInfo.id
+  const activeRevision = active && status?.activePackageRevision === packageInfo.revision
   const date = new Date(packageInfo.downloadedAt)
   const downloadedDate = Number.isNaN(date.getTime())
     ? t('unknownDate')
@@ -58,17 +60,25 @@ export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady,
         </div>
       </div>
 
-      <AppTooltip content={packageInfo.archiveName} className="mt-3 w-full">
-        <p className="mb-0 flex min-w-0 items-center gap-1.5 truncate text-xs text-[#a2aa9c]">
-          <FileArchive size={13} className="shrink-0" aria-hidden="true" />{packageInfo.archiveName}
-        </p>
-      </AppTooltip>
-      {updateStatus?.status === 'possible' && (
-        <p className="mb-0 mt-2 border border-[#766638] bg-[#302b1d] px-2.5 py-2 text-xs leading-5 text-[#dfd5b6]">
-          <strong className="font-semibold text-[#f1e6c5]">{t('soundUpdatePossible')}</strong>
-          {updateStatus.remoteArchiveName && <span className="block break-all text-[11px]">{t('soundUpdateRemoteFile', { file: updateStatus.remoteArchiveName })}</span>}
-        </p>
-      )}
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        <AppTooltip content={packageInfo.archiveName} className="min-w-0 flex-1">
+          <p className="mb-0 flex min-w-0 items-center gap-1.5 truncate text-[#a2aa9c]">
+            <FileArchive size={13} className="shrink-0" aria-hidden="true" /><span className="truncate">{packageInfo.archiveName}</span>
+          </p>
+        </AppTooltip>
+        {updateStatus?.status === 'possible' && (
+          <button
+            type="button"
+            className="shrink-0 rounded-sm text-left font-medium text-amber-300 underline decoration-amber-300/50 underline-offset-2 hover:text-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => onRequestUpdate(packageInfo)}
+            disabled={busy}
+            aria-label={t('soundUpdatePossibleAria', { title: packageInfo.title || packageInfo.archiveName })}
+          >{t('soundUpdatePossible')}</button>
+        )}
+        {updateStatus?.status === 'downloaded' && (
+          <span className="shrink-0 text-[#b4d882]">{t('soundUpdateDownloaded')}</span>
+        )}
+      </div>
       {updateStatus?.status === 'unavailable' && (
         <p className="mb-0 mt-2 text-xs text-[#c1aa7a]">{t('soundUpdateUnavailable')}</p>
       )}
@@ -106,17 +116,22 @@ export function SoundPackageCard({ packageInfo, status, updateStatus, gameReady,
           <span>{t('viewPost')}</span><ExternalLink size={13} aria-hidden="true" />
         </Button>
         <Button
-          variant={active ? 'secondary' : 'primary'}
+          variant={activeRevision ? 'secondary' : 'primary'}
           size="sm"
           className="min-w-0 flex-1 justify-center"
           disabled={!gameReady || checkingStatus || busy}
-          onClick={() => active ? onUninstall() : onInstall(packageInfo)}
+          onClick={() => activeRevision ? onUninstall() : onInstall(packageInfo)}
         >
           {checkingStatus
             ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            : active ? <Trash2 size={14} aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
-          {t(checkingStatus ? 'checkingSoundStatus' : active ? 'soundUninstall' : 'soundInstallPackage')}
+            : activeRevision ? <Trash2 size={14} aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
+          {t(checkingStatus ? 'checkingSoundStatus' : activeRevision ? 'soundUninstall' : 'soundInstallPackage')}
         </Button>
+        {active && !activeRevision && (
+          <Button variant="danger" size="sm" className="shrink-0 px-2" disabled={!gameReady || checkingStatus || busy} onClick={onUninstall} aria-label={t('soundUninstall')} title={t('soundUninstall')}>
+            <Trash2 size={14} aria-hidden="true" />
+          </Button>
+        )}
       </div>
     </article>
   )
