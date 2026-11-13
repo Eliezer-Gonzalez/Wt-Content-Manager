@@ -3,11 +3,7 @@ import { fetchPostDetail, type WtLiveDetail, type WtLiveItem } from '../lib/wtLi
 import { formatWtLiveError } from '../lib/appError'
 import { useI18n } from '../i18n/I18nContext'
 
-type Options = {
-  onResetInstallState?: () => void
-}
-
-export function usePostDetail({ onResetInstallState }: Options = {}) {
+export function usePostDetail() {
   const { t } = useI18n()
   const [selected, setSelected] = useState<WtLiveItem | null>(null)
   const [detail, setDetail] = useState<WtLiveDetail | null>(null)
@@ -16,14 +12,12 @@ export function usePostDetail({ onResetInstallState }: Options = {}) {
   const detailRequestIdRef = useRef(0)
 
   const openPost = useCallback((item: WtLiveItem) => {
-    onResetInstallState?.()
     setSelected(item)
-  }, [onResetInstallState])
+  }, [])
 
   const closePost = useCallback(() => {
-    onResetInstallState?.()
     setSelected(null)
-  }, [onResetInstallState])
+  }, [])
 
   useEffect(() => {
     const requestId = ++detailRequestIdRef.current

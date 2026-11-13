@@ -83,10 +83,12 @@ pub async fn install_skin(
     game_path: String,
     task_id: String,
     replace_folder_name: Option<String>,
+    external_folder_names: Vec<String>,
     on_progress: Channel<skins::download_task::SkinInstallProgress>,
     manager: State<'_, skins::download_task::DownloadManager>,
+    pending: State<'_, skins::PreparedInstallRegistry>,
     logger: State<'_, logging::DiagnosticLogger>,
-) -> Result<skins::InstallResult, AppError> {
+) -> Result<skins::SkinInstallOutcome, AppError> {
     let result = skins::install_skin(
         lang_group,
         &game_path,
@@ -94,9 +96,45 @@ pub async fn install_skin(
         replace_folder_name.as_deref(),
         on_progress,
         &manager,
+        &pending,
+        external_folder_names,
     )
     .await;
     record_failure(&logger, "install_skin", result)
+}
+
+#[tauri::command]
+pub async fn resolve_prepared_skin_install(
+    pending_id: String,
+    action: String,
+    folder_name: Option<String>,
+    pending: State<'_, skins::PreparedInstallRegistry>,
+    logger: State<'_, logging::DiagnosticLogger>,
+) -> Result<skins::SkinInstallOutcome, AppError> {
+    let registry = pending.inner().clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        skins::resolve_prepared_skin_install(&registry, &pending_id, &action, folder_name.as_deref())
+    })
+    .await
+    .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))
+    .and_then(|result| result);
+    record_failure(&logger, "resolve_prepared_skin_install", result)
+}
+
+#[tauri::command]
+pub async fn cancel_prepared_skin_install(
+    pending_id: String,
+    pending: State<'_, skins::PreparedInstallRegistry>,
+    logger: State<'_, logging::DiagnosticLogger>,
+) -> Result<(), AppError> {
+    let registry = pending.inner().clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        skins::cancel_prepared_skin_install(&registry, &pending_id)
+    })
+    .await
+    .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))
+    .and_then(|result| result);
+    record_failure(&logger, "cancel_prepared_skin_install", result)
 }
 
 #[tauri::command]

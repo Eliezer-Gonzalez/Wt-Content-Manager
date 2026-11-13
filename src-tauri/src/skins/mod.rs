@@ -2,8 +2,10 @@ mod archive;
 mod archive_paths;
 pub(crate) mod download;
 pub mod download_task;
+mod duplicate_detection;
 mod install;
 mod install_staging;
+mod pending_install;
 pub mod library;
 pub(crate) mod paths;
 pub(crate) mod recovery;
@@ -18,4 +20,5 @@ pub use staging::{
     DEFAULT_ORPHAN_AGE_THRESHOLD, STAGING_PREFIX, STAGING_SUFFIX_LEN,
 };
 
-pub use install::{install_skin, InstallResult};
+pub use install::{cancel_prepared_skin_install, install_skin, resolve_prepared_skin_install, SkinInstallOutcome};
+pub use pending_install::PreparedInstallRegistry;

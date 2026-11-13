@@ -8,6 +8,7 @@ use crate::AppError;
 const PREPARING: u8 = 0;
 const DOWNLOADING: u8 = 1;
 const EXTRACTING: u8 = 2;
+const COMPARING: u8 = 3;
 
 #[derive(Default)]
 pub struct DownloadManager {
@@ -57,14 +58,14 @@ impl DownloadManager {
 
     pub fn set_paused(&self, task_id: &str, paused: bool) -> Result<(), AppError> {
         let control = self.get(task_id)?;
-        control.ensure_downloading()?;
+        control.ensure_pauseable()?;
         control.paused.store(paused, Ordering::SeqCst);
         Ok(())
     }
 
     pub fn cancel(&self, task_id: &str) -> Result<(), AppError> {
         let control = self.get(task_id)?;
-        control.ensure_downloading()?;
+        control.ensure_cancellable()?;
         control.cancelled.store(true, Ordering::SeqCst);
         control.paused.store(false, Ordering::SeqCst);
         Ok(())
@@ -95,6 +96,10 @@ impl DownloadControl {
         self.phase.store(EXTRACTING, Ordering::SeqCst);
     }
 
+    pub fn begin_comparison(&self) {
+        self.phase.store(COMPARING, Ordering::SeqCst);
+    }
+
     pub fn is_paused(&self) -> bool {
         self.paused.load(Ordering::SeqCst)
     }
@@ -107,6 +112,14 @@ impl DownloadControl {
         self.check_cancelled()
     }
 
+    pub fn wait_until_resumed_blocking(&self) -> Result<(), AppError> {
+        while self.is_paused() {
+            self.check_cancelled()?;
+            std::thread::sleep(std::time::Duration::from_millis(120));
+        }
+        self.check_cancelled()
+    }
+
     pub fn check_cancelled(&self) -> Result<(), AppError> {
         if self.cancelled.load(Ordering::SeqCst) {
             Err(AppError::new("download_cancelled"))
@@ -115,11 +128,20 @@ impl DownloadControl {
         }
     }
 
-    fn ensure_downloading(&self) -> Result<(), AppError> {
-        if self.phase.load(Ordering::SeqCst) != DOWNLOADING {
-            return Err(AppError::new("download_control_unavailable"));
+    fn ensure_pauseable(&self) -> Result<(), AppError> {
+        if matches!(self.phase.load(Ordering::SeqCst), DOWNLOADING | COMPARING) {
+            Ok(())
+        } else {
+            Err(AppError::new("download_control_unavailable"))
         }
-        Ok(())
+    }
+
+    fn ensure_cancellable(&self) -> Result<(), AppError> {
+        if matches!(self.phase.load(Ordering::SeqCst), DOWNLOADING | COMPARING) {
+            Ok(())
+        } else {
+            Err(AppError::new("download_control_unavailable"))
+        }
     }
 }
 

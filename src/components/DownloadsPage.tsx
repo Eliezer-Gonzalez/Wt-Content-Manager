@@ -32,6 +32,9 @@ type CamouflageDownloads = {
   onRescan: () => void
   onOpenPost: ComponentProps<typeof InstalledSkinCard>['onOpen']
   onUninstall: ComponentProps<typeof InstalledSkinCard>['onUninstall']
+  onUnlinkPublication: ComponentProps<typeof InstalledSkinCard>['onUnlinkPublication']
+  isSaved: (entry: InstalledSkin) => boolean
+  onToggleSaved: ComponentProps<typeof InstalledSkinCard>['onToggleSaved']
 }
 
 type SoundDownloads = {
@@ -59,7 +62,6 @@ type Props = {
 }
 
 const isApple = typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(navigator.userAgent || navigator.platform || '')
-
 export function DownloadsPage({ category, onCategoryChange, camouflages, sounds, searchInputRef, onExploreCamouflages }: Props) {
   const { t } = useI18n()
   const [openingUserSkins, setOpeningUserSkins] = useState(false)
@@ -193,7 +195,7 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
                 resetKey={`downloads-camouflages-${camouflages.query}-${camouflages.origin}-${camouflages.sort}`}
                 getKey={entry => entry.path}
                 gridClassName="grid grid-cols-2 gap-3 min-[1100px]:grid-cols-3 min-[1600px]:grid-cols-4 min-[2300px]:grid-cols-5 max-[720px]:grid-cols-1"
-                renderItem={entry => <InstalledSkinCard entry={entry} showPreview onOpen={camouflages.onOpenPost} onUninstall={camouflages.onUninstall} />}
+                renderItem={entry => <InstalledSkinCard entry={entry} showPreview onOpen={camouflages.onOpenPost} onUninstall={camouflages.onUninstall} onUnlinkPublication={camouflages.onUnlinkPublication} isSaved={camouflages.isSaved(entry)} onToggleSaved={camouflages.onToggleSaved} />}
               />
             )}
           </>

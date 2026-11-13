@@ -19,11 +19,12 @@ type Props = {
   installing: boolean
   onZoom: (image: ZoomedImage) => void
   onOverlayChange: (open: boolean) => void
+  blockingDialogOpen?: boolean
   onSearchHashtag: (hashtag: string) => void
 }
 
 export function PostDetailBody({
-  item, detail, imageQuality, loading, error, installing, onZoom, onOverlayChange, onSearchHashtag,
+  item, detail, imageQuality, loading, error, installing, onZoom, onOverlayChange, onSearchHashtag, blockingDialogOpen = false,
 }: Props) {
   const { t } = useI18n()
   const hasDescription = detail?.description.some(block => block.type !== 'image') ?? false
@@ -100,7 +101,7 @@ export function PostDetailBody({
               />
             </button>
           ) : (
-            <WtLiveDescriptionText block={block} imageQuality={imageQuality} onOverlayChange={onOverlayChange} originPost={item} key={index} />
+            <WtLiveDescriptionText block={block} imageQuality={imageQuality} onOverlayChange={onOverlayChange} originPost={item} blockingDialogOpen={blockingDialogOpen} key={index} />
           ))
         ) : (
           <WtLiveDescriptionText
@@ -108,6 +109,7 @@ export function PostDetailBody({
             imageQuality={imageQuality}
             onOverlayChange={onOverlayChange}
             originPost={item}
+            blockingDialogOpen={blockingDialogOpen}
           />
         )}
       </section>

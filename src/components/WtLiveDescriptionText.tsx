@@ -38,10 +38,11 @@ type Props = {
   renderLinkedPostActions?: (item: WtLiveItem) => ReactNode
   originPost?: WtLivePostReference
   onOpenWtLivePost?: (reference: WtLivePostReference) => void
+  blockingDialogOpen?: boolean
 }
 
 export function WtLiveDescriptionText({
-  block, onOverlayChange, cancelDialogOpen = false, imageQuality = 'optimized', renderLinkedPostActions, originPost, onOpenWtLivePost,
+  block, onOverlayChange, cancelDialogOpen = false, imageQuality = 'optimized', renderLinkedPostActions, originPost, onOpenWtLivePost, blockingDialogOpen = false,
 }: Props) {
   const { t } = useI18n()
   const [externalTarget, setExternalTarget] = useState<{ url: string; host: string } | null>(null)
@@ -55,8 +56,14 @@ export function WtLiveDescriptionText({
     containerRef: confirmRef,
     initialFocusRef: cancelRef,
     onClose: () => setExternalTarget(null),
-    enabled: Boolean(externalTarget),
+    enabled: Boolean(externalTarget) && !blockingDialogOpen,
   })
+  useEffect(() => {
+    if (!blockingDialogOpen) return
+    setExternalTarget(null)
+    setExternalError(false)
+    setLinkedPost(null)
+  }, [blockingDialogOpen])
   useEffect(() => {
     const open = Boolean(externalTarget || linkedPost)
     if (open) onOverlayChange?.(true)
@@ -64,6 +71,10 @@ export function WtLiveDescriptionText({
   }, [externalTarget, linkedPost, onOverlayChange])
 
   useEffect(() => {
+    if (blockingDialogOpen) {
+      overlayWasOpenRef.current = false
+      return
+    }
     const open = Boolean(externalTarget || linkedPost)
     if (open) {
       overlayWasOpenRef.current = true
@@ -73,7 +84,7 @@ export function WtLiveDescriptionText({
     overlayWasOpenRef.current = false
     const frame = window.requestAnimationFrame(() => sourceLinkRef.current?.focus())
     return () => window.cancelAnimationFrame(frame)
-  }, [externalTarget, linkedPost])
+  }, [externalTarget, linkedPost, blockingDialogOpen])
 
   function handleLink(url: string, source: HTMLElement) {
     sourceLinkRef.current = source
@@ -152,7 +163,7 @@ export function WtLiveDescriptionText({
         </p>
       )}
 
-      {externalTarget && (
+      {externalTarget && !blockingDialogOpen && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4" onClick={() => setExternalTarget(null)}>
           <section
             ref={confirmRef}
@@ -181,7 +192,7 @@ export function WtLiveDescriptionText({
         </div>
       )}
 
-      {linkedPost && (
+      {linkedPost && !blockingDialogOpen && (
         <WtLiveLinkedPostDialog
           langGroup={linkedPost.langGroup}
           language={linkedPost.language}

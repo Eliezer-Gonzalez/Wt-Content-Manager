@@ -1,7 +1,7 @@
-import { CalendarDays, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, Info, Trash2 } from 'lucide-react'
+import { Bookmark, CalendarDays, ExternalLink, FileArchive, FolderOpen, HardDriveDownload, Info, Trash2, Unlink } from 'lucide-react'
 import { Button } from './ui/Button'
 import { InstalledSkinPreview } from './InstalledSkinPreview'
-import type { InstalledSkin } from '../lib/localLibrary'
+import { getSkinPublication, type InstalledSkin } from '../lib/localLibrary'
 import type { WtLiveItem } from '../lib/wtLive'
 import { formatFileSize, truncateMiddle } from '../lib/format'
 import { useI18n } from '../i18n/I18nContext'
@@ -12,17 +12,21 @@ type Props = {
   showPreview?: boolean
   onOpen: (item: WtLiveItem) => void
   onUninstall: (entry: InstalledSkin) => void
+  onUnlinkPublication?: (entry: InstalledSkin) => void
+  isSaved?: boolean
+  onToggleSaved?: (item: WtLiveItem) => void
 }
 
-export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninstall }: Props) {
+export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninstall, onUnlinkPublication, isSaved = false, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
   const installedDate = entry.installedAt ? new Date(entry.installedAt) : null
   const date = installedDate && !Number.isNaN(installedDate.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(installedDate) : t('unknownDate')
-  const title = entry.item?.title || entry.folderName
-  const subtitle = entry.item?.fileName || (entry.item ? entry.folderName : t('installedExternalSource'))
+  const publication = getSkinPublication(entry)
+  const title = publication?.title || entry.folderName
+  const subtitle = entry.item?.fileName || (entry.item ? entry.folderName : entry.externalPublication?.item.fileName || t('installedExternalSource'))
 
   return <article className="h-full flex min-w-0 flex-col border border-[#30372f] bg-wt-panel p-4 transition-colors hover:border-[#687354]">
-    {showPreview && <InstalledSkinPreview imageUrl={entry.item?.imageUrl} title={title} />}
+    {showPreview && <InstalledSkinPreview imageUrl={publication?.imageUrl} title={title} />}
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><HardDriveDownload size={18}/></span>
       <div className="min-w-0 flex-1">
@@ -38,11 +42,18 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
     </dl>
     <AppTooltip content={entry.path} className="mb-3 mt-3"><p className="mb-0 w-full break-all border border-[#343b32] bg-[#1b201b] p-2 text-[11px] leading-4 text-[#9fa899]">{truncateMiddle(entry.path, 72)}</p></AppTooltip>
     <div className="mt-auto flex items-center gap-2 pt-1">
-      {entry.item ? (
-        <Button variant="secondary" size="sm" className="flex-1 justify-center" onClick={() => onOpen(entry.item!)} aria-label={t('viewPostAria', { title })}>
-          <span>{t('viewPost')}</span>
-          <ExternalLink size={13} aria-hidden="true" />
-        </Button>
+      {publication ? (
+        <>
+          <Button variant="secondary" size="sm" className="flex-1 justify-center" onClick={() => onOpen(publication)} aria-label={t('viewPostAria', { title })}>
+            <span>{t('viewPost')}</span>
+            <ExternalLink size={13} aria-hidden="true" />
+          </Button>
+          {onToggleSaved && <AppTooltip content={t(isSaved ? 'removeFavorite' : 'addFavorite')} align="end">
+            <Button variant="quiet" size="sm" onClick={() => onToggleSaved(publication)} aria-label={t(isSaved ? 'removeFavorite' : 'addFavorite')} aria-pressed={isSaved}>
+              <Bookmark size={14} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+            </Button>
+          </AppTooltip>}
+        </>
       ) : (
         <span className="inline-flex min-h-8 flex-1 items-center justify-center gap-2 border border-[#394136] bg-[#20261f] px-2.5 py-1 text-xs text-[#9fa896]">
           {t('installedExternalBadge')}
@@ -52,6 +63,13 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
             </span>
           </AppTooltip>
         </span>
+      )}
+      {entry.externalPublication && onUnlinkPublication && (
+        <AppTooltip content={t('externalSkinUnlink')} align="end">
+          <Button variant="quiet" size="sm" onClick={() => onUnlinkPublication(entry)} aria-label={t('externalSkinUnlinkAria', { name: entry.folderName })}>
+            <Unlink size={14} aria-hidden="true" />
+          </Button>
+        </AppTooltip>
       )}
       <AppTooltip content={t('uninstallSkin')} align="end">
         <Button variant="danger" size="sm" onClick={() => onUninstall(entry)} aria-label={t('uninstallSkinAria', { name: title })}>

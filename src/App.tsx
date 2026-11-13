@@ -7,6 +7,7 @@ import { NavigationSidebar, type AppSection } from './components/NavigationSideb
 import { SectionHeader } from './components/HeroBanner'
 import { PostCard } from './components/PostCard'
 import { PostDetailsOverlay } from './components/PostDetailsOverlay'
+import { DuplicateSkinDecisionDialog } from './components/DuplicateSkinDecisionDialog'
 import { CamouflageFeedSection } from './components/CamouflageFeedSection'
 import { DownloadsPage } from './components/DownloadsPage'
 import { SoundManagerPage } from './components/SoundManagerPage'
@@ -19,7 +20,7 @@ import { BackToTopButton } from './components/BackToTopButton'
 import { Button } from './components/ui/Button'
 import { useGameInstallation } from './hooks/useGameInstallation'
 import { useLocalLibrary } from './hooks/useLocalLibrary'
-import { useSkinInstaller } from './hooks/useSkinInstaller'
+import { useCamouflageManagement } from './hooks/useCamouflageManagement'
 import { useSectionSearch } from './hooks/useSectionSearch'
 import { useCamouflageFeed } from './hooks/useCamouflageFeed'
 import { usePostDetail } from './hooks/usePostDetail'
@@ -75,11 +76,13 @@ export default function App() {
     soundLibrary.packages,
     active === 'downloads' && downloadsCategory === 'sounds' && !soundLibrary.loading,
   )
-  const skinInstaller = useSkinInstaller({ gamePath: gameSetup.gameInstall?.path, t, onInstalled: library.recordInstallation })
-  const cancellation = useDownloadCancellation({ skinInstaller, soundLibrary })
-  const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail({
-    onResetInstallState: skinInstaller.resetInstallState,
+  const { skinInstaller, installedIds } = useCamouflageManagement({
+    gamePath: gameSetup.gameInstall?.path,
+    t,
+    library,
   })
+  const cancellation = useDownloadCancellation({ skinInstaller, soundLibrary })
+  const { selected, detail, detailLoading, detailError, openPost, closePost } = usePostDetail()
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
 
   const skinInstallerForUi = { ...skinInstaller, cancel: cancellation.requestSkinCancellation }
@@ -96,10 +99,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const installedIds = useMemo(
-    () => new Set(library.installedSkins.flatMap(s => (s.item?.id != null ? [s.item.id] : []))),
-    [library.installedSkins],
-  )
   const downloadedSoundLangGroups = useMemo(
     () => new Set(soundLibrary.packages.map(packageInfo => packageInfo.langGroup)),
     [soundLibrary.packages],
@@ -173,6 +172,12 @@ export default function App() {
             onRescan: () => void library.rescanSkins(),
             onOpenPost: openPost,
             onUninstall: library.requestUninstall,
+            onUnlinkPublication: entry => library.unlinkExternalPublication(entry.path),
+            isSaved: entry => {
+              const item = entry.item ?? entry.externalPublication?.item
+              return item ? isFavoriteSaved(item, 'camouflage') : false
+            },
+            onToggleSaved: library.toggleFavorite,
           }}
           sounds={{
             library: soundLibraryForUi,
@@ -303,6 +308,16 @@ export default function App() {
       onSearchSoundHashtag={handleSoundSearchHashtag}
       onSearchSkinHashtag={handleSearchHashtag}
       onClose={closePost}
+      blockingDialogOpen={Boolean(skinInstaller.duplicatePrompt)}
+    />
+    <DuplicateSkinDecisionDialog
+      candidates={skinInstaller.duplicatePrompt?.candidates ?? []}
+      resolving={skinInstaller.resolvingDuplicate}
+      error={skinInstaller.error}
+      onLinkExisting={folderName => void skinInstaller.resolveDuplicate('link_existing', folderName)}
+      onReplaceExisting={folderName => void skinInstaller.resolveDuplicate('replace_existing', folderName)}
+      onInstallCopy={() => void skinInstaller.resolveDuplicate('install_copy')}
+      onCancel={() => void skinInstaller.resolveDuplicate('cancel')}
     />
   </div>
 }

@@ -5,6 +5,11 @@ const storageKey = 'wt-content-manager-library-v1'
 
 export type InstalledSkin = {
   item?: WtLiveItem
+  externalPublication?: {
+    item: WtLiveItem
+    confirmedAt: string
+    folderPath: string
+  }
   folderName: string
   path: string
   fileCount: number
@@ -12,16 +17,23 @@ export type InstalledSkin = {
   installedAt: string
 }
 
+export type ExternalSkinPublication = {
+  item: WtLiveItem
+  confirmedAt: string
+  folderPath: string
+}
+
 export type LocalLibrary = {
   favorites: WtLiveItem[]
   installedSkins: InstalledSkin[]
+  externalSkinPublications: ExternalSkinPublication[]
 }
 
 export function sameFavorite(left: WtLiveItem, right: WtLiveItem): boolean {
   return left.id === right.id && (left.contentType ?? 'camouflage') === (right.contentType ?? 'camouflage')
 }
 
-const emptyLibrary: LocalLibrary = { favorites: [], installedSkins: [] }
+const emptyLibrary: LocalLibrary = { favorites: [], installedSkins: [], externalSkinPublications: [] }
 
 function safeWtUrl(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
@@ -58,33 +70,98 @@ export function loadLocalLibrary(): LocalLibrary {
       const saved = entry as Partial<InstalledSkin>
       if (typeof saved.folderName !== 'string' || typeof saved.path !== 'string') return []
       const item = storedItem(saved.item) ?? undefined
-      return [{ item, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1000), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
+      const external = saved.externalPublication
+      const externalItem = external && typeof external === 'object' ? storedItem(external.item) : null
+      const externalPublication = externalItem && external && typeof external.folderPath === 'string'
+        ? { item: externalItem, confirmedAt: typeof external.confirmedAt === 'string' ? external.confirmedAt : '', folderPath: external.folderPath.slice(0, 1200) }
+        : undefined
+      return [{ item, externalPublication, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
     }) : []
+    const savedLinks = Array.isArray(value.externalSkinPublications) ? value.externalSkinPublications : []
+    const externalSkinPublications = savedLinks.flatMap(saved => {
+      if (!saved || typeof saved !== 'object') return []
+      const link = saved as Partial<ExternalSkinPublication>
+      const item = storedItem(link.item)
+      if (!item || typeof link.folderPath !== 'string') return []
+      return [{ item, folderPath: link.folderPath.slice(0, 1200), confirmedAt: typeof link.confirmedAt === 'string' ? link.confirmedAt : '' }]
+    })
+    for (const entry of installedSkins) {
+      const link = entry.externalPublication
+      if (link && !externalSkinPublications.some(saved => normalizeSkinPath(saved.folderPath) === normalizeSkinPath(link.folderPath))) {
+        externalSkinPublications.push(link)
+      }
+    }
     return {
       favorites: [...new Map(favorites.map(item => [`${item.contentType ?? 'camouflage'}:${item.id}`, item])).values()],
       installedSkins,
+      externalSkinPublications,
     }
   } catch { return emptyLibrary }
 }
 
-export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[]): InstalledSkin[] {
-  const storedByFolder = new Map<string, InstalledSkin>()
+export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[], publicationLinks: ExternalSkinPublication[] = []): InstalledSkin[] {
+  const storedByIdentity = new Map<string, InstalledSkin>()
   for (const entry of stored) {
-    const key = entry.folderName.toLowerCase()
-    if (!storedByFolder.has(key)) storedByFolder.set(key, entry)
+    const key = `${entry.folderName.toLowerCase()}\0${normalizeSkinPath(entry.path)}`
+    if (!storedByIdentity.has(key)) storedByIdentity.set(key, entry)
   }
   return scanned.map(disk => {
-    const match = storedByFolder.get(disk.folderName.toLowerCase())
+    const key = `${disk.folderName.toLowerCase()}\0${normalizeSkinPath(disk.path)}`
+    const validMatch = storedByIdentity.get(key)
+    const externalPublication = publicationLinks.find(link => normalizeSkinPath(link.folderPath) === normalizeSkinPath(disk.path))
+      ?? (validMatch?.externalPublication && normalizeSkinPath(validMatch.externalPublication.folderPath) === normalizeSkinPath(disk.path) ? validMatch.externalPublication : undefined)
     const fallbackDate = disk.modifiedAtMs ? new Date(disk.modifiedAtMs).toISOString() : ''
     return {
-      item: match?.item,
+      item: validMatch?.item,
+      externalPublication,
       folderName: disk.folderName,
       path: disk.path,
       fileCount: disk.fileCount,
       sizeBytes: disk.sizeBytes,
-      installedAt: match?.installedAt || fallbackDate,
+      installedAt: validMatch?.installedAt || fallbackDate,
     }
   })
+}
+
+export function getSkinPublication(entry: InstalledSkin): WtLiveItem | undefined {
+  return entry.item ?? entry.externalPublication?.item
+}
+
+export function linkExternalSkinPublication(entries: InstalledSkin[], folderPath: string, item: WtLiveItem): InstalledSkin[] {
+  const target = normalizeSkinPath(folderPath)
+  return entries.map(entry => normalizeSkinPath(entry.path) === target
+    ? { ...entry, externalPublication: { item, confirmedAt: new Date().toISOString(), folderPath: entry.path } }
+    : entry)
+}
+
+export function unlinkExternalSkinPublication(entries: InstalledSkin[], folderPath: string): InstalledSkin[] {
+  const target = normalizeSkinPath(folderPath)
+  return entries.map(entry => {
+    if (normalizeSkinPath(entry.path) !== target) return entry
+    const { externalPublication: _removed, ...rest } = entry
+    return rest
+  })
+}
+
+export function upsertExternalSkinPublication(links: ExternalSkinPublication[], folderPath: string, item: WtLiveItem): ExternalSkinPublication[] {
+  const target = normalizeSkinPath(folderPath)
+  const link = { item, confirmedAt: new Date().toISOString(), folderPath }
+  return [...links.filter(saved => normalizeSkinPath(saved.folderPath) !== target), link]
+}
+
+export function removeExternalSkinPublication(links: ExternalSkinPublication[], folderPath: string): ExternalSkinPublication[] {
+  const target = normalizeSkinPath(folderPath)
+  return links.filter(saved => normalizeSkinPath(saved.folderPath) !== target)
+}
+
+function normalizeSkinPath(value: string): string {
+  let path = value.replace(/\//g, '\\')
+  if (path.toLowerCase().startsWith('\\\\?\\unc\\')) {
+    path = `\\\\${path.slice(8)}`
+  } else if (path.startsWith('\\\\?\\')) {
+    path = path.slice(4)
+  }
+  return path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
 }
 
 export function saveLocalLibrary(library: LocalLibrary): void {

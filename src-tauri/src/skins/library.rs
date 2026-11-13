@@ -20,10 +20,20 @@ pub struct ScannedSkin {
 
 pub fn scan_installed_skins(game_path: &str) -> Result<Vec<ScannedSkin>, AppError> {
     game_install::validate(game_path)?;
-    let userskins = Path::new(game_path).join("UserSkins");
+    let game_root = fs::canonicalize(game_path)?;
+    let userskins_path = game_root.join("UserSkins");
     let _mutation = lock_game_filesystem();
-    let _recovery = recover_pending_replacements(Path::new(game_path))
+    let _recovery = recover_pending_replacements(&game_root)
         .map_err(|error| AppError::with_detail("skin_recovery_required", error.to_string()))?;
+    let userskins_metadata = match fs::symlink_metadata(&userskins_path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    if userskins_metadata.file_type().is_symlink() || !userskins_metadata.is_dir() {
+        return Err(AppError::new("skin_invalid_folder"));
+    }
+    let userskins = fs::canonicalize(userskins_path)?;
     if !userskins.exists() {
         return Ok(Vec::new());
     }

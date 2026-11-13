@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isTauriRuntime } from '../lib/gameInstall'
-import { loadLocalLibrary, mergeScannedSkins, sameFavorite, saveLocalLibrary, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
+import { linkExternalSkinPublication, loadLocalLibrary, mergeScannedSkins, removeExternalSkinPublication, sameFavorite, saveLocalLibrary, unlinkExternalSkinPublication, upsertExternalSkinPublication, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
 import { scanInstalledSkins, uninstallSkin } from '../lib/skins'
 import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 import { formatAppError } from '../lib/appError'
@@ -33,7 +33,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
       const scanned = await scanInstalledSkins(gamePath)
       setLibrary(current => ({
         ...current,
-        installedSkins: mergeScannedSkins(scanned, current.installedSkins),
+        installedSkins: mergeScannedSkins(scanned, current.installedSkins, current.externalSkinPublications),
       }))
     } catch {
       /* Keep current installed list if scan fails. */
@@ -62,6 +62,23 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     setLibrary(current => ({
       ...current,
       installedSkins: [entry, ...current.installedSkins.filter(s => s.folderName.toLowerCase() !== entry.folderName.toLowerCase())],
+      externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, entry.path),
+    }))
+  }, [])
+
+  const linkExternalPublication = useCallback((folderPath: string, item: WtLiveItem) => {
+    setLibrary(current => ({
+      ...current,
+      installedSkins: linkExternalSkinPublication(current.installedSkins, folderPath, item),
+      externalSkinPublications: upsertExternalSkinPublication(current.externalSkinPublications, folderPath, item),
+    }))
+  }, [])
+
+  const unlinkExternalPublication = useCallback((folderPath: string) => {
+    setLibrary(current => ({
+      ...current,
+      installedSkins: unlinkExternalSkinPublication(current.installedSkins, folderPath),
+      externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, folderPath),
     }))
   }, [])
 
@@ -72,6 +89,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     setLibrary(current => ({
       ...current,
       installedSkins: current.installedSkins.filter(s => s.folderName.toLowerCase() !== entry.folderName.toLowerCase()),
+      externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, entry.path),
     }))
   }, [gamePath])
 
@@ -114,6 +132,8 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     rescanSkins,
     toggleFavorite,
     recordInstallation,
+    linkExternalPublication,
+    unlinkExternalPublication,
     uninstallInstalledSkin,
     uninstallTarget,
     uninstalling,

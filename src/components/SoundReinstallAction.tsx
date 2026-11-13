@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LoaderCircle, RefreshCw } from 'lucide-react'
 import { Button } from './ui/Button'
 import { SoundActionConfirmDialog } from './SoundActionConfirmDialog'
@@ -10,15 +10,22 @@ type Props = {
   packageInfo: SoundPackage
   library: SoundLibraryController
   canInstall: boolean
+  blockingDialogOpen?: boolean
   onConfirmingChange?: (confirming: boolean) => void
 }
 
-export function SoundReinstallAction({ packageInfo, library, canInstall, onConfirmingChange }: Props) {
+export function SoundReinstallAction({ packageInfo, library, canInstall, blockingDialogOpen = false, onConfirmingChange }: Props) {
   const { t } = useI18n()
   const [checking, setChecking] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [statusWarning, setStatusWarning] = useState<'running' | 'unknown' | null>(null)
   const installing = library.installingId === packageInfo.id
+
+  useEffect(() => {
+    if (!blockingDialogOpen || !confirming) return
+    setConfirming(false)
+    onConfirmingChange?.(false)
+  }, [blockingDialogOpen, confirming, onConfirmingChange])
 
   async function requestReinstall() {
     if (!canInstall || checking || installing) return
@@ -62,7 +69,7 @@ export function SoundReinstallAction({ packageInfo, library, canInstall, onConfi
           : <RefreshCw size={15} aria-hidden="true" />}
         {t(checking ? 'checkingSoundStatus' : 'soundReinstallPackage')}
       </Button>
-      {confirming && (
+      {confirming && !blockingDialogOpen && (
         <SoundActionConfirmDialog
           title={t('confirmSoundReinstall')}
           description={t('confirmSoundReinstallDescription', { title: packageInfo.title || packageInfo.archiveName })}

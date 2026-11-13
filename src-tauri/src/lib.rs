@@ -24,11 +24,20 @@ pub fn run() {
             }
         }))
         .manage(skins::download_task::DownloadManager::default())
+        .manage(skins::PreparedInstallRegistry::default())
         .manage(logging::DiagnosticLogger::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let logger = app.state::<logging::DiagnosticLogger>().inner().clone();
+            let prepared_installs = app.state::<skins::PreparedInstallRegistry>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    let registry = prepared_installs.clone();
+                    let _ = tauri::async_runtime::spawn_blocking(move || registry.prune_expired()).await;
+                }
+            });
             if let Ok(app_data_dir) = app.path().app_data_dir() {
                 if let Err(error) = logger.initialize(&app_data_dir.join("logs")) {
                     eprintln!("Could not initialize local diagnostics: {error}");
@@ -51,6 +60,8 @@ pub fn run() {
             commands::detect_game_installations,
             commands::validate_game_installation,
             commands::install_skin,
+            commands::resolve_prepared_skin_install,
+            commands::cancel_prepared_skin_install,
             commands::set_skin_download_paused,
             commands::cancel_skin_download,
             commands::scan_installed_skins,

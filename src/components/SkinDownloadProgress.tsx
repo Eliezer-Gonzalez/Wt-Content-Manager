@@ -17,18 +17,20 @@ export function SkinDownloadProgress({ progress, paused, cancelling, onTogglePau
   const { t, locale } = useI18n()
   const downloading = progress?.phase === 'downloading'
   const isExtracting = progress?.phase === 'extracting'
+  const isComparing = progress?.phase === 'comparing'
+  const canCancel = downloading || isComparing
   const isPreparing = !progress || progress.phase === 'preparing'
   const percentage = downloading && progress.totalBytes
     ? getDownloadPercentage(progress.downloadedBytes, progress.totalBytes)
     : isExtracting ? 100 : isPreparing ? 0 : null
-  const status = isExtracting ? t('skinExtracting')
+  const status = isComparing ? t('skinComparing') : isExtracting ? t('skinExtracting')
     : isPreparing ? t('skinPreparing')
       : paused ? t('skinDownloadPaused') : t('skinDownloading')
 
   return <section className="mt-5 border border-[#424c3b] bg-[#20261f] p-4" aria-live="polite" aria-label={t('skinDownloadProgress')}>
     <div className="flex items-center justify-between gap-3">
       <p className="mb-0 flex items-center gap-2 text-sm font-medium text-[#d8dfcc]">
-        {isExtracting || isPreparing ? <LoaderCircle size={15} className="animate-spin text-[#c1ce9f]"/> : <span className={`size-2 rounded-full ${paused ? 'bg-[#a4a995]' : 'bg-[#aabd7c]'}`}/>}
+        {isExtracting || isComparing || isPreparing ? <LoaderCircle size={15} className="animate-spin text-[#c1ce9f]"/> : <span className={`size-2 rounded-full ${paused ? 'bg-[#a4a995]' : 'bg-[#aabd7c]'}`}/>}
         {cancelling ? t('skinCancelling') : status}
       </p>
       {downloading && percentage !== null && <span className="text-xs tabular-nums text-[#d0d9bf]">{percentage}%</span>}
@@ -47,10 +49,10 @@ export function SkinDownloadProgress({ progress, paused, cancelling, onTogglePau
       </span>
       <span>{t('skinDownloadSizeNote')}</span>
     </div>}
-    {isExtracting && (
+    {(isExtracting || isComparing) && (
       <div className="mt-3 flex items-center gap-2 border border-[#4c5742] bg-[#1a201b] px-3 py-2 text-xs text-[#cad5b8]">
         <LoaderCircle size={14} className="shrink-0 animate-spin text-[#c1ce9f]" />
-        <span>{t('skinExtractingBanner')}</span>
+        <span>{t(isComparing ? 'skinComparingBanner' : 'skinExtractingBanner')}</span>
       </div>
     )}
     <div className="mt-4 flex justify-end gap-2">
@@ -65,7 +67,7 @@ export function SkinDownloadProgress({ progress, paused, cancelling, onTogglePau
       <Button
         variant="danger"
         size="sm"
-        disabled={!downloading || cancelling}
+        disabled={!canCancel || cancelling}
         onClick={onCancel}
       >
         <X size={14}/>{t('skinCancel')}

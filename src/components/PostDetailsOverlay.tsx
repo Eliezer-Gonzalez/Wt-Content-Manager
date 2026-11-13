@@ -24,12 +24,13 @@ type Props = {
   onSearchSoundHashtag: (tag: string) => void
   onSearchSkinHashtag: (tag: string) => void
   onClose: () => void
+  blockingDialogOpen?: boolean
 }
 
 export function PostDetailsOverlay({
   selected, detail, detailLoading, detailError, imageQuality, canInstall, soundLibrary,
   skinInstaller, library, gameSetup, cancellation, downloadableSoundLangGroups,
-  onSearchSoundHashtag, onSearchSkinHashtag, onClose,
+  onSearchSoundHashtag, onSearchSkinHashtag, onClose, blockingDialogOpen = false,
 }: Props) {
   if (selected?.contentType === 'sound') {
     const activePackage = soundLibrary.packages.find(packageInfo =>
@@ -53,6 +54,7 @@ export function PostDetailsOverlay({
         soundLibrary={{ ...soundLibrary, cancelDownload: cancellation.requestSoundCancellation }}
         canInstallPackage={canInstall}
         cancelDialogOpen={cancellation.pendingKind === 'sound'}
+        blockingDialogOpen={blockingDialogOpen}
         onDownload={item => void soundLibrary.download(item)}
         onTogglePause={() => void soundLibrary.togglePause()}
         onCancel={cancellation.requestSoundCancellation}
@@ -63,7 +65,9 @@ export function PostDetailsOverlay({
   }
 
   if (!selected) return null
-  const installedEntry = library.installedSkins.find(entry => entry.item?.id === selected.id) ?? null
+  const installedEntry = library.installedSkins.find(entry => entry.item?.id === selected.id)
+    ?? library.installedSkins.find(entry => entry.externalPublication?.item.id === selected.id)
+    ?? null
 
   return (
     <PostDetailDialog
@@ -75,6 +79,7 @@ export function PostDetailsOverlay({
       canInstall={canInstall}
       installer={{ ...skinInstaller, cancel: cancellation.requestSkinCancellation }}
       cancelDialogOpen={cancellation.pendingKind === 'skin'}
+      blockingDialogOpen={blockingDialogOpen}
       installedEntry={installedEntry}
       onInstall={() => {
         if (!gameSetup.gameInstall) { gameSetup.openSetup(); return }

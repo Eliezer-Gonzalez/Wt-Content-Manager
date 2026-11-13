@@ -34,6 +34,7 @@ type Props = {
   soundLibrary: SoundLibraryController
   canInstallPackage: boolean
   cancelDialogOpen?: boolean
+  blockingDialogOpen?: boolean
   onDownload: (item: WtLiveItem) => void
   onTogglePause: () => void
   onCancel: () => void
@@ -43,7 +44,7 @@ type Props = {
 
 export function SoundPostDetailDialog({
   item, detail, loading, error, imageQuality, canDownload, downloadedLangGroups, downloadBusy,
-  downloadingId, progress, downloadError, activePackage, soundLibrary, canInstallPackage, cancelDialogOpen = false, onDownload, onTogglePause, onCancel,
+  downloadingId, progress, downloadError, activePackage, soundLibrary, canInstallPackage, cancelDialogOpen = false, blockingDialogOpen = false, onDownload, onTogglePause, onCancel,
   onSearchHashtag, onClose,
 }: Props) {
   const { t } = useI18n()
@@ -61,7 +62,11 @@ export function SoundPostDetailDialog({
       ? [{ src: item.imageUrl, fullResolutionSrc: getFullResolutionImageUrl(item.imageUrl), aspectRatio: item.imageAspectRatio }]
       : [], [detail?.images, item.imageUrl, item.imageAspectRatio])
 
-  useFocusTrap({ containerRef: dialogRef, initialFocusRef: closeButtonRef, onClose, enabled: !descriptionOverlayOpen && !reinstallDialogOpen && !cancelDialogOpen })
+  useFocusTrap({ containerRef: dialogRef, initialFocusRef: closeButtonRef, onClose, enabled: !descriptionOverlayOpen && !reinstallDialogOpen && !cancelDialogOpen && !blockingDialogOpen })
+
+  useEffect(() => {
+    if (blockingDialogOpen) setZoomedImage(null)
+  }, [blockingDialogOpen])
 
   useEffect(() => {
     if (downloadingId !== item.id) return
@@ -151,6 +156,7 @@ export function SoundPostDetailDialog({
                     imageQuality={imageQuality}
                     onOverlayChange={handleDescriptionOverlay}
                     cancelDialogOpen={cancelDialogOpen}
+                    blockingDialogOpen={blockingDialogOpen}
                     renderLinkedPostActions={renderLinkedPostActions}
                     originPost={item}
                     key={index}
@@ -160,6 +166,7 @@ export function SoundPostDetailDialog({
                   imageQuality={imageQuality}
                   onOverlayChange={handleDescriptionOverlay}
                   cancelDialogOpen={cancelDialogOpen}
+                  blockingDialogOpen={blockingDialogOpen}
                   renderLinkedPostActions={renderLinkedPostActions}
                   originPost={item}
                 />}
@@ -189,6 +196,7 @@ export function SoundPostDetailDialog({
                 packageInfo={activePackage}
                 library={soundLibrary}
                 canInstall={canInstallPackage}
+                blockingDialogOpen={blockingDialogOpen}
                 onConfirmingChange={setReinstallDialogOpen}
               />
             )}
@@ -199,7 +207,7 @@ export function SoundPostDetailDialog({
           {linkError && <p className="mt-2 text-xs text-amber-200" role="alert">{t('openLinkFailed')}</p>}
         </div>
       </section>
-      {zoomedImage && <ImageLightbox src={zoomedImage.src} alt={zoomedImage.alt} onClose={() => setZoomedImage(null)} />}
+      {zoomedImage && !blockingDialogOpen && <ImageLightbox src={zoomedImage.src} alt={zoomedImage.alt} onClose={() => setZoomedImage(null)} />}
     </div>
   )
 }

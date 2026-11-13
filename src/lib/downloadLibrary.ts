@@ -17,7 +17,7 @@ export function filterAndSortInstalledSkins(
     if (origin === 'app' && !isAppInstall) return false
     if (origin === 'external' && isAppInstall) return false
     if (!normalizedQuery) return true
-    return `${entry.item?.title ?? ''} ${entry.item?.author ?? ''} ${entry.item?.fileName ?? ''} ${entry.folderName}`
+    return `${entry.item?.title ?? entry.externalPublication?.item.title ?? ''} ${entry.item?.author ?? entry.externalPublication?.item.author ?? ''} ${entry.item?.fileName ?? entry.externalPublication?.item.fileName ?? ''} ${entry.folderName}`
       .toLocaleLowerCase()
       .includes(normalizedQuery)
   })

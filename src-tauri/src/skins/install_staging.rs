@@ -1,4 +1,5 @@
 use super::download_task::{DownloadControl, SkinInstallProgress};
+use super::duplicate_detection::{compare_external_skin, validate_external_link, DuplicateSkinCandidate};
 use super::install::InstallResult;
 use super::{
     archive, download, paths, recovery, register_active_staging, replacement, staging,
@@ -121,23 +122,75 @@ impl InstallStaging {
         .await
     }
 
-    pub fn extract_and_install(
+    pub fn prepare(
         self,
         archive_name: &str,
         replace_folder_name: Option<&str>,
-    ) -> Result<InstallResult, AppError> {
+        external_folder_names: &[String],
+        progress: &Channel<SkinInstallProgress>,
+        control: &DownloadControl,
+    ) -> Result<(PreparedSkinInstall, Vec<DuplicateSkinCandidate>), AppError> {
         let payload = self.staging_dir.path().join("payload");
         std::fs::create_dir(&payload)?;
         let stats = archive::extract(&self.archive_path, &payload, MAX_SKIN_BYTES)?;
-        let (source, folder_name) = paths::select_skin_root(&payload, archive_name)?;
+        control.begin_comparison();
+        progress.send(SkinInstallProgress {
+            phase: "comparing",
+            downloaded_bytes: 0,
+            total_bytes: None,
+            paused: false,
+        }).map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))?;
+        let (source, downloaded_folder_name) = paths::select_skin_root(&payload, archive_name)?;
         let file_count = paths::count_files(&source)?;
         if file_count == 0 || !paths::contains_skin_definition(&source)? {
             return Err(AppError::new("archive_no_skin_definition"));
         }
         let size_bytes = paths::total_size(&source)?;
-        let mut folder_name = match replace_folder_name {
+        let replace_folder_name = replace_folder_name.map(str::to_owned);
+        let mut candidates = Vec::new();
+        if replace_folder_name.is_none() {
+            for external_folder_name in external_folder_names.iter().take(100) {
+                if let Some(candidate) = compare_external_skin(&source, &self.userskins, external_folder_name, &downloaded_folder_name, control)? {
+                    candidates.push(candidate);
+                }
+            }
+        }
+        let missing_textures = texture_validation::find_missing_references(&source);
+        Ok((PreparedSkinInstall {
+            userskins: self.userskins,
+            source,
+            folder_name: downloaded_folder_name,
+            replace_folder_name,
+            staging_dir: self.staging_dir,
+            file_count,
+            size_bytes,
+            skipped_files: stats.skipped_files,
+            skipped_executables: stats.skipped_executables,
+            missing_texture_count: missing_textures.count,
+            missing_texture_names: missing_textures.names,
+        }, candidates))
+    }
+}
+
+pub(super) struct PreparedSkinInstall {
+    userskins: PathBuf,
+    source: PathBuf,
+    folder_name: String,
+    replace_folder_name: Option<String>,
+    staging_dir: RegisteredStagingDir,
+    file_count: usize,
+    size_bytes: u64,
+    skipped_files: usize,
+    skipped_executables: usize,
+    missing_texture_count: usize,
+    missing_texture_names: Vec<String>,
+}
+
+impl PreparedSkinInstall {
+    pub fn install(self) -> Result<InstallResult, AppError> {
+        let mut folder_name = match self.replace_folder_name.as_deref() {
             Some(name) => name.to_string(),
-            None => paths::unique_folder_name(&self.userskins, &folder_name)?,
+            None => paths::unique_folder_name(&self.userskins, &self.folder_name)?,
         };
         let mut destination = self.userskins.join(&folder_name);
         {
@@ -154,11 +207,11 @@ impl InstallStaging {
                 );
                 return Err(AppError::with_detail("skin_recovery_required", detail));
             }
-            if let Some(name) = replace_folder_name {
+            if let Some(name) = self.replace_folder_name.as_deref() {
                 let result = replacement::replace_skin_folder(
                     &self.userskins,
                     name,
-                    &source,
+                    &self.source,
                     self.staging_dir.path(),
                 );
                 if let Err(failure) = result {
@@ -179,23 +232,30 @@ impl InstallStaging {
             } else {
                 folder_name = paths::unique_folder_name(&self.userskins, &folder_name)?;
                 destination = self.userskins.join(&folder_name);
-                std::fs::rename(&source, &destination).map_err(|error| {
+                std::fs::rename(&self.source, &destination).map_err(|error| {
                     AppError::with_detail("skin_save_failed", error.to_string())
                 })?;
             }
         }
-        let missing_textures = texture_validation::find_missing_references(&destination);
-
         Ok(InstallResult {
             folder_name,
             path: destination.to_string_lossy().to_string(),
-            file_count,
-            size_bytes,
-            skipped_files: stats.skipped_files,
-            skipped_executables: stats.skipped_executables,
-            missing_texture_count: missing_textures.count,
-            missing_texture_names: missing_textures.names,
+            file_count: self.file_count,
+            size_bytes: self.size_bytes,
+            skipped_files: self.skipped_files,
+            skipped_executables: self.skipped_executables,
+            missing_texture_count: self.missing_texture_count,
+            missing_texture_names: self.missing_texture_names,
         })
+    }
+
+    pub fn validate_external_folder(&self, folder_name: &str) -> Result<DuplicateSkinCandidate, AppError> {
+        validate_external_link(&self.userskins, folder_name)
+    }
+
+    pub fn target_existing_folder(mut self, folder_name: &str) -> Self {
+        self.replace_folder_name = Some(folder_name.to_string());
+        self
     }
 }
 

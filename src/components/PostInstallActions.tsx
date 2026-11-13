@@ -66,6 +66,7 @@ export function PostInstallActions({
         })]
       : []),
   ] : []
+  const installedByApp = Boolean(installedEntry?.item)
 
   async function openReference(url: string) {
     setReferenceLinkError(false)
@@ -107,10 +108,10 @@ export function PostInstallActions({
             variant={installedEntry ? 'secondary' : 'primary'}
             className="w-full"
             disabled={!canInstall || operationBusy}
-            onClick={() => installedEntry ? setReinstallTarget(installedEntry) : onInstall()}
+            onClick={() => installedByApp ? setReinstallTarget(installedEntry!) : onInstall()}
           >
-            {installedEntry ? <RefreshCw size={16} /> : <Download size={16} />}
-            {t(installedEntry ? 'reinstallSkin' : 'installSkin')}
+            {installedByApp ? <RefreshCw size={16} /> : <Download size={16} />}
+            {t(installedByApp ? 'reinstallSkin' : installedEntry ? 'skinDuplicateInstallCopy' : 'installSkin')}
           </Button>
 
           {installedEntry && onUninstall && (
@@ -191,7 +192,7 @@ export function PostInstallActions({
         </>
       )}
       <ConfirmReinstallModal
-        entry={reinstallTarget}
+        entry={installedByApp ? reinstallTarget : null}
         onClose={() => setReinstallTarget(null)}
         onConfirm={() => {
           if (!reinstallTarget) return

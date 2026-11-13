@@ -23,6 +23,7 @@ type Props = {
   canInstall: boolean
   installer: SkinInstaller
   cancelDialogOpen?: boolean
+  blockingDialogOpen?: boolean
   installedEntry?: InstalledSkin | null
   onInstall: () => void
   onReinstall: (entry: InstalledSkin) => void
@@ -33,7 +34,7 @@ type Props = {
 }
 
 export function PostDetailDialog({
-  item, imageQuality, detail, loading, error, canInstall, installer, cancelDialogOpen = false,
+  item, imageQuality, detail, loading, error, canInstall, installer, cancelDialogOpen = false, blockingDialogOpen = false,
   installedEntry, onInstall, onReinstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
 }: Props) {
   const { t } = useI18n()
@@ -58,14 +59,20 @@ export function PostDetailDialog({
         error: '',
         installedPath: '',
         warning: null,
+        duplicatePrompt: null,
+        resolvingDuplicate: false,
       }
   const { installing } = itemInstaller
   useFocusTrap({
     containerRef: dialogRef,
     initialFocusRef: closeButtonRef,
     onClose,
-    enabled: !zoomedImage && !descriptionOverlayOpen && !cancelDialogOpen,
+    enabled: !zoomedImage && !descriptionOverlayOpen && !cancelDialogOpen && !itemInstaller.duplicatePrompt && !blockingDialogOpen,
   })
+
+  useEffect(() => {
+    if (blockingDialogOpen) setZoomedImage(null)
+  }, [blockingDialogOpen])
 
   useEffect(() => {
     if (!installing || installer.activeLangGroup !== item.langGroup) return
@@ -137,6 +144,7 @@ export function PostDetailDialog({
             onZoom={setZoomedImage}
             onOverlayChange={handleDescriptionOverlay}
             onSearchHashtag={onSearchHashtag}
+            blockingDialogOpen={blockingDialogOpen}
           />
 
           <p className="mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
@@ -174,7 +182,7 @@ export function PostDetailDialog({
         </div>
       </section>
 
-      {zoomedImage && (
+      {zoomedImage && !blockingDialogOpen && (
         <ImageLightbox
           src={zoomedImage.src}
           alt={zoomedImage.alt}
