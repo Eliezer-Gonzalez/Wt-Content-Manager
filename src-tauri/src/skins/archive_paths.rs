@@ -4,7 +4,7 @@ use crate::AppError;
 
 pub const MAX_ARCHIVE_ENTRIES: usize = 3000;
 pub const MAX_ARCHIVE_DEPTH: usize = 8;
-pub const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
+pub const MAX_ENTRY_BYTES: u64 = 257 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArchiveEntryFilter {

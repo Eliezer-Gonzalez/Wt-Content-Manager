@@ -228,6 +228,24 @@ mod tests {
     }
 
     #[test]
+    fn extracts_lzma_compressed_zip_entries() {
+        let archive_file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(
+            archive_file.path(),
+            include_bytes!("testdata/lzma-skin.zip.fixture"),
+        )
+        .unwrap();
+        let destination = tempdir().unwrap();
+
+        let stats = extract(archive_file.path(), destination.path(), 10 * 1024 * 1024).unwrap();
+
+        assert_eq!(stats.extracted_files, 1);
+        let skin = std::fs::read_to_string(destination.path().join("skin.blk")).unwrap();
+        assert!(skin.starts_with("name:t=\"lzma-regression\""));
+        assert_eq!(skin.len(), 8217);
+    }
+
+    #[test]
     fn rejects_archive_with_too_many_directory_entries_before_writing() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let mut zip = ZipWriter::new(File::create(file.path()).unwrap());

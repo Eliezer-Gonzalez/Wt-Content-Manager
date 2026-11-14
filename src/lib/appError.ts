@@ -35,6 +35,11 @@ export function formatAppError(error: unknown, t: TranslateFn): FormattedError {
     const backendError = error as BackendErrorPayload
     const errorNamespaceKey = asTranslationKey(backendError.code.startsWith('errors.') ? backendError.code : `errors.${backendError.code}`)
     let message = t(errorNamespaceKey, backendError.params)
+    if (backendError.code === 'archive_limits_exceeded' && typeof backendError.params?.reason === 'string') {
+      const detailedKey = asTranslationKey(`${errorNamespaceKey}.${backendError.params.reason}`)
+      const detailedMessage = t(detailedKey, backendError.params)
+      if (detailedMessage !== detailedKey) message = detailedMessage
+    }
     if (message === errorNamespaceKey) {
       const directKey = asTranslationKey(backendError.code)
       const directMessage = t(directKey, backendError.params)

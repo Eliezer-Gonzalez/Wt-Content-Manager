@@ -21,7 +21,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
 tokio = { version = "1", features = ["fs", "macros", "time"] }
-zip = { version = "9.4.0", default-features = false, features = ["deflate"] }
+zip = { version = "9.4.0", default-features = false, features = ["deflate", "lzma"] }
 tauri-plugin-opener = "2.5.3"
 tauri-plugin-single-instance = "2"
 
