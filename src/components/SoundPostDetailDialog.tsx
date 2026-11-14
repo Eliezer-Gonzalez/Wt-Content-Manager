@@ -17,6 +17,8 @@ import { HashtagList } from './HashtagList'
 import { SoundReinstallAction } from './SoundReinstallAction'
 import type { SoundLibraryController } from '../hooks/useSoundLibrary'
 import type { SoundPackage } from '../lib/sounds'
+import { useDownloadFileSize } from '../hooks/useDownloadFileSize'
+import { DownloadSizeBadge } from './DownloadSizeBadge'
 
 type Props = {
   item: WtLiveItem
@@ -48,6 +50,7 @@ export function SoundPostDetailDialog({
   onSearchHashtag, onClose,
 }: Props) {
   const { t } = useI18n()
+  const { sizeBytes } = useDownloadFileSize(item.downloadUrl, item.fileSizeBytes, true)
   const dialogRef = useRef<HTMLElement>(null)
   const downloadActionsRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -178,6 +181,12 @@ export function SoundPostDetailDialog({
           <p className="mb-4 mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
             {t('likes', { count: detail?.stats?.likes ?? item.likes })} · {t('downloadsCount', { count: detail?.stats?.downloads ?? item.downloads })}
           </p>
+          {item.downloadUrl && sizeBytes != null && (
+            <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-[#a5ad9a]">
+              <span>{t('downloadSizeLabel')}</span>
+              <DownloadSizeBadge bytes={sizeBytes} />
+            </div>
+          )}
           <div ref={downloadActionsRef}>
             <SoundPackageDownloadActions
               item={item}

@@ -209,6 +209,8 @@
   "likes_other": "{count} likes",
   "downloadsCount_one": "{count} download",
   "downloadsCount_other": "{count} downloads",
+  "downloadSizeLabel": "Download size",
+  "downloadSizeAccessible": "Download size: {size}",
   "installSkin": "Install skin",
   "reinstallSkin": "Reinstall skin",
   "reinstallConfirmTitle": "Replace this skin?",

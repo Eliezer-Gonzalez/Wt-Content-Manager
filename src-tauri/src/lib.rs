@@ -56,6 +56,7 @@ pub fn run() {
             commands::fetch_recent_camouflages,
             commands::fetch_recent_sounds,
             commands::fetch_post_detail,
+            commands::get_download_file_size,
             external_links::open_external_https_url,
             commands::detect_game_installations,
             commands::validate_game_installation,

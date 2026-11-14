@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Bookmark, Check, Download, ExternalLink, Star } from 'lucide-react'
 import { Button } from './ui/Button'
 import { PostCardDownloadProgress } from './PostCardDownloadProgress'
-import { formatNumber, relativeDate } from '../lib/format'
+import { formatFileSize, formatNumber, relativeDate } from '../lib/format'
 import type { WtLiveItem } from '../lib/wtLive'
 import type { SkinInstallProgress } from '../lib/skins'
 import type { SoundDownloadProgress } from '../lib/sounds'
 import { useI18n } from '../i18n/I18nContext'
+import { useDownloadFileSize } from '../hooks/useDownloadFileSize'
+import { DownloadSizeBadge } from './DownloadSizeBadge'
 
 type Props = {
   item: WtLiveItem
@@ -27,6 +29,11 @@ type Props = {
 
 export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType = 'camouflage', showSave = true, masonry = true, skinProgress, soundProgress, cancellingDownload, onToggleDownloadPause, onCancelDownload, onOpen, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
+  const { visibilityRef: fileSizeVisibilityRef, sizeBytes } = useDownloadFileSize(item.downloadUrl, item.fileSizeBytes)
+  const postTitle = item.title || t('postFallbackTitle', { id: item.id })
+  const fileSizeDescription = sizeBytes != null
+    ? t('downloadSizeAccessible', { size: formatFileSize(sizeBytes, locale) })
+    : undefined
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
   const [favoriteGlow, setFavoriteGlow] = useState(false)
   const wasSavedRef = useRef(isSaved)
@@ -49,7 +56,7 @@ export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType
   }, [isSaved])
 
   return (
-    <article className={`group flex min-w-0 flex-col border border-[#30372f] bg-wt-panel transition-colors hover:border-[#687354] ${masonry ? '' : 'h-full'}`}>
+    <article ref={fileSizeVisibilityRef} className={`group flex min-w-0 flex-col border border-[#30372f] bg-wt-panel transition-colors hover:border-[#687354] ${masonry ? '' : 'h-full'}`}>
       <div className="relative">
         {/* Mouse-only shortcut: the title button below is the single keyboard/screen-reader control for opening the post. */}
         <div
@@ -115,13 +122,19 @@ export function PostCard({ item, isSaved, isInstalled, isDownloaded, contentType
         type="button"
         className="flex w-full flex-1 flex-col px-3 pb-3 pt-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#87976a]"
         onClick={() => onOpen(item)}
-        aria-label={t('viewPostAria', { title: item.title || t('postFallbackTitle', { id: item.id }) })}
+        aria-label={[
+          t('viewPostAria', { title: postTitle }),
+          fileSizeDescription,
+        ].filter(Boolean).join('. ')}
       >
         <span className="flex items-start justify-between gap-2">
           <strong className="min-w-0 line-clamp-3 break-words font-display text-[19px] font-semibold leading-tight text-[#e2e4da]">{item.title || t('postFallbackTitle', { id: item.id })}</strong>
           <span className="shrink-0 pt-1 text-[10px] text-[#a1a99b]">{relativeDate(item.createdAt, locale)}</span>
         </span>
-        <span className="mb-3 mt-1.5 block truncate text-xs text-[#bdc99e]">{item.fileName || t(contentType === 'sound' ? 'soundMod' : 'camouflageForGame')}</span>
+        <span className="mb-3 mt-1.5 flex min-w-0 items-center gap-2">
+          <span className="min-w-0 flex-1 truncate text-xs text-[#bdc99e]">{item.fileName || t(contentType === 'sound' ? 'soundMod' : 'camouflageForGame')}</span>
+          {sizeBytes != null && <DownloadSizeBadge bytes={sizeBytes} />}
+        </span>
         <span className="mt-auto flex items-center justify-between gap-2 border-t border-[#333a32] pt-2.5 text-[11px] text-[#a2aa9c]">
           <span className="min-w-0 truncate">{t('by')} <b className="font-medium text-[#bbc1b2]">{item.author || t('unknownAuthor')}</b></span>
           <span className="flex shrink-0 items-center gap-1.5 text-[#bdc99e]">{t('viewPost')} <ExternalLink size={13}/></span>

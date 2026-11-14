@@ -20,7 +20,7 @@ export type ApiPost = {
     height?: number
     ratio?: number | string
   }>
-  file?: { name?: string; link?: string }
+  file?: { name?: string; link?: string; size?: number }
 }
 
 export function extractImageSource(source: ApiImageSource | null | undefined): string | undefined {
@@ -32,6 +32,13 @@ export function extractImageSource(source: ApiImageSource | null | undefined): s
 export function positiveDimension(value: unknown): number | undefined {
   const dimension = Number(value)
   return Number.isFinite(dimension) && dimension > 0 ? Math.round(dimension) : undefined
+}
+
+export function positiveFileSize(value: unknown): number | undefined {
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined
+  if (typeof value === 'string' && value.trim() === '') return undefined
+  const bytes = Number(value)
+  return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : undefined
 }
 
 export function imageRatio(width?: number, height?: number, reported?: unknown): number | undefined {
@@ -101,6 +108,7 @@ export function mapPost(post: ApiPost): WtLiveItem {
         ? imageAspectRatio
         : undefined,
     downloadUrl: post.file?.link,
+    fileSizeBytes: positiveFileSize(post.file?.size),
     fileName,
     likes: post.likes ?? 0,
     downloads: post.downloads ?? 0,

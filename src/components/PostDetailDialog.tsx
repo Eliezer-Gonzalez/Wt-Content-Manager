@@ -13,6 +13,8 @@ import type { WtLiveDetail, WtLiveItem } from '../lib/wtLive'
 import type { SkinInstaller } from '../hooks/useSkinInstaller'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { ImageQualityMode } from '../lib/imageQuality'
+import { useDownloadFileSize } from '../hooks/useDownloadFileSize'
+import { DownloadSizeBadge } from './DownloadSizeBadge'
 
 type Props = {
   item: WtLiveItem
@@ -38,6 +40,7 @@ export function PostDetailDialog({
   installedEntry, onInstall, onReinstall, onUninstall, onChooseGame, onClose, onSearchHashtag,
 }: Props) {
   const { t } = useI18n()
+  const { sizeBytes } = useDownloadFileSize(item.downloadUrl, item.fileSizeBytes, true)
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null)
   const [descriptionOverlayOpen, setDescriptionOverlayOpen] = useState(false)
   const [commentError, setCommentError] = useState(false)
@@ -150,6 +153,13 @@ export function PostDetailDialog({
           <p className="mt-5 border-t border-[#343b32] pt-3 text-xs text-[#a5ad9a]">
             {t('likes', { count: item.likes })} · {t('downloadsCount', { count: item.downloads })}
           </p>
+
+          {item.downloadUrl && sizeBytes != null && (
+            <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-[#a5ad9a]">
+              <span>{t('downloadSizeLabel')}</span>
+              <DownloadSizeBadge bytes={sizeBytes} />
+            </div>
+          )}
 
           <div ref={installActionsRef}>
             <PostInstallActions

@@ -26,6 +26,7 @@ export type WtLiveItem = {
   imageUrl?: string
   imageAspectRatio?: number
   downloadUrl?: string
+  fileSizeBytes?: number
   fileName?: string
   likes: number
   downloads: number

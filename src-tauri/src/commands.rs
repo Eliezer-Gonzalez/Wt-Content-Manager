@@ -64,6 +64,11 @@ pub async fn fetch_post_detail(
 }
 
 #[tauri::command]
+pub async fn get_download_file_size(url: String) -> Result<Option<u64>, AppError> {
+    skins::download::remote_file_size(&url).await
+}
+
+#[tauri::command]
 pub fn detect_game_installations() -> Vec<game_install::GameInstall> {
     game_install::detect()
 }
