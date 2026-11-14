@@ -17,7 +17,7 @@ export function playCompletionChime(volume = 100) {
     const audio = context
     const play = () => {
       const master = audio.createGain()
-      master.gain.setValueAtTime(0.55 * normalizedVolume, audio.currentTime)
+      master.gain.setValueAtTime(normalizedVolume, audio.currentTime)
       master.connect(audio.destination)
 
       ;[880, 1174].forEach((frequency, index) => {

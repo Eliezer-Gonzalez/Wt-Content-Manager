@@ -26,7 +26,18 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
   const subtitle = entry.item?.fileName || (entry.item ? entry.folderName : entry.externalPublication?.item.fileName || t('installedExternalSource'))
 
   return <article className="h-full flex min-w-0 flex-col border border-[#30372f] bg-wt-panel p-4 transition-colors hover:border-[#687354]">
-    {showPreview && <InstalledSkinPreview imageUrl={publication?.imageUrl} title={title} />}
+    {showPreview && <div className="relative">
+      <InstalledSkinPreview imageUrl={publication?.imageUrl} title={title} />
+      {publication && onToggleSaved && <Button
+        variant="icon"
+        className={`absolute right-2 top-2 z-10 size-9 border border-[#596154] bg-[#171c18c9] transition-transform duration-150 active:scale-95 ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`}
+        onClick={() => onToggleSaved(publication)}
+        aria-label={t(isSaved ? 'removeFavorite' : 'addFavorite')}
+        aria-pressed={isSaved}
+      >
+        <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+      </Button>}
+    </div>}
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><HardDriveDownload size={18}/></span>
       <div className="min-w-0 flex-1">
@@ -48,11 +59,6 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
             <span>{t('viewPost')}</span>
             <ExternalLink size={13} aria-hidden="true" />
           </Button>
-          {onToggleSaved && <AppTooltip content={t(isSaved ? 'removeFavorite' : 'addFavorite')} align="end">
-            <Button variant="quiet" size="sm" onClick={() => onToggleSaved(publication)} aria-label={t(isSaved ? 'removeFavorite' : 'addFavorite')} aria-pressed={isSaved}>
-              <Bookmark size={14} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
-            </Button>
-          </AppTooltip>}
         </>
       ) : (
         <span className="inline-flex min-h-8 flex-1 items-center justify-center gap-2 border border-[#394136] bg-[#20261f] px-2.5 py-1 text-xs text-[#9fa896]">
