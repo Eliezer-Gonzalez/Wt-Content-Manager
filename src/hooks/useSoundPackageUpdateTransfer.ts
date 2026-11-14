@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { cancelSoundDownload, setSoundDownloadPaused, updateSoundPackage, type SoundDownloadProgress, type SoundPackage } from '../lib/sounds'
 import { announceDownloadCompletion } from '../lib/downloadCompletion'
+import { useDownloadPauseCancel } from './useDownloadPauseCancel'
 
 type Props = {
   canStart: () => boolean
@@ -9,23 +10,42 @@ type Props = {
   setError: (message: string) => void
 }
 
+const pauseSoundTask = (taskId: string) => setSoundDownloadPaused(taskId, true)
+const resumeSoundTask = (taskId: string) => setSoundDownloadPaused(taskId, false)
+
 export function useSoundPackageUpdateTransfer({ canStart, refreshPackages, formatError, setError }: Props) {
   const [packageId, setPackageId] = useState<string | null>(null)
+  const [downloadId, setDownloadId] = useState<string | null>(null)
   const [progress, setProgress] = useState<SoundDownloadProgress | null>(null)
-  const [paused, setPaused] = useState(false)
   const taskIdRef = useRef<string | null>(null)
-  const wasPausedBeforeCancelPromptRef = useRef(false)
-  useEffect(() => () => {
-    const taskId = taskIdRef.current
-    if (taskId) void cancelSoundDownload(taskId).catch(() => undefined)
-  }, [])
+  const reportError = useCallback((cause: unknown) => setError(formatError(cause)), [formatError, setError])
+
+  const {
+    paused,
+    togglePause,
+    confirmCancelDownload: cancel,
+    requestCancelDownload: prepareCancel,
+    continueAfterCancelPrompt,
+    dismissCancelPrompt,
+    reset: resetPauseCancel,
+  } = useDownloadPauseCancel({
+    downloadId,
+    downloadIdRef: taskIdRef,
+    canControl: progress?.phase === 'downloading',
+    pauseDownloadTask: pauseSoundTask,
+    resumeDownloadTask: resumeSoundTask,
+    cancelDownloadTask: cancelSoundDownload,
+    onError: reportError,
+    cancelOnUnmount: true,
+  })
 
   const update = useCallback(async (packageInfo: SoundPackage) => {
     if (taskIdRef.current || !canStart()) return null
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
+    setDownloadId(taskId)
     setPackageId(packageInfo.id)
-    setPaused(false)
+    resetPauseCancel()
     setProgress({ phase: 'downloading', downloadedBytes: 0, totalBytes: null, paused: false })
     setError('')
     try {
@@ -38,80 +58,12 @@ export function useSoundPackageUpdateTransfer({ canStart, refreshPackages, forma
       return null
     } finally {
       taskIdRef.current = null
+      setDownloadId(null)
       setPackageId(null)
       setProgress(null)
-      setPaused(false)
+      resetPauseCancel()
     }
-  }, [canStart, formatError, refreshPackages, setError])
-
-  const togglePause = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId || progress?.phase !== 'downloading') return
-    const next = !paused
-    setPaused(next)
-    try {
-      await setSoundDownloadPaused(taskId, next)
-    } catch (cause) {
-      setPaused(!next)
-      setError(formatError(cause))
-    }
-  }, [formatError, paused, progress?.phase, setError])
-
-  const cancel = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId || progress?.phase !== 'downloading') return
-    try {
-      await cancelSoundDownload(taskId)
-    } catch (cause) {
-      setError(formatError(cause))
-    }
-  }, [formatError, progress?.phase, setError])
-
-  const prepareCancel = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId || progress?.phase !== 'downloading') return false
-    wasPausedBeforeCancelPromptRef.current = paused
-    if (!paused) {
-      try {
-        await setSoundDownloadPaused(taskId, true)
-      } catch (cause) {
-        wasPausedBeforeCancelPromptRef.current = false
-        if (taskIdRef.current !== taskId) return false
-        setError(formatError(cause))
-        return false
-      }
-    }
-    if (taskIdRef.current !== taskId) return false
-    setPaused(true)
-    return true
-  }, [formatError, paused, progress?.phase, setError])
-
-  const continueAfterCancelPrompt = useCallback(async () => {
-    const taskId = taskIdRef.current
-    wasPausedBeforeCancelPromptRef.current = false
-    if (!taskId) return
-    setPaused(false)
-    try {
-      await setSoundDownloadPaused(taskId, false)
-    } catch (cause) {
-      setPaused(true)
-      setError(formatError(cause))
-    }
-  }, [formatError, setError])
-
-  const dismissCancelPrompt = useCallback(async () => {
-    const taskId = taskIdRef.current
-    const wasPaused = wasPausedBeforeCancelPromptRef.current
-    wasPausedBeforeCancelPromptRef.current = false
-    if (!taskId || wasPaused) return
-    setPaused(false)
-    try {
-      await setSoundDownloadPaused(taskId, false)
-    } catch (cause) {
-      setPaused(true)
-      setError(formatError(cause))
-    }
-  }, [formatError, setError])
+  }, [canStart, formatError, refreshPackages, resetPauseCancel, setError])
 
   return {
     packageId, progress, paused, busy: Boolean(packageId), update, togglePause,

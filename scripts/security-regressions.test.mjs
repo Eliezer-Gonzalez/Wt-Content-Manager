@@ -29,7 +29,7 @@ test('startup fonts are local and the legal notice gates the WT Live feed', asyn
 })
 
 test('every app external URL is covered by a narrow Tauri opener permission', async () => {
-  const [capability, appInfo, postActions, detailDialog, wtLive, externalLinks, descriptionLinks] = await Promise.all([
+  const [capability, appInfo, postActions, detailDialog, wtLive, externalLinks, descriptionLinks, externalUrl] = await Promise.all([
     read('src-tauri/capabilities/default.json').then(JSON.parse),
     read('src/lib/appInfo.ts'),
     read('src/components/PostInstallActions.tsx'),
@@ -37,6 +37,7 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
     read('src/lib/wtLive.ts'),
     read('src-tauri/src/external_links.rs'),
     read('src/components/WtLiveDescriptionText.tsx'),
+    read('src/lib/externalUrl.ts'),
   ])
   const opener = capability.permissions.find(permission => typeof permission === 'object' && permission.identifier === 'opener:allow-open-url')
   assert.ok(opener, 'the app must declare opener URL rules')
@@ -46,6 +47,7 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
     'https://github.com/Eliezer-Gonzalez/Wt-Content-Manager/**',
     'https://live.warthunder.com/**',
     'https://wiki.warthunder.com/cdk/creation_camo',
+    'https://wiki.warthunder.com/cdk/creation_sound',
   ].sort(), 'external URL permissions must stay limited to app openers')
   const matchesPermission = url => allowed.some(pattern => pattern.endsWith('/**')
     ? url.startsWith(pattern.slice(0, -2))
@@ -58,6 +60,7 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
   assert.match(appInfo, /THIRD_PARTY_NOTICES_URL\s*=\s*`\$\{APP_REPOSITORY_URL\}\/blob\/main\/THIRD_PARTY_NOTICES\.md`/)
   const staticTargets = [
     'https://wiki.warthunder.com/cdk/creation_camo',
+    'https://wiki.warthunder.com/cdk/creation_sound',
     'https://live.warthunder.com/rules/',
     repositoryUrl,
     `${repositoryUrl}/blob/main/LICENSE`,
@@ -73,7 +76,8 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
   assert.ok(matchesPermission('https://live.warthunder.com/post/123/en/#comments'), 'sanitized dynamic WT Live comment links must be allowed')
   assert.match(wtLive, /getWtLivePostReference/)
   assert.match(descriptionLinks, /getSafeExternalHttpsUrl\(url\)/)
-  assert.match(descriptionLinks, /invoke\('open_external_https_url'/)
+  assert.match(descriptionLinks, /openExternalHttpsUrl\(externalTarget\.url\)/)
+  assert.match(externalUrl, /invoke\('open_external_https_url'/)
   assert.match(externalLinks, /url\.scheme\(\) != "https"/)
   assert.match(externalLinks, /url\.username\(\)/)
 
@@ -87,6 +91,7 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
     'components/PostDetailDialog.tsx',
     'components/PostInstallActions.tsx',
     'components/SettingsAboutCard.tsx',
+    'components/SoundManagerPage.tsx',
     'components/SoundPostDetailDialog.tsx',
     'components/WtLiveDescriptionText.tsx',
   ], 'review every new external URL opener call site in this allowlist test')
@@ -94,6 +99,7 @@ test('every app external URL is covered by a narrow Tauri opener permission', as
     ['components/PostDetailDialog.tsx', 2],
     ['components/PostInstallActions.tsx', 2],
     ['components/SettingsAboutCard.tsx', 2],
+    ['components/SoundManagerPage.tsx', 2],
     ['components/SoundPostDetailDialog.tsx', 2],
     ['components/WtLiveDescriptionText.tsx', 1],
   ])

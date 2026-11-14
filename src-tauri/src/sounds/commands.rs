@@ -1,7 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 use tauri::{ipc::Channel, AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -15,17 +12,7 @@ use super::types::{
 #[tauri::command]
 pub async fn open_sound_mod_folder(app: AppHandle, game_path: String) -> Result<(), AppError> {
     tauri::async_runtime::spawn_blocking(move || {
-        let _mutation = crate::skins::recovery::lock_game_filesystem();
-        let install = crate::game_install::validate(&game_path)?;
-        let game_root = Path::new(&install.path);
-        super::files::ensure_sound_directory(game_root)?;
-        let folder = super::files::sound_mod_path(game_root)?;
-        if !folder.exists() {
-            fs::create_dir(&folder).map_err(|error| {
-                AppError::with_detail("sound_mod_folder_create_failed", error.to_string())
-            })?;
-        }
-        super::files::reject_symlink_or_non_directory(&folder)?;
+        let folder = super::files::prepare_sound_mod_folder(&game_path)?;
         app.opener()
             .open_path(folder.to_string_lossy().into_owned(), None::<&str>)
             .map_err(|error| {

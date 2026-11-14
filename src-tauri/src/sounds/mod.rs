@@ -1,6 +1,7 @@
 mod archive;
 pub mod commands;
 mod deployment;
+mod deployment_fs;
 mod download;
 mod files;
 mod game_process;

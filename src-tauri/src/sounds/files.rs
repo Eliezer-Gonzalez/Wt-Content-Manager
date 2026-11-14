@@ -1,7 +1,22 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::AppError;
+use crate::{game_install, skins::recovery::lock_game_filesystem, AppError};
+
+pub fn prepare_sound_mod_folder(game_path: &str) -> Result<PathBuf, AppError> {
+    let _mutation = lock_game_filesystem();
+    let install = game_install::validate(game_path)?;
+    let game_root = Path::new(&install.path);
+    ensure_sound_directory(game_root)?;
+    let folder = sound_mod_path(game_root)?;
+    if !folder.exists() {
+        fs::create_dir(&folder).map_err(|error| {
+            AppError::with_detail("sound_mod_folder_create_failed", error.to_string())
+        })?;
+    }
+    reject_symlink_or_non_directory(&folder)?;
+    Ok(folder)
+}
 
 pub fn ensure_sound_directory(game_root: &Path) -> Result<(), AppError> {
     let sound_dir = game_root.join("sound");

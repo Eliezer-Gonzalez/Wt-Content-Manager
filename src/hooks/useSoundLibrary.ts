@@ -18,7 +18,11 @@ import {
 } from '../lib/sounds'
 import type { WtLiveItem } from '../lib/wtLive'
 import { useSoundPackageUpdateTransfer } from './useSoundPackageUpdateTransfer'
+import { useDownloadPauseCancel } from './useDownloadPauseCancel'
 import { announceDownloadCompletion } from '../lib/downloadCompletion'
+
+const pauseSoundTask = (taskId: string) => setSoundDownloadPaused(taskId, true)
+const resumeSoundTask = (taskId: string) => setSoundDownloadPaused(taskId, false)
 
 export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   const { t } = useI18n()
@@ -29,13 +33,12 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
   const [downloadProgress, setDownloadProgress] = useState<SoundDownloadProgress | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [downloadingItem, setDownloadingItem] = useState<WtLiveItem | null>(null)
+  const [downloadId, setDownloadId] = useState<string | null>(null)
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [uninstalling, setUninstalling] = useState(false)
-  const [paused, setPaused] = useState(false)
   const [error, setError] = useState('')
   const taskIdRef = useRef<string | null>(null)
-  const wasPausedBeforeCancelPromptRef = useRef(false)
   const mountedRef = useRef(true)
   const gamePathRef = useRef(gamePath)
   const statusRequestRef = useRef(0)
@@ -48,6 +51,25 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     const formatted = formatAppError(cause, t)
     return formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message
   }, [t])
+  const reportError = useCallback((cause: unknown) => setError(formatError(cause)), [formatError])
+
+  const {
+    paused,
+    togglePause,
+    confirmCancelDownload: cancelDownload,
+    requestCancelDownload: prepareCancelDownload,
+    continueAfterCancelPrompt,
+    dismissCancelPrompt,
+    reset: resetPauseCancel,
+  } = useDownloadPauseCancel({
+    downloadId,
+    downloadIdRef: taskIdRef,
+    pauseDownloadTask: pauseSoundTask,
+    resumeDownloadTask: resumeSoundTask,
+    cancelDownloadTask: cancelSoundDownload,
+    onError: reportError,
+    cancelOnUnmount: true,
+  })
 
   const refreshPackages = useCallback(async () => {
     if (!isTauriRuntime) return
@@ -105,8 +127,6 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     void refreshPackagesRef.current()
     return () => {
       mountedRef.current = false
-      const taskId = taskIdRef.current
-      if (taskId) void cancelSoundDownload(taskId).catch(() => undefined)
     }
   }, [])
 
@@ -120,10 +140,11 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     if (!isTauriRuntime || taskIdRef.current || updateTransfer.busy) return
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
+    setDownloadId(taskId)
     setDownloadingId(item.id)
     setDownloadingItem(item)
     setDownloadProgress({ phase: 'downloading', downloadedBytes: 0, totalBytes: null, paused: false })
-    setPaused(false)
+    resetPauseCancel()
     setError('')
     try {
       await downloadSoundPackage(item, taskId, progress => {
@@ -136,82 +157,14 @@ export function useSoundLibrary(gamePath?: string, shouldLoadStatus = false) {
     } finally {
       taskIdRef.current = null
       if (mountedRef.current) {
+        setDownloadId(null)
         setDownloadingId(null)
         setDownloadingItem(null)
         setDownloadProgress(null)
-        setPaused(false)
+        resetPauseCancel()
       }
     }
-  }, [formatError, refreshPackages, t, updateTransfer.busy])
-
-  const togglePause = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId) return
-    const next = !paused
-    setPaused(next)
-    try {
-      await setSoundDownloadPaused(taskId, next)
-    } catch (cause) {
-      setPaused(!next)
-      setError(formatError(cause))
-    }
-  }, [formatError, paused])
-
-  const cancelDownload = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId) return
-    try {
-      await cancelSoundDownload(taskId)
-    } catch (cause) {
-      setError(formatError(cause))
-    }
-  }, [formatError])
-
-  const prepareCancelDownload = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId) return false
-    wasPausedBeforeCancelPromptRef.current = paused
-    if (!paused) {
-      try {
-        await setSoundDownloadPaused(taskId, true)
-      } catch (cause) {
-        wasPausedBeforeCancelPromptRef.current = false
-        if (taskIdRef.current !== taskId) return false
-        setError(formatError(cause))
-        return false
-      }
-    }
-    if (taskIdRef.current !== taskId) return false
-    setPaused(true)
-    return true
-  }, [formatError, paused])
-
-  const continueAfterCancelPrompt = useCallback(async () => {
-    const taskId = taskIdRef.current
-    wasPausedBeforeCancelPromptRef.current = false
-    if (!taskId) return
-    setPaused(false)
-    try {
-      await setSoundDownloadPaused(taskId, false)
-    } catch (cause) {
-      setPaused(true)
-      setError(formatError(cause))
-    }
-  }, [formatError])
-
-  const dismissCancelPrompt = useCallback(async () => {
-    const taskId = taskIdRef.current
-    const wasPaused = wasPausedBeforeCancelPromptRef.current
-    wasPausedBeforeCancelPromptRef.current = false
-    if (!taskId || wasPaused) return
-    setPaused(false)
-    try {
-      await setSoundDownloadPaused(taskId, false)
-    } catch (cause) {
-      setPaused(true)
-      setError(formatError(cause))
-    }
-  }, [formatError])
+  }, [formatError, refreshPackages, resetPauseCancel, t, updateTransfer.busy])
 
   const dismissError = useCallback(() => setError(''), [])
 

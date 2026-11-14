@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { ExternalLink, Play, Video } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useI18n } from '../i18n/I18nContext'
+import { openExternalHttpsUrl } from '../lib/externalUrl'
 import { getSafeExternalHttpsUrl, getWtLivePostReference, type WtLiveBlock, type WtLiveItem, type WtLivePostReference } from '../lib/wtLive'
 import type { ImageQualityMode } from '../lib/imageQuality'
 import { isTauriRuntime } from '../lib/gameInstall'
@@ -108,7 +108,7 @@ export function WtLiveDescriptionText({
     if (!externalTarget) return
     try {
       if (isTauriRuntime) {
-        await invoke('open_external_https_url', { url: externalTarget.url })
+        await openExternalHttpsUrl(externalTarget.url)
       } else {
         window.open(externalTarget.url, '_blank', 'noopener,noreferrer')
       }

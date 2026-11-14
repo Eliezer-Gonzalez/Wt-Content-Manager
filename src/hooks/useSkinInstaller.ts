@@ -5,6 +5,7 @@ import type { WtLiveItem } from '../lib/wtLive'
 import { announceDownloadCompletion } from '../lib/downloadCompletion'
 import type { TranslateFn } from '../i18n/I18nProvider'
 import { formatAppError } from '../lib/appError'
+import { useDownloadPauseCancel } from './useDownloadPauseCancel'
 
 export type SkinInstallWarning = {
   skippedFiles: number
@@ -22,11 +23,13 @@ type Options = {
   onLinkedExternal: (item: WtLiveItem, folderName: string, path: string) => void
 }
 
+const pauseSkinTask = (taskId: string) => setSkinDownloadPaused(taskId, true)
+const resumeSkinTask = (taskId: string) => setSkinDownloadPaused(taskId, false)
+
 export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, externalFolderNames, onLinkedExternal }: Options) {
   const [installing, setInstalling] = useState(false)
   const [progress, setProgress] = useState<SkinInstallProgress | null>(null)
-  const [paused, setPaused] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
+  const [downloadId, setDownloadId] = useState<string | null>(null)
   const [cancelled, setCancelled] = useState(false)
   const [error, setError] = useState('')
   const [installedPath, setInstalledPath] = useState('')
@@ -38,20 +41,54 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
   const taskIdRef = useRef<string | null>(null)
   const pendingInstallRef = useRef<string | null>(null)
   const cancelRequestedRef = useRef(false)
-  const wasPausedBeforeCancelPromptRef = useRef(false)
   const mountedRef = useRef(true)
+
+  const reportError = useCallback((cause: unknown) => {
+    const formatted = formatAppError(cause, t)
+    setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+  }, [t])
+
+  const handleCancelStart = useCallback(() => {
+    cancelRequestedRef.current = true
+  }, [])
+  const handleCancelError = useCallback(() => {
+    cancelRequestedRef.current = false
+  }, [])
+  const cancelPendingInstall = useCallback(async () => {
+    const pendingId = pendingInstallRef.current
+    if (!pendingId) return
+    await cancelPreparedSkinInstall(pendingId)
+    pendingInstallRef.current = null
+    setDuplicatePrompt(null)
+    setCancelled(true)
+  }, [])
+
+  const {
+    paused,
+    cancelling,
+    togglePause,
+    confirmCancelDownload: cancel,
+    requestCancelDownload: prepareCancel,
+    continueAfterCancelPrompt,
+    dismissCancelPrompt,
+    reset: resetPauseCancel,
+  } = useDownloadPauseCancel({
+    downloadId,
+    downloadIdRef: taskIdRef,
+    pauseDownloadTask: pauseSkinTask,
+    resumeDownloadTask: resumeSkinTask,
+    cancelDownloadTask: cancelSkinDownload,
+    onError: reportError,
+    onCancelStart: handleCancelStart,
+    onCancelError: handleCancelError,
+    onCancelIdle: cancelPendingInstall,
+    cancelOnUnmount: true,
+  })
 
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      const activeTaskId = taskIdRef.current
-      if (activeTaskId) {
-        cancelRequestedRef.current = true
-        cancelSkinDownload(activeTaskId).catch(() => {
-          /* Best effort: the component is already unmounted. */
-        })
-      }
       const pendingId = pendingInstallRef.current
       if (pendingId) cancelPreparedSkinInstall(pendingId).catch(() => {})
     }
@@ -88,12 +125,12 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
     if (taskIdRef.current) return
     const taskId = crypto.randomUUID()
     taskIdRef.current = taskId
+    setDownloadId(taskId)
     setActiveLangGroup(item.langGroup)
     cancelRequestedRef.current = false
     setInstalling(true)
     setProgress({ phase: 'preparing', downloadedBytes: 0, totalBytes: null, paused: false })
-    setPaused(false)
-    setCancelling(false)
+    resetPauseCancel()
     setCancelled(false)
     setError('')
     setInstalledPath('')
@@ -122,20 +159,19 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
         setCancelled(true)
       } else {
         setResultLangGroup(item.langGroup)
-        const formatted = formatAppError(cause, t)
-        setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+        reportError(cause)
       }
     } finally {
       taskIdRef.current = null
       if (mountedRef.current) {
+        setDownloadId(null)
         setActiveLangGroup(null)
         setInstalling(false)
         setProgress(null)
-        setPaused(false)
-        setCancelling(false)
+        resetPauseCancel()
       }
     }
-  }, [externalFolderNames, gamePath, onInstalled, onLinkedExternal, t])
+  }, [externalFolderNames, gamePath, onInstalled, onLinkedExternal, reportError, resetPauseCancel, t])
 
   function applyInstallResult(item: WtLiveItem, result: SkinInstallResult) {
     announceDownloadCompletion('camouflage', item.title || item.fileName || t('camouflage'))
@@ -175,103 +211,11 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
         pendingInstallRef.current = null
         setDuplicatePrompt(null)
       }
-      const formatted = formatAppError(cause, t)
-      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
+      reportError(cause)
     } finally {
       setResolvingDuplicate(false)
     }
-  }, [duplicatePrompt, onInstalled, onLinkedExternal, resolvingDuplicate, t])
-
-  const togglePause = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId) return
-    const nextPaused = !paused
-    setPaused(nextPaused)
-    try {
-      await setSkinDownloadPaused(taskId, nextPaused)
-    } catch (cause) {
-      setPaused(!nextPaused)
-      const formatted = formatAppError(cause, t)
-      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
-    }
-  }, [paused, t])
-
-  const prepareCancel = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId) return false
-    wasPausedBeforeCancelPromptRef.current = paused
-    if (!paused) {
-      try {
-        await setSkinDownloadPaused(taskId, true)
-      } catch (cause) {
-        wasPausedBeforeCancelPromptRef.current = false
-        if (taskIdRef.current !== taskId) return false
-        const formatted = formatAppError(cause, t)
-        setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
-        return false
-      }
-    }
-    if (taskIdRef.current !== taskId) return false
-    setPaused(true)
-    return true
-  }, [paused, progress?.phase, t])
-
-  const continueAfterCancelPrompt = useCallback(async () => {
-    const taskId = taskIdRef.current
-    wasPausedBeforeCancelPromptRef.current = false
-    if (!taskId) return
-    setPaused(false)
-    try {
-      await setSkinDownloadPaused(taskId, false)
-    } catch (cause) {
-      setPaused(true)
-      const formatted = formatAppError(cause, t)
-      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
-    }
-  }, [progress?.phase, t])
-
-  const dismissCancelPrompt = useCallback(async () => {
-    const taskId = taskIdRef.current
-    const wasPaused = wasPausedBeforeCancelPromptRef.current
-    wasPausedBeforeCancelPromptRef.current = false
-    if (!taskId || wasPaused) return
-    setPaused(false)
-    try {
-      await setSkinDownloadPaused(taskId, false)
-    } catch (cause) {
-      setPaused(true)
-      const formatted = formatAppError(cause, t)
-      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
-    }
-  }, [progress?.phase, t])
-
-  const cancel = useCallback(async () => {
-    const taskId = taskIdRef.current
-    if (!taskId) {
-      const pendingId = pendingInstallRef.current
-      if (!pendingId) return
-      try {
-        await cancelPreparedSkinInstall(pendingId)
-        pendingInstallRef.current = null
-        setDuplicatePrompt(null)
-        setCancelled(true)
-      } catch (cause) {
-        const formatted = formatAppError(cause, t)
-        setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
-      }
-      return
-    }
-    cancelRequestedRef.current = true
-    setCancelling(true)
-    try {
-      await cancelSkinDownload(taskId)
-    } catch (cause) {
-      cancelRequestedRef.current = false
-      setCancelling(false)
-      const formatted = formatAppError(cause, t)
-      setError(formatted.detail ? `${formatted.message} (${formatted.detail})` : formatted.message)
-    }
-  }, [t])
+  }, [duplicatePrompt, onInstalled, onLinkedExternal, reportError, resolvingDuplicate, t])
 
   return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, activeLangGroup, resultLangGroup, duplicatePrompt, resolvingDuplicate, resolveDuplicate, install, togglePause, cancel, prepareCancel, continueAfterCancelPrompt, dismissCancelPrompt, resetInstallState }
 }
