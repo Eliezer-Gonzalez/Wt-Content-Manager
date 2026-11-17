@@ -8,6 +8,7 @@ const migrationKey = 'wt-content-manager-library-file-migrated-v1'
 export type { SkinFingerprint } from './skinFingerprint'
 
 export type InstalledSkin = {
+  recordId?: string
   availability: 'present' | 'missing' | 'needsReview'
   fingerprint?: SkinFingerprintType
   item?: WtLiveItem
@@ -33,13 +34,14 @@ export type LocalLibrary = {
   favorites: WtLiveItem[]
   installedSkins: InstalledSkin[]
   externalSkinPublications: ExternalSkinPublication[]
+  repairRevision: number
 }
 
 export function sameFavorite(left: WtLiveItem, right: WtLiveItem): boolean {
   return left.id === right.id && (left.contentType ?? 'camouflage') === (right.contentType ?? 'camouflage')
 }
 
-export const emptyLocalLibrary: LocalLibrary = { favorites: [], installedSkins: [], externalSkinPublications: [] }
+export const emptyLocalLibrary: LocalLibrary = { favorites: [], installedSkins: [], externalSkinPublications: [], repairRevision: 0 }
 
 function safeWtUrl(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
@@ -74,7 +76,7 @@ export function parseLocalLibrary(value: unknown): LocalLibrary {
     throw new Error('Invalid local library structure.')
   }
   const favorites = Array.isArray(savedLibrary.favorites) ? savedLibrary.favorites.map(storedItem).filter((item): item is WtLiveItem => item !== null) : []
-  const installedSkins = Array.isArray(savedLibrary.installedSkins) ? savedLibrary.installedSkins.flatMap(entry => {
+  const installedSkins = Array.isArray(savedLibrary.installedSkins) ? savedLibrary.installedSkins.flatMap((entry, index) => {
       if (!entry || typeof entry !== 'object') return []
       const saved = entry as Partial<InstalledSkin>
       if (typeof saved.folderName !== 'string' || typeof saved.path !== 'string') return []
@@ -86,7 +88,7 @@ export function parseLocalLibrary(value: unknown): LocalLibrary {
         ? { item: externalItem, confirmedAt: typeof external.confirmedAt === 'string' ? external.confirmedAt : '', folderPath: external.folderPath.slice(0, 1200) }
         : undefined
       const availability = saved.availability === 'missing' ? 'missing' as const : saved.availability === 'needsReview' ? 'needsReview' as const : 'present' as const
-      return [{ availability, item, externalPublication, fingerprint, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
+      return [{ recordId: typeof saved.recordId === 'string' && saved.recordId.length <= 180 ? saved.recordId : stableSkinRecordId(saved.path, index), availability, item, externalPublication, fingerprint, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
     }) : []
   const savedLinks = Array.isArray(savedLibrary.externalSkinPublications) ? savedLibrary.externalSkinPublications : []
   const externalSkinPublications = savedLinks.flatMap(saved => {
@@ -106,6 +108,7 @@ export function parseLocalLibrary(value: unknown): LocalLibrary {
     favorites: [...new Map(favorites.map(item => [`${item.contentType ?? 'camouflage'}:${item.id}`, item])).values()],
     installedSkins,
     externalSkinPublications,
+    repairRevision: Number.isSafeInteger(savedLibrary.repairRevision) && (savedLibrary.repairRevision ?? 0) >= 0 ? savedLibrary.repairRevision! : 0,
   }
 }
 
@@ -187,12 +190,18 @@ export function mergeImportedLocalLibrary(current: LocalLibrary, imported: Local
       externalSkinPublications.push({ ...link, folderPath: entry.path })
     }
   }
-  return { favorites, installedSkins, externalSkinPublications }
+  return { favorites, installedSkins, externalSkinPublications, repairRevision: current.repairRevision ?? 0 }
 }
 
 function pathFolderName(value: string): string {
   const parts = value.replace(/[\\/]+$/, '').split(/[\\/]/)
   return parts[parts.length - 1] ?? value
+}
+
+function stableSkinRecordId(path: string, index: number): string {
+  let hash = 2166136261
+  for (const char of normalizeSkinPath(path)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619)
+  return `skin-${index}-${(hash >>> 0).toString(16)}`
 }
 
 export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[], publicationLinks: ExternalSkinPublication[] = []): InstalledSkin[] {
@@ -211,6 +220,7 @@ export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[
     const fallbackDate = disk.modifiedAtMs ? new Date(disk.modifiedAtMs).toISOString() : ''
     return {
       availability: validMatch?.availability === 'needsReview' ? 'needsReview' as const : 'present' as const,
+      recordId: validMatch?.recordId ?? stableSkinRecordId(disk.path, 0),
       fingerprint: validMatch?.fingerprint,
       item: validMatch?.item,
       externalPublication,
@@ -239,7 +249,7 @@ export function mergeRecoveryReviewRecords(current: LocalLibrary, recovered: Loc
       installedSkins.push(recoveredEntry)
     }
   }
-  return { ...current, installedSkins }
+  return { ...current, installedSkins, repairRevision: Math.max(current.repairRevision ?? 0, recovered.repairRevision ?? 0) }
 }
 
 export function removeMissingSkinRecord(library: LocalLibrary, target: InstalledSkin): LocalLibrary {

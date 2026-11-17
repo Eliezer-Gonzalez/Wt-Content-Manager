@@ -5,17 +5,20 @@ import { ConfirmRemoveFavoriteModal } from './ConfirmRemoveFavoriteModal'
 import { DownloadCancelConfirmDialog } from './DownloadCancelConfirmDialog'
 import { LegalNoticeDialog } from './LegalNoticeDialog'
 import { ImageQualitySetupDialog } from './ImageQualitySetupDialog'
+import { SkinRepairDialog } from './SkinRepairDialog'
 import type { useGameInstallation } from '../hooks/useGameInstallation'
 import type { useLocalLibrary } from '../hooks/useLocalLibrary'
 import type { useLegalNotice } from '../hooks/useLegalNotice'
 import type { useImageQualityPreference } from '../hooks/useImageQualityPreference'
 import type { useDownloadCancellation } from '../hooks/useDownloadCancellation'
+import type { useSkinLinkRepair } from '../hooks/useSkinLinkRepair'
 import type { WtLiveItem } from '../lib/wtLive'
 import { useI18n } from '../i18n/I18nContext'
 
 type Props = {
   gameSetup: ReturnType<typeof useGameInstallation>
   library: ReturnType<typeof useLocalLibrary>
+  skinRepair: ReturnType<typeof useSkinLinkRepair>
   legalNotice: ReturnType<typeof useLegalNotice>
   imageQuality: ReturnType<typeof useImageQualityPreference>
   cancellation: ReturnType<typeof useDownloadCancellation>
@@ -25,7 +28,7 @@ type Props = {
 }
 
 export function AppSystemDialogs({
-  gameSetup, library, legalNotice, imageQuality, cancellation,
+  gameSetup, library, legalNotice, imageQuality, cancellation, skinRepair,
   favoriteToRemove, onFavoriteToRemoveChange, keepWindowControlsVisible,
 }: Props) {
   const { t } = useI18n()
@@ -57,6 +60,17 @@ export function AppSystemDialogs({
         entry={library.skinRecordToRemove}
         onConfirm={library.confirmRemoveMissingSkin}
         onClose={library.cancelRemoveMissingSkin}
+      />
+      <SkinRepairDialog
+        open={skinRepair.dialogOpen}
+        candidates={skinRepair.candidates}
+        library={library.library}
+        autoLinked={skinRepair.autoLinked}
+        baselineCount={skinRepair.baselineCount}
+        resolving={skinRepair.resolving}
+        error={skinRepair.error}
+        onConfirm={candidate => void skinRepair.confirm(candidate)}
+        onClose={skinRepair.close}
       />
       <ConfirmRemoveFavoriteModal
         item={favoriteToRemove}

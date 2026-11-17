@@ -56,6 +56,9 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
         {t('skinInstallNeedsReview')}
       </p>
     )}
+    {entry.fingerprint?.origin === 'baseline' && (
+      <p className="mb-0 mt-1 text-[10px] leading-4 text-[#d4c782]">{t('skinBaselineBadge')}</p>
+    )}
     <dl className="mb-0 mt-4 grid grid-cols-2 gap-3 border-t border-[#333a32] pt-3 text-xs">
       <AppTooltip content={entry.folderName}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FolderOpen size={13}/>{t('installedFolder')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{entry.folderName}</dd></div></AppTooltip>
       <AppTooltip content={date}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><CalendarDays size={13}/>{t(entry.item ? 'installedDate' : 'modifiedDate')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{date}</dd></div></AppTooltip>

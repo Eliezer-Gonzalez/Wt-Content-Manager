@@ -13,6 +13,7 @@ import { NotificationSettingsCard } from './NotificationSettingsCard'
 import type { ImageQualityMode } from '../lib/imageQuality'
 import type { useCompletionNotificationSettings } from '../hooks/useCompletionNotificationSettings'
 import type { useLocalLibrary } from '../hooks/useLocalLibrary'
+import type { SkinRepairProgress } from '../lib/skinRepair'
 import { LocalLibraryTransferCard } from './LocalLibraryTransferCard'
 
 type DiagnosticsState = ReturnType<typeof useDiagnosticsSettings>
@@ -27,7 +28,7 @@ type Props = {
   onRescanGame: () => void
   onViewLegalNotice: () => void
   notificationSettings: ReturnType<typeof useCompletionNotificationSettings>
-  library: ReturnType<typeof useLocalLibrary>
+  library: ReturnType<typeof useLocalLibrary> & { importProgress?: SkinRepairProgress | null; onCancelImport?: () => void }
 }
 
 export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice, notificationSettings, library }: Props) {
@@ -126,7 +127,7 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
 
         <ImageQualitySettingsCard value={imageQuality} onChange={onChangeImageQuality} />
         <div className="min-w-0 xl:col-span-2">
-          <LocalLibraryTransferCard exportLibrary={library.exportLibrary} onImport={library.importLibrary} disabled={!library.ready || library.scanning} />
+          <LocalLibraryTransferCard exportLibrary={library.exportLibrary} onImport={library.importLibrary} importProgress={library.importProgress} onCancelImport={library.onCancelImport} disabled={!library.ready || library.scanning || Boolean(library.importProgress)} />
         </div>
         <div className="min-w-0 xl:col-span-2">
           <NotificationSettingsCard

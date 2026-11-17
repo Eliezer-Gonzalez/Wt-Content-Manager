@@ -1,6 +1,7 @@
 export type SkinFingerprint = {
   files: { relativePath: string; sizeBytes: number; hash: string }[]
   globalHash: string
+  origin: 'install' | 'baseline'
 }
 
 const pathEncoder = new TextEncoder()
@@ -19,7 +20,7 @@ export function parseStoredSkinFingerprint(value: unknown): SkinFingerprint | un
     return [{ relativePath: saved.relativePath, sizeBytes: saved.sizeBytes as number, hash: saved.hash }]
   })
   if (files.length !== candidate.files.length || files.some((file, index) => index > 0 && comparePathBytes(files[index - 1].relativePath, file.relativePath) >= 0)) return undefined
-  return { files, globalHash: candidate.globalHash }
+  return { files, globalHash: candidate.globalHash, origin: candidate.origin === 'baseline' ? 'baseline' : 'install' }
 }
 
 function comparePathBytes(left: string, right: string): number {

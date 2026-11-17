@@ -6,6 +6,7 @@ pub mod http;
 mod local_library;
 mod logging;
 mod providers;
+mod repair_commands;
 mod settings;
 mod skins;
 mod sounds;
@@ -76,6 +77,10 @@ pub fn run() {
             commands::load_local_library,
             commands::save_local_library,
             commands::clear_local_library,
+            repair_commands::repair_skin_links,
+            repair_commands::cancel_skin_link_repair,
+            repair_commands::confirm_skin_link_candidate,
+            repair_commands::commit_imported_skin_links,
             sounds::commands::list_sound_packages,
             sounds::commands::download_sound_package,
             sounds::commands::update_sound_package,

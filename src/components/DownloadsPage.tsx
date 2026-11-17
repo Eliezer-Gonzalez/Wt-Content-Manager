@@ -16,6 +16,7 @@ import { openUserSkinsFolder } from '../lib/settings'
 import { filterAndSortInstalledSkins, filterAndSortSoundPackages, type DownloadOriginFilter, type DownloadSortOrder, type SoundDownloadStatusFilter } from '../lib/downloadLibrary'
 import type { InstalledSkin } from '../lib/localLibrary'
 import type { SoundLibraryController } from '../hooks/useSoundLibrary'
+import type { SkinRepairProgress } from '../lib/skinRepair'
 
 type DownloadCategory = 'camouflages' | 'sounds'
 
@@ -36,6 +37,10 @@ type CamouflageDownloads = {
   onUnlinkPublication: ComponentProps<typeof InstalledSkinCard>['onUnlinkPublication']
   isSaved: (entry: InstalledSkin) => boolean
   onToggleSaved: ComponentProps<typeof InstalledSkinCard>['onToggleSaved']
+  repairRunning: boolean
+  repairProgress: SkinRepairProgress | null
+  onRepair: () => void
+  onCancelRepair: () => void
 }
 
 type SoundDownloads = {
@@ -176,6 +181,10 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
                 <span className="text-xs text-[#9fa89b]">{t('downloadsFilteredCount', { count: visibleSkins.length })}</span>
                 {camouflages.gamePath && (
                   <>
+                    <Button variant="secondary" size="sm" className="min-h-10" onClick={camouflages.onRepair} disabled={camouflages.scanning || camouflages.repairRunning}>
+                      {camouflages.repairRunning ? <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RefreshCw size={13} aria-hidden="true" />}
+                      <span>{t(camouflages.repairRunning ? 'skinRepairRunning' : 'skinRepairButton')}</span>
+                    </Button>
                     <Button variant="secondary" size="sm" className="min-h-10" onClick={camouflages.onRescan} disabled={camouflages.scanning}>
                       <RefreshCw size={13} className={camouflages.scanning ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />
                       <span>{t(camouflages.scanning ? 'scanningSkins' : 'rescanSkins')}</span>
@@ -188,6 +197,10 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
                 )}
               </div>
             </div>
+            {camouflages.repairRunning && camouflages.repairProgress && <div className="mb-3 flex flex-wrap items-center gap-3 border border-[#414a3b] bg-[#20271f] px-3 py-2 text-xs text-[#b8c0ae]" role="status" aria-live="polite">
+              <span className="min-w-0 flex-1">{t(camouflages.repairProgress.phase === 'finalizing' ? 'skinRepairFinalizing' : 'skinRepairProgress', { current: camouflages.repairProgress.current, completed: camouflages.repairProgress.completed, total: camouflages.repairProgress.total })}</span>
+              {camouflages.repairProgress.phase !== 'finalizing' && <Button variant="quiet" size="sm" onClick={camouflages.onCancelRepair}>{t('cancelAction')}</Button>}
+            </div>}
             {userSkinsError && <p className="mb-3 text-xs text-amber-200" role="alert">{t('downloadsOpenUserSkinsFailed')}</p>}
             {visibleSkins.length === 0 ? (
               camouflages.entries.length > 0 ? (

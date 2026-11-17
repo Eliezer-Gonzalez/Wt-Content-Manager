@@ -16,6 +16,16 @@ const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
 pub(crate) struct SkinFingerprint {
     pub(crate) files: Vec<SkinFingerprintFile>,
     pub(crate) global_hash: String,
+    #[serde(default)]
+    pub(crate) origin: FingerprintOrigin,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum FingerprintOrigin {
+    #[default]
+    Install,
+    Baseline,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -28,6 +38,13 @@ pub(crate) struct SkinFingerprintFile {
 
 impl SkinFingerprint {
     pub(crate) fn compute(root: &Path) -> io::Result<Self> {
+        Self::compute_controlled(root, |_| true)
+    }
+
+    pub(crate) fn compute_controlled(
+        root: &Path,
+        mut on_bytes: impl FnMut(u64) -> bool,
+    ) -> io::Result<Self> {
         let metadata = fs::symlink_metadata(root)?;
         ensure_regular_directory(root, &metadata)?;
         let mut paths = Vec::new();
@@ -35,13 +52,24 @@ impl SkinFingerprint {
         sort_paths(&mut paths);
 
         let mut files = Vec::with_capacity(paths.len());
+        let mut total_bytes = 0_u64;
         for (relative_path, full_path) in paths {
-            files.push(hash_file(relative_path, full_path)?);
+            files.push(hash_file(relative_path, full_path, &mut total_bytes, &mut on_bytes)?);
         }
         Ok(Self {
             global_hash: hash_file_list(&files),
             files,
+            origin: FingerprintOrigin::Install,
         })
+    }
+
+    pub(crate) fn as_baseline(mut self) -> Self {
+        self.origin = FingerprintOrigin::Baseline;
+        self
+    }
+
+    pub(crate) fn content_matches(&self, other: &Self) -> bool {
+        self.global_hash == other.global_hash && self.files == other.files
     }
 
     pub(crate) fn is_valid(&self) -> bool {
@@ -63,7 +91,7 @@ impl SkinFingerprint {
     }
 
     pub(crate) fn matches_path(&self, path: &Path) -> bool {
-        Self::compute(path).is_ok_and(|actual| actual == *self)
+        Self::compute(path).is_ok_and(|actual| self.content_matches(&actual))
     }
 }
 
@@ -116,7 +144,12 @@ fn normalize_relative_path(root: &Path, path: &Path) -> io::Result<String> {
     Ok(parts.join("/"))
 }
 
-fn hash_file(relative_path: String, path: PathBuf) -> io::Result<SkinFingerprintFile> {
+fn hash_file(
+    relative_path: String,
+    path: PathBuf,
+    total_bytes: &mut u64,
+    on_bytes: &mut impl FnMut(u64) -> bool,
+) -> io::Result<SkinFingerprintFile> {
     let mut file = File::open(&path)?;
     let mut hasher = Hasher::new();
     let mut buffer = [0_u8; HASH_BUFFER_SIZE];
@@ -125,6 +158,12 @@ fn hash_file(relative_path: String, path: PathBuf) -> io::Result<SkinFingerprint
         let read = file.read(&mut buffer)?;
         if read == 0 {
             break;
+        }
+        *total_bytes = total_bytes
+            .checked_add(read as u64)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "skin total size overflow"))?;
+        if !on_bytes(*total_bytes) {
+            return Err(io::Error::new(io::ErrorKind::Interrupted, "skin fingerprint cancelled"));
         }
         size_bytes = size_bytes
             .checked_add(read as u64)
@@ -191,13 +230,13 @@ fn ensure_not_reparse_or_symlink(path: &Path, metadata: &fs::Metadata) -> io::Re
 }
 
 #[cfg(windows)]
-fn is_reparse_point(metadata: &fs::Metadata) -> bool {
+pub(crate) fn is_reparse_point(metadata: &fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
     metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
 }
 
 #[cfg(not(windows))]
-fn is_reparse_point(_: &fs::Metadata) -> bool {
+pub(crate) fn is_reparse_point(_: &fs::Metadata) -> bool {
     false
 }
 

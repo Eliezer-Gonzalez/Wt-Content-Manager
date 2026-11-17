@@ -11,6 +11,7 @@ mod pending_install;
 pub mod library;
 pub(crate) mod paths;
 pub(crate) mod recovery;
+pub(crate) mod repair;
 mod replacement;
 mod staging;
 mod texture_validation;

@@ -17,6 +17,7 @@ import { DownloadCompletionNotifications } from './components/DownloadCompletion
 import { LocalLibraryStartupGate } from './components/LocalLibraryStartupGate'
 import { useGameInstallation } from './hooks/useGameInstallation'
 import { useLocalLibrary } from './hooks/useLocalLibrary'
+import { useSkinLinkRepair } from './hooks/useSkinLinkRepair'
 import { useCamouflageManagement } from './hooks/useCamouflageManagement'
 import { useSectionSearch } from './hooks/useSectionSearch'
 import { useCamouflageFeed } from './hooks/useCamouflageFeed'
@@ -42,6 +43,7 @@ export default function App() {
   const imageQuality = useImageQualityPreference()
   const notificationSettings = useCompletionNotificationSettings()
   const library = useLocalLibrary(gameSetup.gameInstall?.path, t)
+  const skinRepair = useSkinLinkRepair(gameSetup.gameInstall?.path, library.library, library.replaceLibrary)
   const [active, setActive] = useState<AppSection>('camouflages')
   const [downloadsCategory, setDownloadsCategory] = useState<'camouflages' | 'sounds'>('camouflages')
   const [favoritesCategory, setFavoritesCategory] = useState<FavoriteCategory>('camouflages')
@@ -153,7 +155,7 @@ export default function App() {
           gameInstall={gameSetup.gameInstall} gameLoading={gameSetup.loading}
           diagnostics={diagnostics} imageQuality={imageQuality.quality} onChangeImageQuality={imageQuality.setQuality}
           onOpenGameSetup={gameSetup.openSetup} onRescanGame={() => void gameSetup.scan()}
-          onViewLegalNotice={legalNotice.openNotice} notificationSettings={notificationSettings} library={library}
+          onViewLegalNotice={legalNotice.openNotice} notificationSettings={notificationSettings} library={{ ...library, importLibrary: skinRepair.importLibrary, importProgress: skinRepair.progress, onCancelImport: () => void skinRepair.cancel() }}
         /> : active === 'sounds' ? <SoundManagerPage
           imageQuality={imageQuality.quality} soundLibrary={soundLibraryForUi}
           cancelDialogOpen={cancellation.pendingKind === 'sound'} downloadableLangGroups={currentSoundLangGroups}
@@ -171,6 +173,10 @@ export default function App() {
             onRescan: () => void library.rescanSkins(), onOpenPost: openPost,
             onUninstall: library.requestUninstall,
             onRemoveFromLibrary: library.requestRemoveMissingSkin,
+            repairRunning: skinRepair.running,
+            repairProgress: skinRepair.progress,
+            onRepair: () => void skinRepair.start(),
+            onCancelRepair: () => void skinRepair.cancel(),
             onUnlinkPublication: entry => library.unlinkExternalPublication(entry.path),
             isSaved: entry => {
               const item = entry.item ?? entry.externalPublication?.item
@@ -230,6 +236,7 @@ export default function App() {
     <AppSystemDialogs
       gameSetup={gameSetup} library={library} legalNotice={legalNotice} imageQuality={imageQuality}
       cancellation={cancellation} favoriteToRemove={favoriteToRemove} onFavoriteToRemoveChange={setFavoriteToRemove}
+      skinRepair={skinRepair}
       keepWindowControlsVisible={isTauriRuntime}
     />
     <PostDetailsOverlay

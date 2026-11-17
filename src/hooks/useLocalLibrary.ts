@@ -23,7 +23,14 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
   const [uninstalledFolder, setUninstalledFolder] = useState<string | null>(null)
 
   const updateLibrary = useCallback((update: (current: LocalLibrary) => LocalLibrary) => {
-    const next = update(libraryRef.current)
+    const current = libraryRef.current
+    const updated = update(current)
+    const next = { ...updated, repairRevision: current.repairRevision ?? 0 }
+    libraryRef.current = next
+    setLibrary(next)
+  }, [])
+
+  const replaceLibrary = useCallback((next: LocalLibrary) => {
     libraryRef.current = next
     setLibrary(next)
   }, [])
@@ -65,7 +72,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
   const retryLibraryLoad = useCallback(() => setLoadAttempt(attempt => attempt + 1), [])
   const exportLibrary = useCallback(() => exportLocalLibrary(library), [library])
 
-  const importLibrary = useCallback(async (value: unknown) => {
+  const importLibrary = useCallback(async (value: unknown): Promise<unknown> => {
     const imported = parseLocalLibraryExport(value)
     const importedFolders = new Set([
       ...imported.installedSkins.filter(entry => entry.item || entry.externalPublication).map(entry => entry.folderName.toLowerCase()),
@@ -129,7 +136,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
   }, [updateLibrary])
 
   const recordInstallation = useCallback((item: WtLiveItem, result: Omit<InstalledSkin, 'availability' | 'item' | 'installedAt'>) => {
-    const entry: InstalledSkin = { ...result, availability: 'present', item, installedAt: new Date().toISOString() }
+    const entry: InstalledSkin = { ...result, recordId: crypto.randomUUID(), availability: 'present', item, installedAt: new Date().toISOString() }
     updateLibrary(current => ({
       ...current,
       installedSkins: [entry, ...current.installedSkins.filter(s => !sameSkinIdentity(s, entry))],
@@ -222,6 +229,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     persistenceError,
     retryLibraryLoad,
     importLibrary,
+    replaceLibrary,
     scanning,
     rescanSkins,
     refreshRecoveryRecords,

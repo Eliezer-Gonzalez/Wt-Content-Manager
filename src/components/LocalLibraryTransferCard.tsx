@@ -2,21 +2,25 @@ import { useRef, useState } from 'react'
 import { Download, FolderInput, Library } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { Button } from './ui/Button'
+import type { SkinRepairProgress } from '../lib/skinRepair'
 
 const maxImportBytes = 16 * 1024 * 1024
 
 type Props = {
   exportLibrary: () => string
   onImport: (value: unknown) => Promise<unknown>
+  importProgress?: SkinRepairProgress | null
+  onCancelImport?: () => void
   disabled?: boolean
 }
 
-export function LocalLibraryTransferCard({ exportLibrary, onImport, disabled = false }: Props) {
+export function LocalLibraryTransferCard({ exportLibrary, onImport, importProgress, onCancelImport, disabled = false }: Props) {
   const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [matchedCount, setMatchedCount] = useState(0)
+  const [candidateCount, setCandidateCount] = useState(0)
 
   function exportData() {
     setStatus('idle')
@@ -38,7 +42,9 @@ export function LocalLibraryTransferCard({ exportLibrary, onImport, disabled = f
     try {
       if (file.size > maxImportBytes) throw new Error('File too large')
       const result = await onImport(JSON.parse(await file.text()) as unknown)
-      setMatchedCount(typeof result === 'number' ? result : 0)
+      if (result && typeof result === 'object' && 'cancelled' in result && result.cancelled === true) { setStatus('idle'); return }
+      setMatchedCount(result && typeof result === 'object' && 'autoLinked' in result && typeof result.autoLinked === 'number' ? result.autoLinked : typeof result === 'number' ? result : 0)
+      setCandidateCount(result && typeof result === 'object' && 'candidates' in result && typeof result.candidates === 'number' ? result.candidates : 0)
       setStatus('success')
     } catch {
       setStatus('error')
@@ -59,6 +65,10 @@ export function LocalLibraryTransferCard({ exportLibrary, onImport, disabled = f
       </div>
       <div className="space-y-4 px-5 py-4">
         <p className="mb-0 text-xs leading-5 text-[#aab2a4]">{t('libraryTransferDescription')}</p>
+        {busy && importProgress && <div className="flex flex-wrap items-center gap-3 border border-[#414a3b] bg-[#20271f] px-3 py-2 text-xs text-[#b8c0ae]" role="status" aria-live="polite">
+          <span className="min-w-0 flex-1">{t(importProgress.phase === 'finalizing' ? 'skinRepairFinalizing' : 'skinRepairProgress', { current: importProgress.current, completed: importProgress.completed, total: importProgress.total })}</span>
+          {importProgress.phase !== 'finalizing' && onCancelImport && <Button variant="quiet" size="sm" onClick={onCancelImport}>{t('cancelAction')}</Button>}
+        </div>}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onClick={exportData} disabled={disabled || busy}>
             <Download size={14} aria-hidden="true" />{t('libraryTransferExport')}
@@ -70,7 +80,7 @@ export function LocalLibraryTransferCard({ exportLibrary, onImport, disabled = f
         </div>
         {status !== 'idle' && <p className={`mb-0 text-xs ${status === 'success' ? 'text-[#bdc99e]' : 'text-amber-200'}`} role={status === 'error' ? 'alert' : 'status'}>
           {status === 'success'
-            ? t(matchedCount > 0 ? 'libraryTransferImportSuccess' : 'libraryTransferImportNoMatches', { count: matchedCount })
+            ? t('libraryTransferImportDone', { autoLinked: matchedCount, candidates: candidateCount })
             : t('libraryTransferImportFailed')}
         </p>}
       </div>

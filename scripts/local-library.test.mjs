@@ -8,12 +8,15 @@ import test from 'node:test'
 
 const source = await readFile(new URL('../src/lib/localLibrary.ts', import.meta.url), 'utf8')
 const fingerprintSource = await readFile(new URL('../src/lib/skinFingerprint.ts', import.meta.url), 'utf8')
+const repairPlanSource = await readFile(new URL('../src/lib/skinLinkRepairPlan.ts', import.meta.url), 'utf8')
 const temporaryDirectory = await mkdtemp(join(tmpdir(), 'wt-local-library-test-'))
 const modulePath = join(temporaryDirectory, 'localLibrary.mjs')
 await writeFile(join(temporaryDirectory, 'skinFingerprint.mjs'), stripTypeScriptTypes(fingerprintSource, { mode: 'strip' }))
+await writeFile(join(temporaryDirectory, 'skinLinkRepairPlan.mjs'), stripTypeScriptTypes(repairPlanSource, { mode: 'strip' }))
 const compiled = stripTypeScriptTypes(source.replace("from './skinFingerprint'", "from './skinFingerprint.mjs'"), { mode: 'strip' })
 await writeFile(modulePath, compiled)
 const { mergeRecoveryReviewRecords, mergeScannedSkins, parseLocalLibrary, removeMissingSkinRecord, sameSkinIdentity } = await import(pathToFileURL(modulePath).href)
+const { createImportedLibraryPlan } = await import(pathToFileURL(join(temporaryDirectory, 'skinLinkRepairPlan.mjs')).href)
 
 test.after(async () => rm(temporaryDirectory, { recursive: true, force: true }))
 
@@ -64,6 +67,15 @@ test('rescan preserves the installed skin fingerprint', () => {
   assert.deepEqual(result[0].fingerprint, fingerprint)
 })
 
+test('fingerprints saved before origin markers load as install-time fingerprints', () => {
+  const result = parseLocalLibrary({
+    favorites: [],
+    installedSkins: [{ ...storedSkin, fingerprint: { files: [{ relativePath: 'skin.blk', sizeBytes: 4, hash: 'a'.repeat(64) }], globalHash: 'b'.repeat(64) } }],
+  })
+
+  assert.equal(result.installedSkins[0].fingerprint.origin, 'install')
+})
+
 test('same folder names in different game paths remain separate records', () => {
   const otherGameRecord = { ...storedSkin, path: 'D:\\War Thunder\\UserSkins\\Test skin' }
   const result = mergeScannedSkins([{
@@ -98,6 +110,52 @@ test('recovery refresh surfaces review state without losing the known publicatio
   assert.equal(result.installedSkins[0].availability, 'needsReview')
   assert.equal(result.installedSkins[0].item.id, publication.id)
   assert.equal(result.favorites.length, 1)
+})
+
+test('library import links a unique matching install fingerprint', () => {
+  const fingerprint = { origin: 'install', globalHash: 'a'.repeat(64), files: [{ relativePath: 'skin.blk', sizeBytes: 4, hash: 'b'.repeat(64) }] }
+  const current = { favorites: [], installedSkins: [{ ...storedSkin, item: undefined, fingerprint }], externalSkinPublications: [], repairRevision: 3 }
+  const imported = { favorites: [], installedSkins: [{ ...storedSkin, fingerprint, item: publication }], externalSkinPublications: [], repairRevision: 0 }
+  const plan = createImportedLibraryPlan(current, imported)
+
+  assert.equal(plan.autoLinked, 1)
+  assert.equal(plan.library.installedSkins[0].item.id, publication.id)
+  assert.equal(plan.candidates.length, 0)
+})
+
+test('legacy library import with no fingerprints creates candidates only', () => {
+  const current = { favorites: [], installedSkins: [{ ...storedSkin, item: undefined }], externalSkinPublications: [], repairRevision: 3 }
+  const imported = { favorites: [], installedSkins: [{ ...storedSkin, item: publication, fingerprint: undefined }], externalSkinPublications: [], repairRevision: 0 }
+  const plan = createImportedLibraryPlan(current, imported)
+
+  assert.equal(plan.autoLinked, 0)
+  assert.equal(plan.library.installedSkins[0].item, undefined)
+  assert.equal(plan.candidates.length, 1)
+  assert.equal(plan.candidates[0].reason, 'nameOnly')
+})
+
+test('baseline fingerprints from an import are candidates and never automatic links', () => {
+  const installFingerprint = { origin: 'install', globalHash: 'a'.repeat(64), files: [{ relativePath: 'skin.blk', sizeBytes: 4, hash: 'b'.repeat(64) }] }
+  const baselineFingerprint = { ...installFingerprint, origin: 'baseline' }
+  const current = { favorites: [], installedSkins: [{ ...storedSkin, item: undefined, fingerprint: baselineFingerprint }], externalSkinPublications: [], repairRevision: 3 }
+  const imported = { favorites: [], installedSkins: [{ ...storedSkin, fingerprint: installFingerprint, item: publication }], externalSkinPublications: [], repairRevision: 0 }
+  const plan = createImportedLibraryPlan(current, imported)
+
+  assert.equal(plan.autoLinked, 0)
+  assert.equal(plan.candidates.length, 1)
+  assert.equal(plan.candidates[0].reason, 'ambiguousFull')
+})
+
+test('import does not replace a skin that already has an external publication link', () => {
+  const fingerprint = { origin: 'install', globalHash: 'a'.repeat(64), files: [{ relativePath: 'skin.blk', sizeBytes: 4, hash: 'b'.repeat(64) }] }
+  const externalItem = { ...publication, id: publication.id + 1 }
+  const current = { favorites: [], installedSkins: [{ ...storedSkin, item: undefined, externalPublication: { item: externalItem, folderPath: storedSkin.path, confirmedAt: '' }, fingerprint }], externalSkinPublications: [], repairRevision: 3 }
+  const imported = { favorites: [], installedSkins: [{ ...storedSkin, fingerprint, item: publication }], externalSkinPublications: [], repairRevision: 0 }
+  const plan = createImportedLibraryPlan(current, imported)
+
+  assert.equal(plan.autoLinked, 0)
+  assert.equal(plan.library.installedSkins[0].externalPublication.item.id, externalItem.id)
+  assert.equal(plan.candidates.length, 0)
 })
 
 test('explicitly removing a missing record also removes its external publication link', () => {
