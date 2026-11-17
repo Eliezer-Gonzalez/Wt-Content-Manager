@@ -1,5 +1,9 @@
+import { isTauriRuntime } from './gameInstall'
+import { clearPersistentLocalLibrary } from './localLibraryPersistence'
+
 const localDataKeys = [
   'wt-content-manager-library-v1',
+  'wt-content-manager-library-file-migrated-v1',
   'wt-content-manager-game-path',
   'wt-content-manager-searches',
   'wt-content-manager-home-sections-v1',
@@ -11,6 +15,7 @@ const localDataKeys = [
   'wt-content-manager-completion-notifications-v1',
 ] as const
 
-export function resetLocalData(): void {
+export async function resetLocalData(): Promise<void> {
+  if (isTauriRuntime) await clearPersistentLocalLibrary()
   for (const key of localDataKeys) localStorage.removeItem(key)
 }

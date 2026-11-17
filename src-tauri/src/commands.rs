@@ -1,9 +1,40 @@
 use serde_json::Value;
 use std::path::PathBuf;
-use tauri::{ipc::Channel, AppHandle, State};
+use tauri::{ipc::Channel, AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{game_install, logging, providers::wt_live, skins, AppError};
+
+fn local_library_path(app: &AppHandle) -> Result<PathBuf, AppError> {
+    app.path()
+        .app_data_dir()
+        .map(|directory| directory.join("local-library.json"))
+        .map_err(|error| AppError::with_detail("local_library_path_failed", error.to_string()))
+}
+
+#[tauri::command]
+pub async fn load_local_library(app: AppHandle) -> Result<Option<Value>, AppError> {
+    let path = local_library_path(&app)?;
+    tauri::async_runtime::spawn_blocking(move || crate::local_library::load(&path))
+        .await
+        .map_err(|error| AppError::with_detail("local_library_read_failed", error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn save_local_library(app: AppHandle, library: Value) -> Result<(), AppError> {
+    let path = local_library_path(&app)?;
+    tauri::async_runtime::spawn_blocking(move || crate::local_library::save(&path, &library))
+        .await
+        .map_err(|error| AppError::with_detail("local_library_write_failed", error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn clear_local_library(app: AppHandle) -> Result<(), AppError> {
+    let path = local_library_path(&app)?;
+    tauri::async_runtime::spawn_blocking(move || crate::local_library::clear(&path))
+        .await
+        .map_err(|error| AppError::with_detail("local_library_clear_failed", error.to_string()))?
+}
 
 pub(crate) fn record_failure<T>(
     logger: &logging::DiagnosticLogger,

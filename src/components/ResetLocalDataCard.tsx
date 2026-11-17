@@ -9,13 +9,17 @@ export function ResetLocalDataCard() {
   const { t } = useI18n()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState(false)
+  const [busy, setBusy] = useState(false)
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    if (busy) return
+    setBusy(true)
     try {
-      resetLocalData()
+      await resetLocalData()
       window.location.reload()
     } catch {
       setError(true)
+      setBusy(false)
     }
   }
 
@@ -33,8 +37,9 @@ export function ResetLocalDataCard() {
       <ConfirmResetLocalDataModal
         open={confirmOpen}
         error={error}
-        onConfirm={handleConfirm}
-        onClose={() => { setConfirmOpen(false); setError(false) }}
+        onConfirm={() => void handleConfirm()}
+        onClose={() => { if (!busy) { setConfirmOpen(false); setError(false) } }}
+        busy={busy}
       />
     </>
   )

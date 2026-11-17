@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isTauriRuntime } from '../lib/gameInstall'
-import { linkExternalSkinPublication, loadLocalLibrary, mergeScannedSkins, removeExternalSkinPublication, sameFavorite, saveLocalLibrary, unlinkExternalSkinPublication, upsertExternalSkinPublication, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
+import { emptyLocalLibrary, exportLocalLibrary, linkExternalSkinPublication, mergeImportedLocalLibrary, mergeScannedSkins, parseLocalLibraryExport, removeExternalSkinPublication, sameFavorite, unlinkExternalSkinPublication, upsertExternalSkinPublication, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
+import { loadPersistentLocalLibrary, savePersistentLocalLibrary } from '../lib/localLibraryPersistence'
 import { scanInstalledSkins, uninstallSkin } from '../lib/skins'
 import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
 import { formatAppError } from '../lib/appError'
@@ -8,14 +9,49 @@ import type { TranslateFn } from '../i18n/I18nProvider'
 import type { WtLiveItem } from '../lib/wtLive'
 
 export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
-  const [library, setLibrary] = useState<LocalLibrary>(loadLocalLibrary)
+  const [library, setLibrary] = useState<LocalLibrary>(emptyLocalLibrary)
+  const libraryRef = useRef(library)
+  const [ready, setReady] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [persistenceError, setPersistenceError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [scanning, setScanning] = useState(false)
   const [uninstallTarget, setUninstallTarget] = useState<InstalledSkin | null>(null)
   const [uninstalling, setUninstalling] = useState(false)
   const [uninstallError, setUninstallError] = useState('')
   const [uninstalledFolder, setUninstalledFolder] = useState<string | null>(null)
 
-  useEffect(() => saveLocalLibrary(library), [library])
+  const updateLibrary = useCallback((update: (current: LocalLibrary) => LocalLibrary) => {
+    const next = update(libraryRef.current)
+    libraryRef.current = next
+    setLibrary(next)
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    setReady(false)
+    setLoadError(false)
+    void loadPersistentLocalLibrary().then(saved => {
+      if (!active) return
+      libraryRef.current = saved
+      setLibrary(saved)
+      setReady(true)
+    }).catch(() => {
+      if (active) setLoadError(true)
+    })
+    return () => { active = false }
+  }, [loadAttempt])
+
+  useEffect(() => {
+    if (!ready) return
+    let active = true
+    void savePersistentLocalLibrary(library).then(() => {
+      if (active) setPersistenceError(false)
+    }).catch(() => {
+      if (active) setPersistenceError(true)
+    })
+    return () => { active = false }
+  }, [library, ready])
 
   useEffect(() => {
     if (!uninstalledFolder) return
@@ -25,13 +61,38 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
 
   const dismissUninstalledNotice = useCallback(() => setUninstalledFolder(null), [])
 
+  const retryLibraryLoad = useCallback(() => setLoadAttempt(attempt => attempt + 1), [])
+  const exportLibrary = useCallback(() => exportLocalLibrary(library), [library])
+
+  const importLibrary = useCallback(async (value: unknown) => {
+    const imported = parseLocalLibraryExport(value)
+    const importedFolders = new Set([
+      ...imported.installedSkins.filter(entry => entry.item || entry.externalPublication).map(entry => entry.folderName.toLowerCase()),
+      ...imported.externalSkinPublications.map(link => link.folderPath.replace(/[\\/]+$/, '').split(/[\\/]/).pop()?.toLowerCase() ?? ''),
+    ])
+    const matchedFolders = libraryRef.current.installedSkins.filter(entry => importedFolders.has(entry.folderName.toLowerCase()))
+    let base = libraryRef.current
+    let next: LocalLibrary
+    while (true) {
+      next = mergeImportedLocalLibrary(base, imported)
+      await savePersistentLocalLibrary(next)
+      const latest = libraryRef.current
+      if (latest === base) break
+      base = latest
+    }
+    libraryRef.current = next
+    setLibrary(next)
+    setPersistenceError(false)
+    return matchedFolders.length
+  }, [])
+
   const rescanSkins = useCallback(async () => {
-    if (!isTauriRuntime || !gamePath) return
+    if (!isTauriRuntime || !gamePath || !ready) return
     const startedAt = Date.now()
     setScanning(true)
     try {
       const scanned = await scanInstalledSkins(gamePath)
-      setLibrary(current => ({
+      updateLibrary(current => ({
         ...current,
         installedSkins: mergeScannedSkins(scanned, current.installedSkins, current.externalSkinPublications),
       }))
@@ -41,57 +102,57 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
       await waitForMinimumLoadingDuration(startedAt)
       setScanning(false)
     }
-  }, [gamePath])
+  }, [gamePath, ready, updateLibrary])
 
   useEffect(() => {
     void rescanSkins()
   }, [rescanSkins])
 
   const toggleFavorite = useCallback((item: WtLiveItem) => {
-    setLibrary(current => {
+    updateLibrary(current => {
       const favorite = { ...item, contentType: item.contentType ?? 'camouflage' }
       const favorites = current.favorites.some(saved => sameFavorite(saved, favorite))
         ? current.favorites.filter(saved => !sameFavorite(saved, favorite))
         : [favorite, ...current.favorites]
       return { ...current, favorites }
     })
-  }, [])
+  }, [updateLibrary])
 
   const recordInstallation = useCallback((item: WtLiveItem, result: Omit<InstalledSkin, 'item' | 'installedAt'>) => {
     const entry: InstalledSkin = { ...result, item, installedAt: new Date().toISOString() }
-    setLibrary(current => ({
+    updateLibrary(current => ({
       ...current,
       installedSkins: [entry, ...current.installedSkins.filter(s => s.folderName.toLowerCase() !== entry.folderName.toLowerCase())],
       externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, entry.path),
     }))
-  }, [])
+  }, [updateLibrary])
 
   const linkExternalPublication = useCallback((folderPath: string, item: WtLiveItem) => {
-    setLibrary(current => ({
+    updateLibrary(current => ({
       ...current,
       installedSkins: linkExternalSkinPublication(current.installedSkins, folderPath, item),
       externalSkinPublications: upsertExternalSkinPublication(current.externalSkinPublications, folderPath, item),
     }))
-  }, [])
+  }, [updateLibrary])
 
   const unlinkExternalPublication = useCallback((folderPath: string) => {
-    setLibrary(current => ({
+    updateLibrary(current => ({
       ...current,
       installedSkins: unlinkExternalSkinPublication(current.installedSkins, folderPath),
       externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, folderPath),
     }))
-  }, [])
+  }, [updateLibrary])
 
   const uninstallInstalledSkin = useCallback(async (entry: InstalledSkin) => {
     if (isTauriRuntime && gamePath) {
       await uninstallSkin(gamePath, entry.folderName)
     }
-    setLibrary(current => ({
+    updateLibrary(current => ({
       ...current,
       installedSkins: current.installedSkins.filter(s => s.folderName.toLowerCase() !== entry.folderName.toLowerCase()),
       externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, entry.path),
     }))
-  }, [gamePath])
+  }, [gamePath, updateLibrary])
 
   const requestUninstall = useCallback((entry: InstalledSkin) => {
     setUninstallError('')
@@ -128,6 +189,13 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
   return {
     favorites: library.favorites,
     installedSkins: library.installedSkins,
+    exportLibrary,
+    library,
+    ready,
+    loadError,
+    persistenceError,
+    retryLibraryLoad,
+    importLibrary,
     scanning,
     rescanSkins,
     toggleFavorite,

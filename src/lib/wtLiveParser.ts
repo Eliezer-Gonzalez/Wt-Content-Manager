@@ -123,8 +123,12 @@ export function safeImageUrl(value: string | null | undefined): string | undefin
   if (!value) return undefined
   try {
     const url = new URL(value, 'https://live.warthunder.com')
-    return url.protocol === 'https:' &&
-      (url.hostname === 'warthunder.com' || url.hostname.endsWith('.warthunder.com'))
+    const trustedImageHost =
+      url.hostname === 'warthunder.com' ||
+      url.hostname.endsWith('.warthunder.com') ||
+      url.hostname === 'imgur.com' ||
+      url.hostname === 'i.imgur.com'
+    return url.protocol === 'https:' && trustedImageHost
       ? url.href
       : undefined
   } catch {

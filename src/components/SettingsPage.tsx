@@ -12,6 +12,8 @@ import { ImageQualitySettingsCard } from './ImageQualitySettingsCard'
 import { NotificationSettingsCard } from './NotificationSettingsCard'
 import type { ImageQualityMode } from '../lib/imageQuality'
 import type { useCompletionNotificationSettings } from '../hooks/useCompletionNotificationSettings'
+import type { useLocalLibrary } from '../hooks/useLocalLibrary'
+import { LocalLibraryTransferCard } from './LocalLibraryTransferCard'
 
 type DiagnosticsState = ReturnType<typeof useDiagnosticsSettings>
 
@@ -25,9 +27,10 @@ type Props = {
   onRescanGame: () => void
   onViewLegalNotice: () => void
   notificationSettings: ReturnType<typeof useCompletionNotificationSettings>
+  library: ReturnType<typeof useLocalLibrary>
 }
 
-export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice, notificationSettings }: Props) {
+export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuality, onChangeImageQuality, onOpenGameSetup, onRescanGame, onViewLegalNotice, notificationSettings, library }: Props) {
   const { t } = useI18n()
   const diagnosticsEnabled = diagnostics.settings?.enabled ?? diagnostics.supported
 
@@ -122,6 +125,9 @@ export function SettingsPage({ gameInstall, gameLoading, diagnostics, imageQuali
         </section>
 
         <ImageQualitySettingsCard value={imageQuality} onChange={onChangeImageQuality} />
+        <div className="min-w-0 xl:col-span-2">
+          <LocalLibraryTransferCard exportLibrary={library.exportLibrary} onImport={library.importLibrary} disabled={!library.ready || library.scanning} />
+        </div>
         <div className="min-w-0 xl:col-span-2">
           <NotificationSettingsCard
             preferences={notificationSettings.preferences}

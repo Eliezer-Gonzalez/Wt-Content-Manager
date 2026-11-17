@@ -1,13 +1,13 @@
 {
   "name": "wt-content-manager",
   "private": true,
-  "version": "0.13.0",
+  "version": "0.13.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "check:locales": "node scripts/check-locales.mjs",
-    "test": "node --test scripts/security-regressions.test.mjs",
+    "test": "node --test scripts/security-regressions.test.mjs scripts/wt-live-images.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

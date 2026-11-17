@@ -9,9 +9,10 @@ type Props = {
   error: boolean
   onConfirm: () => void
   onClose: () => void
+  busy?: boolean
 }
 
-export function ConfirmResetLocalDataModal({ open, error, onConfirm, onClose }: Props) {
+export function ConfirmResetLocalDataModal({ open, error, onConfirm, onClose, busy = false }: Props) {
   const { t } = useI18n()
   const dialogRef = useRef<HTMLDivElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -31,12 +32,12 @@ export function ConfirmResetLocalDataModal({ open, error, onConfirm, onClose }: 
             <h2 id="reset-local-data-title" className="mb-1 font-display text-xl font-semibold">{t('resetLocalDataConfirmTitle')}</h2>
             <p id="reset-local-data-description" className="mb-0 text-sm leading-6 text-[#b1b7ab]">{t('resetLocalDataConfirmBody')}</p>
           </div>
-          <Button variant="icon" onClick={onClose} aria-label={t('close')}><X size={17} /></Button>
+          <Button variant="icon" onClick={onClose} disabled={busy} aria-label={t('close')}><X size={17} /></Button>
         </header>
         {error && <p className="mb-0 mt-4 border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-100" role="alert">{t('resetLocalDataFailed')}</p>}
         <footer className="mt-6 flex justify-end gap-2">
-          <Button ref={cancelRef} variant="secondary" onClick={onClose}>{t('skinCancel')}</Button>
-          <Button variant="danger" onClick={onConfirm}>{t('resetLocalDataAction')}</Button>
+          <Button ref={cancelRef} variant="secondary" onClick={onClose} disabled={busy}>{t('skinCancel')}</Button>
+          <Button variant="danger" onClick={onConfirm} disabled={busy}>{t(busy ? 'working' : 'resetLocalDataAction')}</Button>
         </footer>
       </div>
     </div>

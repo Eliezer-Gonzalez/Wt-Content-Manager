@@ -14,6 +14,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { WindowTitleBar } from './components/WindowTitleBar'
 import { BackToTopButton } from './components/BackToTopButton'
 import { DownloadCompletionNotifications } from './components/DownloadCompletionNotifications'
+import { LocalLibraryStartupGate } from './components/LocalLibraryStartupGate'
 import { useGameInstallation } from './hooks/useGameInstallation'
 import { useLocalLibrary } from './hooks/useLocalLibrary'
 import { useCamouflageManagement } from './hooks/useCamouflageManagement'
@@ -127,6 +128,13 @@ export default function App() {
     closePost()
   }
 
+  if (!library.ready) {
+    return <div className={`${isTauriRuntime ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-wt-bg font-sans text-[#e3e4dc]`}>
+      {isTauriRuntime && <WindowTitleBar />}
+      <LocalLibraryStartupGate desktop={isTauriRuntime} error={library.loadError} onRetry={library.retryLibraryLoad} />
+    </div>
+  }
+
   return <div className={`${isTauriRuntime ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-wt-bg font-sans text-[#e3e4dc]`} onContextMenu={event => event.preventDefault()}>
     {isTauriRuntime && <WindowTitleBar />}
     <NavigationSidebar
@@ -138,13 +146,14 @@ export default function App() {
 
     <main ref={mainScrollRef} className={`ml-[246px] flex flex-col max-[1100px]:ml-[210px] max-[720px]:ml-0 ${isTauriRuntime ? 'h-[calc(100dvh-36px)] min-h-0 overflow-y-auto [overflow-anchor:none]' : 'min-h-screen'}`}>
       <AppHeader active={active} />
+      {library.persistenceError && <div className="mx-6 mt-3 border border-amber-700/70 bg-amber-950/30 px-4 py-2 text-xs text-amber-100" role="alert">{t('localLibrarySaveFailed')}</div>}
 
       <div className="flex flex-1 flex-col">
         {active === 'settings' ? <SettingsPage
           gameInstall={gameSetup.gameInstall} gameLoading={gameSetup.loading}
           diagnostics={diagnostics} imageQuality={imageQuality.quality} onChangeImageQuality={imageQuality.setQuality}
           onOpenGameSetup={gameSetup.openSetup} onRescanGame={() => void gameSetup.scan()}
-          onViewLegalNotice={legalNotice.openNotice} notificationSettings={notificationSettings}
+          onViewLegalNotice={legalNotice.openNotice} notificationSettings={notificationSettings} library={library}
         /> : active === 'sounds' ? <SoundManagerPage
           imageQuality={imageQuality.quality} soundLibrary={soundLibraryForUi}
           cancelDialogOpen={cancellation.pendingKind === 'sound'} downloadableLangGroups={currentSoundLangGroups}

@@ -3,6 +3,7 @@ pub mod error;
 mod external_links;
 mod game_install;
 pub mod http;
+mod local_library;
 mod logging;
 mod providers;
 mod settings;
@@ -72,6 +73,9 @@ pub fn run() {
             commands::write_diagnostic,
             commands::read_recent_diagnostics,
             commands::open_diagnostics_folder,
+            commands::load_local_library,
+            commands::save_local_library,
+            commands::clear_local_library,
             sounds::commands::list_sound_packages,
             sounds::commands::download_sound_package,
             sounds::commands::update_sound_package,
