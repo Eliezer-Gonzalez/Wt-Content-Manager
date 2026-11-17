@@ -32,6 +32,7 @@ type CamouflageDownloads = {
   onRescan: () => void
   onOpenPost: ComponentProps<typeof InstalledSkinCard>['onOpen']
   onUninstall: ComponentProps<typeof InstalledSkinCard>['onUninstall']
+  onRemoveFromLibrary: ComponentProps<typeof InstalledSkinCard>['onRemoveFromLibrary']
   onUnlinkPublication: ComponentProps<typeof InstalledSkinCard>['onUnlinkPublication']
   isSaved: (entry: InstalledSkin) => boolean
   onToggleSaved: ComponentProps<typeof InstalledSkinCard>['onToggleSaved']
@@ -70,9 +71,11 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
     () => filterAndSortInstalledSkins(camouflages.entries, camouflages.query, camouflages.origin, camouflages.sort),
     [camouflages.entries, camouflages.query, camouflages.origin, camouflages.sort],
   )
+  const presentSkins = useMemo(() => camouflages.entries.filter(entry => entry.availability !== 'missing'), [camouflages.entries])
+  const missingSkinCount = camouflages.entries.length - presentSkins.length
   const totalSkinBytes = useMemo(
-    () => camouflages.entries.reduce((total, entry) => total + entry.sizeBytes, 0),
-    [camouflages.entries],
+    () => presentSkins.reduce((total, entry) => total + entry.sizeBytes, 0),
+    [presentSkins],
   )
   const soundStatusAvailable = Boolean(sounds.library.status && !sounds.library.statusLoading)
   const effectiveSoundFilter = soundStatusAvailable ? sounds.statusFilter : 'all'
@@ -165,7 +168,10 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
         {category === 'camouflages' ? (
           <>
             <div className="mb-4 mt-1 flex flex-wrap items-center justify-between gap-3">
-              <DownloadsLibrarySummary totalCount={camouflages.entries.length} totalSizeBytes={totalSkinBytes} kind="camouflages" />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <DownloadsLibrarySummary totalCount={presentSkins.length} totalSizeBytes={totalSkinBytes} kind="camouflages" />
+                {missingSkinCount > 0 && <span className="text-xs text-amber-200">{t('downloadsMissingSkinsCount', { count: missingSkinCount })}</span>}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-[#9fa89b]">{t('downloadsFilteredCount', { count: visibleSkins.length })}</span>
                 {camouflages.gamePath && (
@@ -195,7 +201,7 @@ export function DownloadsPage({ category, onCategoryChange, camouflages, sounds,
                 resetKey={`downloads-camouflages-${camouflages.query}-${camouflages.origin}-${camouflages.sort}`}
                 getKey={entry => entry.path}
                 gridClassName="grid grid-cols-2 gap-3 min-[1100px]:grid-cols-3 min-[1600px]:grid-cols-4 min-[2300px]:grid-cols-5 max-[720px]:grid-cols-1"
-                renderItem={entry => <InstalledSkinCard entry={entry} showPreview onOpen={camouflages.onOpenPost} onUninstall={camouflages.onUninstall} onUnlinkPublication={camouflages.onUnlinkPublication} isSaved={camouflages.isSaved(entry)} onToggleSaved={camouflages.onToggleSaved} />}
+                renderItem={entry => <InstalledSkinCard entry={entry} showPreview onOpen={camouflages.onOpenPost} onUninstall={camouflages.onUninstall} onRemoveFromLibrary={camouflages.onRemoveFromLibrary} onUnlinkPublication={camouflages.onUnlinkPublication} isSaved={camouflages.isSaved(entry)} onToggleSaved={camouflages.onToggleSaved} />}
               />
             )}
           </>

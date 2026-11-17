@@ -5,6 +5,7 @@ const storageKey = 'wt-content-manager-library-v1'
 const migrationKey = 'wt-content-manager-library-file-migrated-v1'
 
 export type InstalledSkin = {
+  availability: 'present' | 'missing' | 'needsReview'
   item?: WtLiveItem
   externalPublication?: {
     item: WtLiveItem
@@ -79,7 +80,8 @@ export function parseLocalLibrary(value: unknown): LocalLibrary {
       const externalPublication = externalItem && external && typeof external.folderPath === 'string'
         ? { item: externalItem, confirmedAt: typeof external.confirmedAt === 'string' ? external.confirmedAt : '', folderPath: external.folderPath.slice(0, 1200) }
         : undefined
-      return [{ item, externalPublication, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
+      const availability = saved.availability === 'missing' ? 'missing' as const : saved.availability === 'needsReview' ? 'needsReview' as const : 'present' as const
+      return [{ availability, item, externalPublication, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
     }) : []
   const savedLinks = Array.isArray(savedLibrary.externalSkinPublications) ? savedLibrary.externalSkinPublications : []
   const externalSkinPublications = savedLinks.flatMap(saved => {
@@ -191,16 +193,19 @@ function pathFolderName(value: string): string {
 export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[], publicationLinks: ExternalSkinPublication[] = []): InstalledSkin[] {
   const storedByIdentity = new Map<string, InstalledSkin>()
   for (const entry of stored) {
-    const key = `${entry.folderName.toLowerCase()}\0${normalizeSkinPath(entry.path)}`
+    const key = skinIdentity(entry.folderName, entry.path)
     if (!storedByIdentity.has(key)) storedByIdentity.set(key, entry)
   }
-  return scanned.map(disk => {
-    const key = `${disk.folderName.toLowerCase()}\0${normalizeSkinPath(disk.path)}`
+  const matchedStored = new Set<string>()
+  const presentEntries = scanned.map(disk => {
+    const key = skinIdentity(disk.folderName, disk.path)
     const validMatch = storedByIdentity.get(key)
+    if (validMatch) matchedStored.add(key)
     const externalPublication = publicationLinks.find(link => normalizeSkinPath(link.folderPath) === normalizeSkinPath(disk.path))
       ?? (validMatch?.externalPublication && normalizeSkinPath(validMatch.externalPublication.folderPath) === normalizeSkinPath(disk.path) ? validMatch.externalPublication : undefined)
     const fallbackDate = disk.modifiedAtMs ? new Date(disk.modifiedAtMs).toISOString() : ''
     return {
+      availability: validMatch?.availability === 'needsReview' ? 'needsReview' as const : 'present' as const,
       item: validMatch?.item,
       externalPublication,
       folderName: disk.folderName,
@@ -210,6 +215,42 @@ export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[
       installedAt: validMatch?.installedAt || fallbackDate,
     }
   })
+  const missingEntries: InstalledSkin[] = []
+  for (const [key, entry] of storedByIdentity) {
+    if (!matchedStored.has(key)) missingEntries.push({ ...entry, availability: entry.availability === 'needsReview' ? 'needsReview' : 'missing' })
+  }
+  return [...presentEntries, ...missingEntries]
+}
+
+export function mergeRecoveryReviewRecords(current: LocalLibrary, recovered: LocalLibrary): LocalLibrary {
+  const installedSkins = [...current.installedSkins]
+  for (const recoveredEntry of recovered.installedSkins) {
+    if (recoveredEntry.availability !== 'needsReview') continue
+    const index = installedSkins.findIndex(entry => sameSkinIdentity(entry, recoveredEntry))
+    if (index >= 0) {
+      installedSkins[index] = { ...installedSkins[index], availability: 'needsReview' }
+    } else {
+      installedSkins.push(recoveredEntry)
+    }
+  }
+  return { ...current, installedSkins }
+}
+
+export function removeMissingSkinRecord(library: LocalLibrary, target: InstalledSkin): LocalLibrary {
+  const targetPath = normalizeSkinPath(target.path)
+  return {
+    ...library,
+    installedSkins: library.installedSkins.filter(entry => !sameSkinIdentity(entry, target)),
+    externalSkinPublications: library.externalSkinPublications.filter(link => normalizeSkinPath(link.folderPath) !== targetPath),
+  }
+}
+
+function skinIdentity(folderName: string, path: string): string {
+  return `${folderName.toLowerCase()}\0${normalizeSkinPath(path)}`
+}
+
+export function sameSkinIdentity(left: Pick<InstalledSkin, 'folderName' | 'path'>, right: Pick<InstalledSkin, 'folderName' | 'path'>): boolean {
+  return skinIdentity(left.folderName, left.path) === skinIdentity(right.folderName, right.path)
 }
 
 export function getSkinPublication(entry: InstalledSkin): WtLiveItem | undefined {

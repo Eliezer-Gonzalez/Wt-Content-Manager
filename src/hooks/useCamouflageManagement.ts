@@ -12,7 +12,7 @@ type Options = {
 
 export function useCamouflageManagement({ gamePath, t, library }: Options) {
   const externalFolderNames = useMemo(
-    () => library.installedSkins.filter(entry => !entry.item).map(entry => entry.folderName),
+    () => library.installedSkins.filter(entry => entry.availability === 'present' && !entry.item).map(entry => entry.folderName),
     [library.installedSkins],
   )
   const recordExternalLink = useCallback((item: WtLiveItem, _folderName: string, path: string) => {
@@ -22,10 +22,12 @@ export function useCamouflageManagement({ gamePath, t, library }: Options) {
     gamePath,
     t,
     onInstalled: library.recordInstallation,
+    onRecoveryRefresh: library.refreshRecoveryRecords,
     externalFolderNames,
     onLinkedExternal: recordExternalLink,
   })
   const installedIds = useMemo(() => new Set(library.installedSkins.flatMap(entry => {
+    if (entry.availability !== 'present') return []
     const id = entry.item?.id ?? entry.externalPublication?.item.id
     return id != null ? [id] : []
   })), [library.installedSkins])

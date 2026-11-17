@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { isTauriRuntime } from '../lib/gameInstall'
-import { emptyLocalLibrary, exportLocalLibrary, linkExternalSkinPublication, mergeImportedLocalLibrary, mergeScannedSkins, parseLocalLibraryExport, removeExternalSkinPublication, sameFavorite, unlinkExternalSkinPublication, upsertExternalSkinPublication, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
+import { emptyLocalLibrary, exportLocalLibrary, linkExternalSkinPublication, mergeImportedLocalLibrary, mergeRecoveryReviewRecords, mergeScannedSkins, parseLocalLibraryExport, removeExternalSkinPublication, removeMissingSkinRecord, sameFavorite, sameSkinIdentity, unlinkExternalSkinPublication, upsertExternalSkinPublication, type InstalledSkin, type LocalLibrary } from '../lib/localLibrary'
 import { loadPersistentLocalLibrary, savePersistentLocalLibrary } from '../lib/localLibraryPersistence'
 import { scanInstalledSkins, uninstallSkin } from '../lib/skins'
 import { waitForMinimumLoadingDuration } from '../lib/minimumLoadingDuration'
@@ -17,6 +17,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [scanning, setScanning] = useState(false)
   const [uninstallTarget, setUninstallTarget] = useState<InstalledSkin | null>(null)
+  const [skinRecordToRemove, setSkinRecordToRemove] = useState<InstalledSkin | null>(null)
   const [uninstalling, setUninstalling] = useState(false)
   const [uninstallError, setUninstallError] = useState('')
   const [uninstalledFolder, setUninstalledFolder] = useState<string | null>(null)
@@ -45,7 +46,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
   useEffect(() => {
     if (!ready) return
     let active = true
-    void savePersistentLocalLibrary(library).then(() => {
+    void savePersistentLocalLibrary(libraryRef.current).then(() => {
       if (active) setPersistenceError(false)
     }).catch(() => {
       if (active) setPersistenceError(true)
@@ -92,10 +93,14 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     setScanning(true)
     try {
       const scanned = await scanInstalledSkins(gamePath)
-      updateLibrary(current => ({
-        ...current,
-        installedSkins: mergeScannedSkins(scanned, current.installedSkins, current.externalSkinPublications),
-      }))
+      const recovered = await loadPersistentLocalLibrary()
+      updateLibrary(current => {
+        const latest = mergeRecoveryReviewRecords(current, recovered)
+        return {
+          ...latest,
+          installedSkins: mergeScannedSkins(scanned, latest.installedSkins, latest.externalSkinPublications),
+        }
+      })
     } catch {
       /* Keep current installed list if scan fails. */
     } finally {
@@ -103,6 +108,11 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
       setScanning(false)
     }
   }, [gamePath, ready, updateLibrary])
+
+  const refreshRecoveryRecords = useCallback(async () => {
+    const recovered = await loadPersistentLocalLibrary()
+    updateLibrary(current => mergeRecoveryReviewRecords(current, recovered))
+  }, [updateLibrary])
 
   useEffect(() => {
     void rescanSkins()
@@ -118,11 +128,11 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     })
   }, [updateLibrary])
 
-  const recordInstallation = useCallback((item: WtLiveItem, result: Omit<InstalledSkin, 'item' | 'installedAt'>) => {
-    const entry: InstalledSkin = { ...result, item, installedAt: new Date().toISOString() }
+  const recordInstallation = useCallback((item: WtLiveItem, result: Omit<InstalledSkin, 'availability' | 'item' | 'installedAt'>) => {
+    const entry: InstalledSkin = { ...result, availability: 'present', item, installedAt: new Date().toISOString() }
     updateLibrary(current => ({
       ...current,
-      installedSkins: [entry, ...current.installedSkins.filter(s => s.folderName.toLowerCase() !== entry.folderName.toLowerCase())],
+      installedSkins: [entry, ...current.installedSkins.filter(s => !sameSkinIdentity(s, entry))],
       externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, entry.path),
     }))
   }, [updateLibrary])
@@ -149,7 +159,7 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     }
     updateLibrary(current => ({
       ...current,
-      installedSkins: current.installedSkins.filter(s => s.folderName.toLowerCase() !== entry.folderName.toLowerCase()),
+      installedSkins: current.installedSkins.filter(s => !sameSkinIdentity(s, entry)),
       externalSkinPublications: removeExternalSkinPublication(current.externalSkinPublications, entry.path),
     }))
   }, [gamePath, updateLibrary])
@@ -164,6 +174,22 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     setUninstallTarget(null)
     setUninstallError('')
   }, [uninstalling])
+
+  const requestRemoveMissingSkin = useCallback((entry: InstalledSkin) => {
+    if (entry.availability === 'missing') setSkinRecordToRemove(entry)
+  }, [])
+
+  const cancelRemoveMissingSkin = useCallback(() => setSkinRecordToRemove(null), [])
+
+  const confirmRemoveMissingSkin = useCallback(() => {
+    const target = skinRecordToRemove
+    if (!target) return
+    updateLibrary(current => {
+      const currentEntry = current.installedSkins.find(entry => sameSkinIdentity(entry, target))
+      return currentEntry?.availability === 'missing' ? removeMissingSkinRecord(current, currentEntry) : current
+    })
+    setSkinRecordToRemove(null)
+  }, [skinRecordToRemove, updateLibrary])
 
   const confirmUninstall = useCallback(async () => {
     if (!uninstallTarget || uninstalling) return
@@ -198,12 +224,14 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     importLibrary,
     scanning,
     rescanSkins,
+    refreshRecoveryRecords,
     toggleFavorite,
     recordInstallation,
     linkExternalPublication,
     unlinkExternalPublication,
     uninstallInstalledSkin,
     uninstallTarget,
+    skinRecordToRemove,
     uninstalling,
     uninstallError,
     uninstalledFolder,
@@ -211,6 +239,9 @@ export function useLocalLibrary(gamePath?: string, t?: TranslateFn) {
     requestUninstall,
     cancelUninstall,
     confirmUninstall,
+    requestRemoveMissingSkin,
+    cancelRemoveMissingSkin,
+    confirmRemoveMissingSkin,
   }
 }
 

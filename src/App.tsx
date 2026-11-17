@@ -170,6 +170,7 @@ export default function App() {
             gamePath: gameSetup.gameInstall?.path, scanning: library.scanning,
             onRescan: () => void library.rescanSkins(), onOpenPost: openPost,
             onUninstall: library.requestUninstall,
+            onRemoveFromLibrary: library.requestRemoveMissingSkin,
             onUnlinkPublication: entry => library.unlinkExternalPublication(entry.path),
             isSaved: entry => {
               const item = entry.item ?? entry.externalPublication?.item
@@ -195,7 +196,7 @@ export default function App() {
           isInstalled={isItemInstalled} isDownloaded={isSoundDownloaded} onExplore={openSection}
         /> : active === 'home' ? <HomeDashboard
           items={feed.items} favorites={library.favorites} installedSkins={library.installedSkins}
-          favoritesCount={library.favorites.length} installedCount={library.installedSkins.length + soundLibrary.packages.length}
+          favoritesCount={library.favorites.length} installedCount={library.installedSkins.filter(entry => entry.availability === 'present').length + soundLibrary.packages.length}
           gameConfigured={Boolean(gameSetup.gameInstall)} loading={feed.loading} error={feed.error} online={feed.online}
           isSaved={item => isFavoriteSaved(item, item.contentType ?? 'camouflage')}
           isDownloaded={isSoundDownloaded} isInstalled={isItemInstalled} onNavigate={openSection}

@@ -65,8 +65,8 @@ export function PostDetailsOverlay({
   }
 
   if (!selected) return null
-  const installedEntry = library.installedSkins.find(entry => entry.item?.id === selected.id)
-    ?? library.installedSkins.find(entry => entry.externalPublication?.item.id === selected.id)
+  const installedEntry = library.installedSkins.find(entry => entry.availability === 'present' && entry.item?.id === selected.id)
+    ?? library.installedSkins.find(entry => entry.availability === 'present' && entry.externalPublication?.item.id === selected.id)
     ?? null
 
   return (

@@ -1,4 +1,5 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
+import type { WtLiveItem } from './wtLive'
 
 export type SkinInstallProgress = {
   phase: 'preparing' | 'downloading' | 'extracting' | 'comparing'
@@ -42,10 +43,10 @@ export type ScannedSkin = {
   modifiedAtMs: number | null
 }
 
-export function installSkin(langGroup: number, gamePath: string, taskId: string, onProgress: (progress: SkinInstallProgress) => void, replaceFolderName?: string, externalFolderNames: string[] = []): Promise<SkinInstallOutcome> {
+export function installSkin(langGroup: number, gamePath: string, taskId: string, publication: WtLiveItem, onProgress: (progress: SkinInstallProgress) => void, replaceFolderName?: string, externalFolderNames: string[] = []): Promise<SkinInstallOutcome> {
   const channel = new Channel<SkinInstallProgress>()
   channel.onmessage = onProgress
-  return invoke<SkinInstallOutcome>('install_skin', { langGroup, gamePath, taskId, onProgress: channel, replaceFolderName, externalFolderNames })
+  return invoke<SkinInstallOutcome>('install_skin', { langGroup, gamePath, taskId, publication, onProgress: channel, replaceFolderName, externalFolderNames })
 }
 
 export function resolvePreparedSkinInstall(pendingId: string, action: 'install_copy' | 'link_existing' | 'replace_existing' | 'cancel', folderName?: string): Promise<SkinInstallOutcome> {

@@ -1,5 +1,6 @@
 import { GameSetupModal } from './GameSetupModal'
 import { ConfirmUninstallModal } from './ConfirmUninstallModal'
+import { ConfirmRemoveMissingSkinModal } from './ConfirmRemoveMissingSkinModal'
 import { ConfirmRemoveFavoriteModal } from './ConfirmRemoveFavoriteModal'
 import { DownloadCancelConfirmDialog } from './DownloadCancelConfirmDialog'
 import { LegalNoticeDialog } from './LegalNoticeDialog'
@@ -51,6 +52,11 @@ export function AppSystemDialogs({
         onDismissNotice={library.dismissUninstalledNotice}
         onConfirm={() => void library.confirmUninstall()}
         onClose={library.cancelUninstall}
+      />
+      <ConfirmRemoveMissingSkinModal
+        entry={library.skinRecordToRemove}
+        onConfirm={library.confirmRemoveMissingSkin}
+        onClose={library.cancelRemoveMissingSkin}
       />
       <ConfirmRemoveFavoriteModal
         item={favoriteToRemove}

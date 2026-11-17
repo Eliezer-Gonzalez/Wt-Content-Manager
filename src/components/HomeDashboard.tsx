@@ -99,7 +99,7 @@ export function HomeDashboard({
   const { t, locale } = useI18n()
   const { visibleSections, hideSection, showSection } = useHomeSections()
   const latest = items.slice(0, 5)
-  const latestInstalled = installedSkins.slice(0, 4)
+  const latestInstalled = installedSkins.filter(entry => entry.availability === 'present').slice(0, 4)
   const latestFavorites = favorites.slice(0, 5)
 
   const sectionLabels: Record<HomeSectionKey, string> = {

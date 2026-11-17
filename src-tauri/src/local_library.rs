@@ -5,6 +5,11 @@ use tempfile::NamedTempFile;
 const MAX_LIBRARY_BYTES: u64 = 16 * 1024 * 1024;
 
 pub fn load(path: &Path) -> Result<Option<Value>, crate::AppError> {
+    let _guard = crate::skins::install_journal::lock_local_library();
+    load_unlocked(path)
+}
+
+pub(crate) fn load_unlocked(path: &Path) -> Result<Option<Value>, crate::AppError> {
     let backup = path.with_extension("json.bak");
     if !path.exists() {
         return read_existing(&backup).map(Some).or_else(|error| {
@@ -47,7 +52,13 @@ fn read_existing(path: &Path) -> Result<Value, crate::AppError> {
     Ok(value)
 }
 
+#[cfg(test)]
 pub fn save(path: &Path, value: &Value) -> Result<(), crate::AppError> {
+    let _guard = crate::skins::install_journal::lock_local_library();
+    save_unlocked(path, value)
+}
+
+pub(crate) fn save_unlocked(path: &Path, value: &Value) -> Result<(), crate::AppError> {
     validate_library(value)?;
     let bytes = serde_json::to_vec(value).map_err(|error| {
         crate::AppError::with_detail("local_library_write_failed", error.to_string())
@@ -166,6 +177,7 @@ fn valid_skin(value: &Value) -> bool {
 }
 
 pub fn clear(path: &Path) -> Result<(), crate::AppError> {
+    let _guard = crate::skins::install_journal::lock_local_library();
     for target in [
         path.to_path_buf(),
         path.with_extension("json.bak"),
@@ -180,6 +192,13 @@ pub fn clear(path: &Path) -> Result<(), crate::AppError> {
                     error.to_string(),
                 ))
             }
+        }
+    }
+    for journal_dir in ["skin-install-journal", "skin-external-link-journal"] {
+        match fs::remove_dir_all(path.with_file_name(journal_dir)) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(crate::AppError::with_detail("local_library_clear_failed", error.to_string())),
         }
     }
     Ok(())

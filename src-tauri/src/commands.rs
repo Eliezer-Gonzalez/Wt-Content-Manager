@@ -15,7 +15,10 @@ fn local_library_path(app: &AppHandle) -> Result<PathBuf, AppError> {
 #[tauri::command]
 pub async fn load_local_library(app: AppHandle) -> Result<Option<Value>, AppError> {
     let path = local_library_path(&app)?;
-    tauri::async_runtime::spawn_blocking(move || crate::local_library::load(&path))
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::skins::install_journal::reconcile(&path)?;
+        crate::local_library::load(&path)
+    })
         .await
         .map_err(|error| AppError::with_detail("local_library_read_failed", error.to_string()))?
 }
@@ -23,7 +26,7 @@ pub async fn load_local_library(app: AppHandle) -> Result<Option<Value>, AppErro
 #[tauri::command]
 pub async fn save_local_library(app: AppHandle, library: Value) -> Result<(), AppError> {
     let path = local_library_path(&app)?;
-    tauri::async_runtime::spawn_blocking(move || crate::local_library::save(&path, &library))
+    tauri::async_runtime::spawn_blocking(move || crate::skins::install_journal::save_with_journal(&path, &library))
         .await
         .map_err(|error| AppError::with_detail("local_library_write_failed", error.to_string()))?
 }
@@ -115,6 +118,8 @@ pub fn validate_game_installation(
 
 #[tauri::command]
 pub async fn install_skin(
+    app: AppHandle,
+    publication: Value,
     lang_group: u64,
     game_path: String,
     task_id: String,
@@ -125,7 +130,16 @@ pub async fn install_skin(
     pending: State<'_, skins::PreparedInstallRegistry>,
     logger: State<'_, logging::DiagnosticLogger>,
 ) -> Result<skins::SkinInstallOutcome, AppError> {
+    let library_path = local_library_path(&app)?;
+    tauri::async_runtime::spawn_blocking({
+        let library_path = library_path.clone();
+        move || crate::skins::install_journal::reconcile(&library_path)
+    })
+    .await
+    .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))??;
     let result = skins::install_skin(
+        publication,
+        library_path,
         lang_group,
         &game_path,
         &task_id,
@@ -196,11 +210,16 @@ pub fn cancel_skin_download(
 
 #[tauri::command]
 pub async fn scan_installed_skins(
+    app: AppHandle,
     game_path: String,
     logger: State<'_, logging::DiagnosticLogger>,
 ) -> Result<Vec<skins::ScannedSkin>, AppError> {
+    let library_path = local_library_path(&app)?;
     let result =
-        tauri::async_runtime::spawn_blocking(move || skins::scan_installed_skins(&game_path))
+        tauri::async_runtime::spawn_blocking(move || {
+            crate::skins::install_journal::reconcile(&library_path)?;
+            skins::scan_installed_skins(&game_path)
+        })
             .await
             .map_err(|error| AppError::with_detail("skin_scan_interrupted", error.to_string()))
             .and_then(|result| result);

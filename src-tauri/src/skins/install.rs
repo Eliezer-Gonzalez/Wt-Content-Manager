@@ -3,6 +3,7 @@ use super::duplicate_detection::DuplicateSkinCandidate;
 use super::pending_install::PreparedInstallRegistry;
 use serde::Serialize;
 use tauri::ipc::Channel;
+use std::path::PathBuf;
 
 use super::download_task::{DownloadManager, SkinInstallProgress};
 use crate::{game_install, providers::wt_live, AppError};
@@ -30,6 +31,8 @@ pub enum SkinInstallOutcome {
 }
 
 pub async fn install_skin(
+    publication: serde_json::Value,
+    library_path: PathBuf,
     lang_group: u64,
     game_path: &str,
     task_id: &str,
@@ -79,9 +82,11 @@ pub async fn install_skin(
                 AppError::with_detail("download_progress_failed", error.to_string())
             })?;
         let task_id_for_pending = task_id.to_string();
+        let task_id_for_journal = task_id_for_pending.clone();
         let prepare_progress = on_progress.clone();
         let prepared = tauri::async_runtime::spawn_blocking(move || -> Result<Preparation, AppError> {
             let (prepared, candidates) = staging.prepare(&archive_name, replace_folder_name.as_deref(), &external_folder_names, &prepare_progress, &control)?;
+            let prepared = prepared.with_journal(library_path, publication, task_id_for_journal);
             control.wait_until_resumed_blocking()?;
             if candidates.is_empty() {
                 Ok(Preparation::Installed(prepared.install()?))
@@ -135,7 +140,10 @@ pub fn resolve_prepared_skin_install(
                 return Err(AppError::new("skin_duplicate_changed"));
             }
             match prepared.validate_external_folder(folder_name) {
-                Ok(result) => Ok(SkinInstallOutcome::LinkedExisting { folder_name: result.folder_name, path: result.path }),
+                Ok(result) => {
+                    prepared.persist_external_link(&result)?;
+                    Ok(SkinInstallOutcome::LinkedExisting { folder_name: result.folder_name, path: result.path })
+                }
                 Err(error) => {
                     pending.insert(pending_id.to_string(), prepared, candidates)?;
                     Err(error)

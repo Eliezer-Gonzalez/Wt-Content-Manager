@@ -12,12 +12,13 @@ type Props = {
   showPreview?: boolean
   onOpen: (item: WtLiveItem) => void
   onUninstall: (entry: InstalledSkin) => void
+  onRemoveFromLibrary?: (entry: InstalledSkin) => void
   onUnlinkPublication?: (entry: InstalledSkin) => void
   isSaved?: boolean
   onToggleSaved?: (item: WtLiveItem) => void
 }
 
-export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninstall, onUnlinkPublication, isSaved = false, onToggleSaved }: Props) {
+export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninstall, onRemoveFromLibrary, onUnlinkPublication, isSaved = false, onToggleSaved }: Props) {
   const { t, locale } = useI18n()
   const installedDate = entry.installedAt ? new Date(entry.installedAt) : null
   const date = installedDate && !Number.isNaN(installedDate.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(installedDate) : t('unknownDate')
@@ -45,6 +46,16 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
         <AppTooltip content={subtitle} className="w-full"><div className="w-full"><p className="mb-0 w-full truncate text-xs text-[#bdc99e]">{subtitle}</p></div></AppTooltip>
       </div>
     </div>
+    {entry.availability === 'missing' && (
+      <p className="mb-0 mt-3 border border-amber-800/60 bg-amber-950/25 px-2.5 py-2 text-xs text-amber-100" role="status">
+        {t('missingSkinBadge')}
+      </p>
+    )}
+    {entry.availability === 'needsReview' && (
+      <p className="mb-0 mt-3 border border-amber-800/60 bg-amber-950/25 px-2.5 py-2 text-xs text-amber-100" role="status">
+        {t('skinInstallNeedsReview')}
+      </p>
+    )}
     <dl className="mb-0 mt-4 grid grid-cols-2 gap-3 border-t border-[#333a32] pt-3 text-xs">
       <AppTooltip content={entry.folderName}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FolderOpen size={13}/>{t('installedFolder')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{entry.folderName}</dd></div></AppTooltip>
       <AppTooltip content={date}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><CalendarDays size={13}/>{t(entry.item ? 'installedDate' : 'modifiedDate')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{date}</dd></div></AppTooltip>
@@ -77,11 +88,21 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
           </Button>
         </AppTooltip>
       )}
-      <AppTooltip content={t('uninstallSkin')} align="end">
-        <Button variant="danger" size="sm" onClick={() => onUninstall(entry)} aria-label={t('uninstallSkinAria', { name: title })}>
-          <Trash2 size={14} aria-hidden="true" />
-        </Button>
-      </AppTooltip>
+      {entry.availability === 'missing' ? (
+        <AppTooltip content={t('removeMissingSkinAction')} align="end">
+          <Button variant="danger" size="sm" onClick={() => onRemoveFromLibrary?.(entry)} aria-label={t('removeMissingSkinActionAria', { name: entry.folderName })}>
+            <Trash2 size={14} aria-hidden="true" />
+          </Button>
+        </AppTooltip>
+      ) : entry.availability === 'needsReview' ? (
+        <span className="inline-flex min-h-8 flex-1 items-center justify-center border border-amber-800/60 px-2.5 py-1 text-xs text-amber-100">{t('skinInstallNeedsReview')}</span>
+      ) : (
+        <AppTooltip content={t('uninstallSkin')} align="end">
+          <Button variant="danger" size="sm" onClick={() => onUninstall(entry)} aria-label={t('uninstallSkinAria', { name: title })}>
+            <Trash2 size={14} aria-hidden="true" />
+          </Button>
+        </AppTooltip>
+      )}
     </div>
   </article>
 }

@@ -5,6 +5,7 @@ pub mod download_task;
 mod duplicate_detection;
 mod install;
 mod install_staging;
+pub(crate) mod install_journal;
 mod pending_install;
 pub mod library;
 pub(crate) mod paths;

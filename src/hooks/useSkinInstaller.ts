@@ -18,7 +18,8 @@ type Options = {
   gamePath?: string
   selectionKey?: number
   t: TranslateFn
-  onInstalled: (item: WtLiveItem, result: Omit<InstalledSkin, 'item' | 'installedAt'>) => void
+  onInstalled: (item: WtLiveItem, result: Omit<InstalledSkin, 'availability' | 'item' | 'installedAt'>) => void
+  onRecoveryRefresh: () => Promise<void>
   externalFolderNames: string[]
   onLinkedExternal: (item: WtLiveItem, folderName: string, path: string) => void
 }
@@ -26,7 +27,7 @@ type Options = {
 const pauseSkinTask = (taskId: string) => setSkinDownloadPaused(taskId, true)
 const resumeSkinTask = (taskId: string) => setSkinDownloadPaused(taskId, false)
 
-export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, externalFolderNames, onLinkedExternal }: Options) {
+export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, onRecoveryRefresh, externalFolderNames, onLinkedExternal }: Options) {
   const [installing, setInstalling] = useState(false)
   const [progress, setProgress] = useState<SkinInstallProgress | null>(null)
   const [downloadId, setDownloadId] = useState<string | null>(null)
@@ -136,7 +137,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
     setInstalledPath('')
     setWarning(null)
     try {
-      const outcome = await installSkin(item.langGroup, gamePath, taskId, progressUpdate => {
+      const outcome = await installSkin(item.langGroup, gamePath, taskId, item, progressUpdate => {
         if (mountedRef.current) setProgress(progressUpdate)
       }, replaceFolderName, externalFolderNames)
       if (!mountedRef.current) return
@@ -157,8 +158,11 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
       if (cancelRequestedRef.current) {
         setResultLangGroup(item.langGroup)
         setCancelled(true)
+        await onRecoveryRefresh().catch(() => {})
       } else {
         setResultLangGroup(item.langGroup)
+        await onRecoveryRefresh().catch(() => {})
+        if (!mountedRef.current) return
         reportError(cause)
       }
     } finally {
@@ -171,7 +175,7 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
         resetPauseCancel()
       }
     }
-  }, [externalFolderNames, gamePath, onInstalled, onLinkedExternal, reportError, resetPauseCancel, t])
+  }, [externalFolderNames, gamePath, onInstalled, onLinkedExternal, onRecoveryRefresh, reportError, resetPauseCancel, t])
 
   function applyInstallResult(item: WtLiveItem, result: SkinInstallResult) {
     announceDownloadCompletion('camouflage', item.title || item.fileName || t('camouflage'))
@@ -211,11 +215,12 @@ export function useSkinInstaller({ gamePath, selectionKey, t, onInstalled, exter
         pendingInstallRef.current = null
         setDuplicatePrompt(null)
       }
+      await onRecoveryRefresh().catch(() => {})
       reportError(cause)
     } finally {
       setResolvingDuplicate(false)
     }
-  }, [duplicatePrompt, onInstalled, onLinkedExternal, reportError, resolvingDuplicate, t])
+  }, [duplicatePrompt, onInstalled, onLinkedExternal, onRecoveryRefresh, reportError, resolvingDuplicate, t])
 
   return { installing, progress, paused, cancelling, cancelled, error, installedPath, warning, activeLangGroup, resultLangGroup, duplicatePrompt, resolvingDuplicate, resolveDuplicate, install, togglePause, cancel, prepareCancel, continueAfterCancelPrompt, dismissCancelPrompt, resetInstallState }
 }
