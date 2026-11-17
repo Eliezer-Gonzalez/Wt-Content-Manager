@@ -1,11 +1,15 @@
 import type { ScannedSkin } from './skins'
+import { parseStoredSkinFingerprint } from './skinFingerprint'
+import type { SkinFingerprint as SkinFingerprintType } from './skinFingerprint'
 import type { WtLiveItem } from './wtLive'
 
 const storageKey = 'wt-content-manager-library-v1'
 const migrationKey = 'wt-content-manager-library-file-migrated-v1'
+export type { SkinFingerprint } from './skinFingerprint'
 
 export type InstalledSkin = {
   availability: 'present' | 'missing' | 'needsReview'
+  fingerprint?: SkinFingerprintType
   item?: WtLiveItem
   externalPublication?: {
     item: WtLiveItem
@@ -75,13 +79,14 @@ export function parseLocalLibrary(value: unknown): LocalLibrary {
       const saved = entry as Partial<InstalledSkin>
       if (typeof saved.folderName !== 'string' || typeof saved.path !== 'string') return []
       const item = storedItem(saved.item) ?? undefined
+      const fingerprint = parseStoredSkinFingerprint((entry as { fingerprint?: unknown }).fingerprint)
       const external = saved.externalPublication
       const externalItem = external && typeof external === 'object' ? storedItem(external.item) : null
       const externalPublication = externalItem && external && typeof external.folderPath === 'string'
         ? { item: externalItem, confirmedAt: typeof external.confirmedAt === 'string' ? external.confirmedAt : '', folderPath: external.folderPath.slice(0, 1200) }
         : undefined
       const availability = saved.availability === 'missing' ? 'missing' as const : saved.availability === 'needsReview' ? 'needsReview' as const : 'present' as const
-      return [{ availability, item, externalPublication, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
+      return [{ availability, item, externalPublication, fingerprint, folderName: saved.folderName.slice(0, 120), path: saved.path.slice(0, 1200), fileCount: Number.isFinite(saved.fileCount) ? saved.fileCount! : 0, sizeBytes: Number.isFinite(saved.sizeBytes) ? saved.sizeBytes! : 0, installedAt: typeof saved.installedAt === 'string' ? saved.installedAt : '' }]
     }) : []
   const savedLinks = Array.isArray(savedLibrary.externalSkinPublications) ? savedLibrary.externalSkinPublications : []
   const externalSkinPublications = savedLinks.flatMap(saved => {
@@ -206,6 +211,7 @@ export function mergeScannedSkins(scanned: ScannedSkin[], stored: InstalledSkin[
     const fallbackDate = disk.modifiedAtMs ? new Date(disk.modifiedAtMs).toISOString() : ''
     return {
       availability: validMatch?.availability === 'needsReview' ? 'needsReview' as const : 'present' as const,
+      fingerprint: validMatch?.fingerprint,
       item: validMatch?.item,
       externalPublication,
       folderName: disk.folderName,

@@ -7,9 +7,11 @@ import { stripTypeScriptTypes } from 'node:module'
 import test from 'node:test'
 
 const source = await readFile(new URL('../src/lib/localLibrary.ts', import.meta.url), 'utf8')
+const fingerprintSource = await readFile(new URL('../src/lib/skinFingerprint.ts', import.meta.url), 'utf8')
 const temporaryDirectory = await mkdtemp(join(tmpdir(), 'wt-local-library-test-'))
 const modulePath = join(temporaryDirectory, 'localLibrary.mjs')
-const compiled = stripTypeScriptTypes(source, { mode: 'strip' })
+await writeFile(join(temporaryDirectory, 'skinFingerprint.mjs'), stripTypeScriptTypes(fingerprintSource, { mode: 'strip' }))
+const compiled = stripTypeScriptTypes(source.replace("from './skinFingerprint'", "from './skinFingerprint.mjs'"), { mode: 'strip' })
 await writeFile(modulePath, compiled)
 const { mergeRecoveryReviewRecords, mergeScannedSkins, parseLocalLibrary, removeMissingSkinRecord, sameSkinIdentity } = await import(pathToFileURL(modulePath).href)
 
@@ -47,6 +49,19 @@ test('rescan marks a returning skin as present again', () => {
   assert.equal(result.length, 1)
   assert.equal(result[0].availability, 'present')
   assert.equal(result[0].item.id, publication.id)
+})
+
+test('rescan preserves the installed skin fingerprint', () => {
+  const fingerprint = { files: [{ relativePath: 'skin.blk', sizeBytes: 4, hash: 'a'.repeat(64) }], globalHash: 'b'.repeat(64) }
+  const result = mergeScannedSkins([{
+    folderName: storedSkin.folderName,
+    path: storedSkin.path,
+    fileCount: 1,
+    sizeBytes: 4,
+    modifiedAtMs: 1,
+  }], [{ ...storedSkin, fingerprint }])
+
+  assert.deepEqual(result[0].fingerprint, fingerprint)
 })
 
 test('same folder names in different game paths remain separate records', () => {

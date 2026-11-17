@@ -1,5 +1,7 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
 import type { WtLiveItem } from './wtLive'
+import type { SkinFingerprint } from './skinFingerprint'
+export type { SkinFingerprint } from './skinFingerprint'
 
 export type SkinInstallProgress = {
   phase: 'preparing' | 'downloading' | 'extracting' | 'comparing'
@@ -17,6 +19,7 @@ export type SkinInstallResult = {
   skippedExecutables: number
   missingTextureCount: number
   missingTextureNames: string[]
+  fingerprint: SkinFingerprint
 }
 
 export type DuplicateSkinCandidate = {

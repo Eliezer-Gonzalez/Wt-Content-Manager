@@ -3,6 +3,7 @@ mod archive_paths;
 pub(crate) mod download;
 pub mod download_task;
 mod duplicate_detection;
+pub(crate) mod fingerprint;
 mod install;
 mod install_staging;
 pub(crate) mod install_journal;

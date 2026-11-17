@@ -1,11 +1,12 @@
-use super::install_staging::InstallStaging;
 use super::duplicate_detection::DuplicateSkinCandidate;
+use super::install_staging::InstallStaging;
 use super::pending_install::PreparedInstallRegistry;
 use serde::Serialize;
-use tauri::ipc::Channel;
 use std::path::PathBuf;
+use tauri::ipc::Channel;
 
 use super::download_task::{DownloadManager, SkinInstallProgress};
+use super::fingerprint::SkinFingerprint;
 use crate::{game_install, providers::wt_live, AppError};
 
 #[derive(Serialize)]
@@ -19,14 +20,27 @@ pub struct InstallResult {
     pub skipped_executables: usize,
     pub missing_texture_count: usize,
     pub missing_texture_names: Vec<String>,
+    pub fingerprint: SkinFingerprint,
 }
 
 #[derive(Serialize)]
-#[serde(tag = "status", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "status",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum SkinInstallOutcome {
-    Installed { result: InstallResult },
-    DuplicateFound { pending_id: String, candidates: Vec<DuplicateSkinCandidate> },
-    LinkedExisting { folder_name: String, path: String },
+    Installed {
+        result: InstallResult,
+    },
+    DuplicateFound {
+        pending_id: String,
+        candidates: Vec<DuplicateSkinCandidate>,
+    },
+    LinkedExisting {
+        folder_name: String,
+        path: String,
+    },
     Cancelled,
 }
 
@@ -84,18 +98,28 @@ pub async fn install_skin(
         let task_id_for_pending = task_id.to_string();
         let task_id_for_journal = task_id_for_pending.clone();
         let prepare_progress = on_progress.clone();
-        let prepared = tauri::async_runtime::spawn_blocking(move || -> Result<Preparation, AppError> {
-            let (prepared, candidates) = staging.prepare(&archive_name, replace_folder_name.as_deref(), &external_folder_names, &prepare_progress, &control)?;
-            let prepared = prepared.with_journal(library_path, publication, task_id_for_journal);
-            control.wait_until_resumed_blocking()?;
-            if candidates.is_empty() {
-                Ok(Preparation::Installed(prepared.install()?))
-            } else {
-                Ok(Preparation::NeedsChoice(prepared, candidates))
-            }
-        })
-        .await
-        .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))??;
+        let prepared =
+            tauri::async_runtime::spawn_blocking(move || -> Result<Preparation, AppError> {
+                let (prepared, candidates) = staging.prepare(
+                    &archive_name,
+                    replace_folder_name.as_deref(),
+                    &external_folder_names,
+                    &prepare_progress,
+                    &control,
+                )?;
+                let prepared =
+                    prepared.with_journal(library_path, publication, task_id_for_journal);
+                control.wait_until_resumed_blocking()?;
+                if candidates.is_empty() {
+                    Ok(Preparation::Installed(prepared.install()?))
+                } else {
+                    Ok(Preparation::NeedsChoice(prepared, candidates))
+                }
+            })
+            .await
+            .map_err(|error| {
+                AppError::with_detail("skin_install_interrupted", error.to_string())
+            })??;
         match prepared {
             Preparation::Installed(result) => Ok(SkinInstallOutcome::Installed { result }),
             Preparation::NeedsChoice(prepared, candidates) => {
@@ -106,8 +130,13 @@ pub async fn install_skin(
                     Ok::<_, AppError>((pending_id, candidates))
                 })
                 .await
-                .map_err(|error| AppError::with_detail("skin_install_interrupted", error.to_string()))??;
-                Ok(SkinInstallOutcome::DuplicateFound { pending_id, candidates })
+                .map_err(|error| {
+                    AppError::with_detail("skin_install_interrupted", error.to_string())
+                })??;
+                Ok(SkinInstallOutcome::DuplicateFound {
+                    pending_id,
+                    candidates,
+                })
             }
         }
     }
@@ -118,7 +147,10 @@ pub async fn install_skin(
 
 enum Preparation {
     Installed(InstallResult),
-    NeedsChoice(super::install_staging::PreparedSkinInstall, Vec<DuplicateSkinCandidate>),
+    NeedsChoice(
+        super::install_staging::PreparedSkinInstall,
+        Vec<DuplicateSkinCandidate>,
+    ),
 }
 
 pub fn resolve_prepared_skin_install(
@@ -129,20 +161,28 @@ pub fn resolve_prepared_skin_install(
 ) -> Result<SkinInstallOutcome, AppError> {
     let (prepared, candidates) = pending.take(pending_id)?;
     match action {
-        "install_copy" => Ok(SkinInstallOutcome::Installed { result: prepared.install()? }),
+        "install_copy" => Ok(SkinInstallOutcome::Installed {
+            result: prepared.install()?,
+        }),
         "link_existing" => {
             let Some(folder_name) = folder_name else {
                 pending.insert(pending_id.to_string(), prepared, candidates)?;
                 return Err(AppError::new("skin_duplicate_changed"));
             };
-            if !candidates.iter().any(|candidate| candidate.folder_name.eq_ignore_ascii_case(folder_name)) {
+            if !candidates
+                .iter()
+                .any(|candidate| candidate.folder_name.eq_ignore_ascii_case(folder_name))
+            {
                 pending.insert(pending_id.to_string(), prepared, candidates)?;
                 return Err(AppError::new("skin_duplicate_changed"));
             }
             match prepared.validate_external_folder(folder_name) {
                 Ok(result) => {
                     prepared.persist_external_link(&result)?;
-                    Ok(SkinInstallOutcome::LinkedExisting { folder_name: result.folder_name, path: result.path })
+                    Ok(SkinInstallOutcome::LinkedExisting {
+                        folder_name: result.folder_name,
+                        path: result.path,
+                    })
                 }
                 Err(error) => {
                     pending.insert(pending_id.to_string(), prepared, candidates)?;
@@ -155,7 +195,10 @@ pub fn resolve_prepared_skin_install(
                 pending.insert(pending_id.to_string(), prepared, candidates)?;
                 return Err(AppError::new("skin_duplicate_changed"));
             };
-            if !candidates.iter().any(|candidate| candidate.folder_name.eq_ignore_ascii_case(folder_name)) {
+            if !candidates
+                .iter()
+                .any(|candidate| candidate.folder_name.eq_ignore_ascii_case(folder_name))
+            {
                 pending.insert(pending_id.to_string(), prepared, candidates)?;
                 return Err(AppError::new("skin_duplicate_changed"));
             }
@@ -163,7 +206,9 @@ pub fn resolve_prepared_skin_install(
                 pending.insert(pending_id.to_string(), prepared, candidates)?;
                 return Err(error);
             }
-            Ok(SkinInstallOutcome::Installed { result: prepared.target_existing_folder(folder_name).install()? })
+            Ok(SkinInstallOutcome::Installed {
+                result: prepared.target_existing_folder(folder_name).install()?,
+            })
         }
         "cancel" => Ok(SkinInstallOutcome::Cancelled),
         _ => {
@@ -173,6 +218,9 @@ pub fn resolve_prepared_skin_install(
     }
 }
 
-pub fn cancel_prepared_skin_install(pending: &PreparedInstallRegistry, pending_id: &str) -> Result<(), AppError> {
+pub fn cancel_prepared_skin_install(
+    pending: &PreparedInstallRegistry,
+    pending_id: &str,
+) -> Result<(), AppError> {
     pending.cancel(pending_id)
 }

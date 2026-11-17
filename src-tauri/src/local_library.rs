@@ -173,7 +173,13 @@ fn valid_skin(value: &Value) -> bool {
             && skin.get("path").and_then(Value::as_str).is_some()
             && skin.get("item").is_none_or(valid_item)
             && skin.get("externalPublication").is_none_or(valid_link)
+            && skin.get("fingerprint").is_none_or(valid_fingerprint)
     })
+}
+
+fn valid_fingerprint(value: &Value) -> bool {
+    serde_json::from_value::<crate::skins::fingerprint::SkinFingerprint>(value.clone())
+        .is_ok_and(|fingerprint| fingerprint.is_valid())
 }
 
 pub fn clear(path: &Path) -> Result<(), crate::AppError> {
@@ -186,12 +192,7 @@ pub fn clear(path: &Path) -> Result<(), crate::AppError> {
         match fs::remove_file(target) {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => {
-                return Err(crate::AppError::with_detail(
-                    "local_library_clear_failed",
-                    error.to_string(),
-                ))
-            }
+            Err(error) => return Err(crate::AppError::with_detail("local_library_clear_failed", error.to_string())),
         }
     }
     for journal_dir in ["skin-install-journal", "skin-external-link-journal"] {
@@ -213,7 +214,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("library.json");
         let first = serde_json::json!({"favorites": [], "installedSkins": [], "externalSkinPublications": []});
-        let second = serde_json::json!({"favorites": [{"id": 7, "langGroup": 8, "title": "Test", "author": "Author"}], "installedSkins": [], "externalSkinPublications": []});
+        let second = serde_json::json!({"favorites": [{"id": 7, "langGroup": 8, "title": "Test", "author": "Author"}], "installedSkins": [{"availability": "present", "folderName": "OldSkin", "path": "C:/WarThunder/UserSkins/OldSkin", "fileCount": 2, "sizeBytes": 12, "installedAt": ""}], "externalSkinPublications": []});
 
         save(&path, &first).unwrap();
         save(&path, &second).unwrap();

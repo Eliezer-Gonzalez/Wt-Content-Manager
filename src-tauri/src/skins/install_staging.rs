@@ -1,5 +1,8 @@
 use super::download_task::{DownloadControl, SkinInstallProgress};
-use super::duplicate_detection::{compare_external_skin, validate_external_link, DuplicateSkinCandidate};
+use super::duplicate_detection::{
+    compare_external_skin, validate_external_link, DuplicateSkinCandidate,
+};
+use super::fingerprint::SkinFingerprint;
 use super::install::InstallResult;
 use super::{
     archive, download, paths, recovery, register_active_staging, replacement, staging,
@@ -52,7 +55,11 @@ impl RegisteredStagingDir {
     }
 
     fn close(mut self) -> std::io::Result<()> {
-        let result = self.temp_dir.take().expect("staging directory retained").close();
+        let result = self
+            .temp_dir
+            .take()
+            .expect("staging directory retained")
+            .close();
         if result.is_err() {
             register_active_staging(self.registered_path.clone());
         } else {
@@ -144,12 +151,16 @@ impl InstallStaging {
         std::fs::create_dir(&payload)?;
         let stats = archive::extract(&self.archive_path, &payload, MAX_SKIN_BYTES)?;
         control.begin_comparison();
-        progress.send(SkinInstallProgress {
-            phase: "comparing",
-            downloaded_bytes: 0,
-            total_bytes: None,
-            paused: false,
-        }).map_err(|error| AppError::with_detail("download_progress_failed", error.to_string()))?;
+        progress
+            .send(SkinInstallProgress {
+                phase: "comparing",
+                downloaded_bytes: 0,
+                total_bytes: None,
+                paused: false,
+            })
+            .map_err(|error| {
+                AppError::with_detail("download_progress_failed", error.to_string())
+            })?;
         let (source, downloaded_folder_name) = paths::select_skin_root(&payload, archive_name)?;
         let file_count = paths::count_files(&source)?;
         if file_count == 0 || !paths::contains_skin_definition(&source)? {
@@ -160,28 +171,37 @@ impl InstallStaging {
         let mut candidates = Vec::new();
         if replace_folder_name.is_none() {
             for external_folder_name in external_folder_names.iter().take(100) {
-                if let Some(candidate) = compare_external_skin(&source, &self.userskins, external_folder_name, &downloaded_folder_name, control)? {
+                if let Some(candidate) = compare_external_skin(
+                    &source,
+                    &self.userskins,
+                    external_folder_name,
+                    &downloaded_folder_name,
+                    control,
+                )? {
                     candidates.push(candidate);
                 }
             }
         }
         let missing_textures = texture_validation::find_missing_references(&source);
-        Ok((PreparedSkinInstall {
-            userskins: self.userskins,
-            source,
-            folder_name: downloaded_folder_name,
-            replace_folder_name,
-            staging_dir: self.staging_dir,
-            file_count,
-            size_bytes,
-            skipped_files: stats.skipped_files,
-            skipped_executables: stats.skipped_executables,
-            missing_texture_count: missing_textures.count,
-            missing_texture_names: missing_textures.names,
-            journal_library_path: None,
-            publication: None,
-            transaction_id: None,
-        }, candidates))
+        Ok((
+            PreparedSkinInstall {
+                userskins: self.userskins,
+                source,
+                folder_name: downloaded_folder_name,
+                replace_folder_name,
+                staging_dir: self.staging_dir,
+                file_count,
+                size_bytes,
+                skipped_files: stats.skipped_files,
+                skipped_executables: stats.skipped_executables,
+                missing_texture_count: missing_textures.count,
+                missing_texture_names: missing_textures.names,
+                journal_library_path: None,
+                publication: None,
+                transaction_id: None,
+            },
+            candidates,
+        ))
     }
 }
 
@@ -203,7 +223,12 @@ pub(super) struct PreparedSkinInstall {
 }
 
 impl PreparedSkinInstall {
-    pub fn with_journal(mut self, library_path: PathBuf, publication: serde_json::Value, transaction_id: String) -> Self {
+    pub fn with_journal(
+        mut self,
+        library_path: PathBuf,
+        publication: serde_json::Value,
+        transaction_id: String,
+    ) -> Self {
         self.journal_library_path = Some(library_path);
         self.publication = Some(publication);
         self.transaction_id = Some(transaction_id);
@@ -211,12 +236,19 @@ impl PreparedSkinInstall {
     }
 
     pub fn install(self) -> Result<InstallResult, AppError> {
+        let fingerprint = SkinFingerprint::compute(&self.source).map_err(|error| {
+            AppError::with_detail("skin_install_interrupted", error.to_string())
+        })?;
         let mut folder_name = match self.replace_folder_name.as_deref() {
             Some(name) => name.to_string(),
             None => paths::unique_folder_name(&self.userskins, &self.folder_name)?,
         };
         let mut destination = self.userskins.join(&folder_name);
-        let game_root = self.userskins.parent().unwrap_or(&self.userskins).to_path_buf();
+        let game_root = self
+            .userskins
+            .parent()
+            .unwrap_or(&self.userskins)
+            .to_path_buf();
         let staging_root = self.staging_dir.path().to_path_buf();
         {
             let _mutation = recovery::lock_game_filesystem();
@@ -237,12 +269,22 @@ impl PreparedSkinInstall {
                 destination = self.userskins.join(&folder_name);
             }
             if let (Some(library_path), Some(publication), Some(transaction_id)) = (
-                self.journal_library_path.as_deref(), self.publication.as_ref(), self.transaction_id.as_deref(),
+                self.journal_library_path.as_deref(),
+                self.publication.as_ref(),
+                self.transaction_id.as_deref(),
             ) {
                 super::install_journal::prepare(
-                    library_path, transaction_id, publication.clone(), &folder_name, &destination,
-                    &staging_root, &game_root, self.file_count, self.size_bytes,
+                    library_path,
+                    transaction_id,
+                    publication.clone(),
+                    &folder_name,
+                    &destination,
+                    &staging_root,
+                    &game_root,
+                    self.file_count,
+                    self.size_bytes,
                     self.replace_folder_name.is_some(),
+                    Some(fingerprint.clone()),
                 )?;
             }
             if let Some(name) = self.replace_folder_name.as_deref() {
@@ -255,8 +297,14 @@ impl PreparedSkinInstall {
                 if let Err(failure) = result {
                     if failure.preserve_staging {
                         let path = self.staging_dir.preserve();
-                        if let (Some(library_path), Some(transaction_id)) = (self.journal_library_path.as_deref(), self.transaction_id.as_deref()) {
-                            super::install_journal::mark_needs_review(library_path, transaction_id)?;
+                        if let (Some(library_path), Some(transaction_id)) = (
+                            self.journal_library_path.as_deref(),
+                            self.transaction_id.as_deref(),
+                        ) {
+                            super::install_journal::mark_needs_review(
+                                library_path,
+                                transaction_id,
+                            )?;
                         }
                         let detail = failure
                             .error
@@ -268,12 +316,23 @@ impl PreparedSkinInstall {
                             path.display()
                         )));
                     }
-                    if let (Some(library_path), Some(transaction_id)) = (self.journal_library_path.as_deref(), self.transaction_id.as_deref()) {
-                        if let Err(journal_error) = super::install_journal::discard_transaction(library_path, transaction_id) {
+                    if let (Some(library_path), Some(transaction_id)) = (
+                        self.journal_library_path.as_deref(),
+                        self.transaction_id.as_deref(),
+                    ) {
+                        if let Err(journal_error) = super::install_journal::discard_transaction(
+                            library_path,
+                            transaction_id,
+                        ) {
                             let path = self.staging_dir.preserve();
-                            let _ = super::install_journal::mark_needs_review(library_path, transaction_id);
+                            let _ = super::install_journal::mark_needs_review(
+                                library_path,
+                                transaction_id,
+                            );
                             return Err(failure.error.set_detail(format!(
-                                "{}; recovery data retained at {}", journal_error, path.display()
+                                "{}; recovery data retained at {}",
+                                journal_error,
+                                path.display()
                             )));
                         }
                     }
@@ -281,12 +340,22 @@ impl PreparedSkinInstall {
                 }
             } else {
                 if let Err(error) = std::fs::rename(&self.source, &destination) {
-                    if let (Some(library_path), Some(transaction_id)) = (self.journal_library_path.as_deref(), self.transaction_id.as_deref()) {
-                        if let Err(journal_error) = super::install_journal::discard_transaction(library_path, transaction_id) {
+                    if let (Some(library_path), Some(transaction_id)) = (
+                        self.journal_library_path.as_deref(),
+                        self.transaction_id.as_deref(),
+                    ) {
+                        if let Err(journal_error) = super::install_journal::discard_transaction(
+                            library_path,
+                            transaction_id,
+                        ) {
                             let path = self.staging_dir.preserve();
-                            return Err(AppError::with_detail("skin_recovery_required", format!(
-                                "{error}; {journal_error}; recovery data retained at {}", path.display()
-                            )));
+                            return Err(AppError::with_detail(
+                                "skin_recovery_required",
+                                format!(
+                                    "{error}; {journal_error}; recovery data retained at {}",
+                                    path.display()
+                                ),
+                            ));
                         }
                     }
                     return Err(AppError::with_detail("skin_save_failed", error.to_string()));
@@ -302,14 +371,20 @@ impl PreparedSkinInstall {
             skipped_executables: self.skipped_executables,
             missing_texture_count: self.missing_texture_count,
             missing_texture_names: self.missing_texture_names,
+            fingerprint,
         };
         let library_path = self.journal_library_path.clone();
         let transaction_id = self.transaction_id.clone();
         if let Err(error) = self.staging_dir.close() {
-            if let (Some(library_path), Some(transaction_id)) = (library_path.as_deref(), transaction_id.as_deref()) {
+            if let (Some(library_path), Some(transaction_id)) =
+                (library_path.as_deref(), transaction_id.as_deref())
+            {
                 super::install_journal::mark_needs_review(library_path, transaction_id)?;
             }
-            return Err(AppError::with_detail("skin_recovery_required", error.to_string()));
+            return Err(AppError::with_detail(
+                "skin_recovery_required",
+                error.to_string(),
+            ));
         }
         if let (Some(library_path), Some(transaction_id)) = (library_path, transaction_id) {
             super::install_journal::finalize(&library_path, &transaction_id)?;
@@ -317,19 +392,40 @@ impl PreparedSkinInstall {
         Ok(result)
     }
 
-    pub fn validate_external_folder(&self, folder_name: &str) -> Result<DuplicateSkinCandidate, AppError> {
+    pub fn validate_external_folder(
+        &self,
+        folder_name: &str,
+    ) -> Result<DuplicateSkinCandidate, AppError> {
         validate_external_link(&self.userskins, folder_name)
     }
 
-    pub fn persist_external_link(&self, candidate: &DuplicateSkinCandidate) -> Result<(), AppError> {
-        let (Some(library_path), Some(publication)) = (self.journal_library_path.as_deref(), self.publication.as_ref()) else {
+    pub fn persist_external_link(
+        &self,
+        candidate: &DuplicateSkinCandidate,
+    ) -> Result<(), AppError> {
+        let (Some(library_path), Some(publication)) = (
+            self.journal_library_path.as_deref(),
+            self.publication.as_ref(),
+        ) else {
             return Err(AppError::new("local_library_write_failed"));
         };
-        let transaction_id = self.transaction_id.as_deref().ok_or_else(|| AppError::new("local_library_write_failed"))?;
-        let game_root = self.userskins.parent().ok_or_else(|| AppError::new("skin_invalid_folder"))?;
+        let transaction_id = self
+            .transaction_id
+            .as_deref()
+            .ok_or_else(|| AppError::new("local_library_write_failed"))?;
+        let game_root = self
+            .userskins
+            .parent()
+            .ok_or_else(|| AppError::new("skin_invalid_folder"))?;
         super::install_journal::persist_external_link(
-            library_path, transaction_id, publication.clone(), &candidate.folder_name,
-            Path::new(&candidate.path), game_root, candidate.file_count, candidate.size_bytes,
+            library_path,
+            transaction_id,
+            publication.clone(),
+            &candidate.folder_name,
+            Path::new(&candidate.path),
+            game_root,
+            candidate.file_count,
+            candidate.size_bytes,
         )
     }
 
