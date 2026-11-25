@@ -251,7 +251,7 @@ fn repair_commit_consumes_only_the_unlinked_rescan_placeholder() {
     local_library::save(&library_path, &base).unwrap();
     let proposed = super::super::repair::analyze(game.to_str().unwrap(), base.clone(), &std::sync::atomic::AtomicBool::new(false), |_| {}).unwrap();
     assert_eq!(proposed.auto_linked, 1);
-    let saved = persist_repair_result(&library_path, game.to_str().unwrap(), &base, &proposed.library).unwrap();
+    let saved = crate::skins::repair::persist_repair_result(&library_path, game.to_str().unwrap(), &base, &proposed.library).unwrap();
     assert_eq!(saved["installedSkins"].as_array().unwrap().len(), 1);
     assert!(saved["installedSkins"][0]["recordId"].as_str().unwrap().starts_with("skin-1-"));
     assert_eq!(saved["installedSkins"][0]["item"]["id"], 42);
@@ -267,7 +267,7 @@ fn repair_persists_missing_records_when_userskins_directory_is_absent() {
     local_library::save(&library_path, &base).unwrap();
     fs::remove_dir_all(game.join("UserSkins")).unwrap();
     let proposed = super::super::repair::analyze(game.to_str().unwrap(), base.clone(), &std::sync::atomic::AtomicBool::new(false), |_| {}).unwrap();
-    let saved = persist_repair_result(&library_path, game.to_str().unwrap(), &base, &proposed.library).unwrap();
+    let saved = crate::skins::repair::persist_repair_result(&library_path, game.to_str().unwrap(), &base, &proposed.library).unwrap();
     assert_eq!(saved["installedSkins"][0]["availability"], "missing");
     assert_eq!(saved["installedSkins"].as_array().unwrap().len(), 1);
 }
@@ -284,7 +284,7 @@ fn imported_install_fingerprint_links_only_after_rust_verifies_current_files() {
     local_library::save(&library_path, &base).unwrap();
     let imported = vec![serde_json::json!({"folderName":"ImportedSkin","fingerprint":fingerprint,"item":item})];
     let control = super::super::repair::register_task("import-test-one").unwrap();
-    let result = persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |_| {}).unwrap();
+    let result = crate::skins::repair::persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |_| {}).unwrap();
     super::super::repair::finish_task("import-test-one");
     assert_eq!(result["autoLinked"], 1);
     assert_eq!(result["library"]["installedSkins"][0]["item"]["id"], 42);
@@ -303,7 +303,7 @@ fn import_does_not_replace_an_existing_external_publication() {
     local_library::save(&library_path, &base).unwrap();
     let imported = vec![serde_json::json!({"folderName":"External","fingerprint":fingerprint,"item":item})];
     let control = super::super::repair::register_task("import-test-two").unwrap();
-    let result = persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |_| {}).unwrap();
+    let result = crate::skins::repair::persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |_| {}).unwrap();
     super::super::repair::finish_task("import-test-two");
     assert_eq!(result["autoLinked"], 0);
     assert_eq!(result["library"]["installedSkins"][0]["externalPublication"]["item"]["id"], 77);
@@ -337,7 +337,7 @@ fn import_does_not_auto_link_with_partial_or_legacy_name_competitors() {
         serde_json::json!({"folderName":"Exact","item":legacy_item}),
     ];
     let control = super::super::repair::register_task("import-ambiguous").unwrap();
-    let result = persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |_| {}).unwrap();
+    let result = crate::skins::repair::persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |_| {}).unwrap();
     super::super::repair::finish_task("import-ambiguous");
     assert_eq!(result["autoLinked"], 0);
     assert_eq!(result["candidates"].as_array().unwrap().len(), 3);
@@ -357,7 +357,7 @@ fn cancelling_import_hashing_leaves_library_unchanged() {
     let before = local_library::load(&library_path).unwrap().unwrap();
     let imported = vec![serde_json::json!({"folderName":"CancelTarget","item":item})];
     let control = super::super::repair::register_task("import-cancel").unwrap();
-    let result = persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |progress| {
+    let result = crate::skins::repair::persist_import_result(&library_path, game.to_str().unwrap(), &base, &base, &imported, &control, |progress| {
         if progress.phase == "hashing" { super::super::repair::cancel_task("import-cancel").unwrap(); }
     });
     super::super::repair::finish_task("import-cancel");

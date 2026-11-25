@@ -51,6 +51,25 @@
   body,
   #root {
     min-height: 100%;
+    background-color: #171b17;
+  }
+
+  @media (min-width: 721px) {
+    html,
+    body,
+    #root {
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+
+  @media (max-width: 720px) {
+    html,
+    body,
+    #root {
+      height: auto;
+      overflow: visible;
+    }
   }
 
   html {

@@ -2,12 +2,12 @@ import { LoaderCircle, ShieldAlert } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { Button } from './ui/Button'
 
-type Props = { error: boolean; onRetry: () => void; desktop?: boolean }
+type Props = { error: boolean; onRetry: () => void }
 
-export function LocalLibraryStartupGate({ error, onRetry, desktop = false }: Props) {
+export function LocalLibraryStartupGate({ error, onRetry }: Props) {
   const { t } = useI18n()
   return (
-    <main className={`grid ${desktop ? 'h-[calc(100dvh-36px)] min-h-0' : 'min-h-screen'} place-items-center bg-wt-bg px-5 text-[#e3e4dc]`}>
+    <main className="grid min-h-screen place-items-center bg-wt-bg px-5 text-[#e3e4dc] min-[721px]:min-h-0 min-[721px]:flex-1 min-[721px]:items-start min-[721px]:overflow-y-auto min-[721px]:py-6">
       <section className="w-full max-w-lg border border-[#343b32] bg-[#1d231d] p-6" role={error ? 'alert' : 'status'} aria-live="polite">
         <div className="mb-3 flex items-center gap-2 text-[#c3ceaa]">
           {error ? <ShieldAlert size={18} aria-hidden="true" /> : <LoaderCircle size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}

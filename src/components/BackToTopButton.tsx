@@ -6,7 +6,7 @@ import { AppTooltip } from './ui/AppTooltip'
 type Props = {
   enabled: boolean
   markerRef: RefObject<HTMLElement | null>
-  scrollContainerRef: RefObject<HTMLElement | null> | null
+  scrollContainerRef: RefObject<HTMLElement | null>
 }
 
 export function BackToTopButton({ enabled, markerRef, scrollContainerRef }: Props) {
@@ -22,12 +22,22 @@ export function BackToTopButton({ enabled, markerRef, scrollContainerRef }: Prop
       return
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => setVisible(!entry.isIntersecting),
-      { root: scrollContainerRef?.current ?? null, threshold: 0 },
-    )
-    observer.observe(marker)
-    return () => observer.disconnect()
+    const media = window.matchMedia('(min-width: 721px)')
+    let observer: IntersectionObserver | null = null
+    const observeMarker = () => {
+      observer?.disconnect()
+      observer = new IntersectionObserver(
+        ([entry]) => setVisible(!entry.isIntersecting),
+        { root: media.matches ? scrollContainerRef.current : null, threshold: 0 },
+      )
+      observer.observe(marker)
+    }
+    observeMarker()
+    media.addEventListener('change', observeMarker)
+    return () => {
+      media.removeEventListener('change', observeMarker)
+      observer?.disconnect()
+    }
   }, [enabled, markerRef, scrollContainerRef])
 
   useEffect(() => {
@@ -52,7 +62,7 @@ export function BackToTopButton({ enabled, markerRef, scrollContainerRef }: Prop
 
   function scrollToTop() {
     const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-    if (scrollContainerRef?.current) scrollContainerRef.current.scrollTo({ top: 0, behavior })
+    if (window.matchMedia('(min-width: 721px)').matches) scrollContainerRef.current?.scrollTo({ top: 0, behavior })
     else window.scrollTo({ top: 0, behavior })
   }
 

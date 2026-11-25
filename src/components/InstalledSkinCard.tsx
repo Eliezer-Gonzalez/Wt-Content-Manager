@@ -25,10 +25,18 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
   const publication = getSkinPublication(entry)
   const title = publication?.title || entry.folderName
   const subtitle = entry.item?.fileName || (entry.item ? entry.folderName : entry.externalPublication?.item.fileName || t('installedExternalSource'))
+  const baselineInfo = entry.fingerprint?.origin === 'baseline' ? (
+    <AppTooltip content={t('skinBaselineTooltip')} placement={showPreview ? 'bottom' : 'top'} align={showPreview ? 'start' : 'end'}>
+      <span className="grid size-8 shrink-0 place-items-center border border-[#68603c] bg-[#2b281d]/90 text-[#e3d79e] transition-colors hover:bg-[#3a3421] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive" tabIndex={0} aria-label={t('skinBaselineTooltipLabel')}>
+        <Info size={15} aria-hidden="true" />
+      </span>
+    </AppTooltip>
+  ) : null
 
   return <article className="h-full flex min-w-0 flex-col border border-[#30372f] bg-wt-panel p-4 transition-colors hover:border-[#687354]">
     {showPreview && <div className="relative">
       <InstalledSkinPreview imageUrl={publication?.imageUrl} title={title} />
+      {baselineInfo && <div className="absolute left-2 top-2 z-10">{baselineInfo}</div>}
       {publication && onToggleSaved && <Button
         variant="icon"
         className={`absolute right-2 top-2 z-10 size-9 border border-[#596154] bg-[#171c18c9] transition-transform duration-150 active:scale-95 ${isSaved ? 'text-[#c7d39d]' : 'text-[#d4d8cc]'}`}
@@ -42,7 +50,10 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center border border-[#4c5742] bg-[#293027] text-[#bdc99e]"><HardDriveDownload size={18}/></span>
       <div className="min-w-0 flex-1">
-        <AppTooltip content={title} className="mb-1 w-full"><div className="w-full"><h3 className="mb-0 min-h-[2.5rem] w-full line-clamp-2 font-display text-lg font-semibold leading-5 text-[#e2e4da]">{title}</h3></div></AppTooltip>
+        <div className="mb-1 flex min-w-0 items-start gap-1">
+          <AppTooltip content={title} className="min-w-0 flex-1"><div className="w-full"><h3 className="mb-0 min-h-[2.5rem] w-full line-clamp-2 font-display text-lg font-semibold leading-5 text-[#e2e4da]">{title}</h3></div></AppTooltip>
+          {!showPreview && baselineInfo}
+        </div>
         <AppTooltip content={subtitle} className="w-full"><div className="w-full"><p className="mb-0 w-full truncate text-xs text-[#bdc99e]">{subtitle}</p></div></AppTooltip>
       </div>
     </div>
@@ -55,9 +66,6 @@ export function InstalledSkinCard({ entry, showPreview = false, onOpen, onUninst
       <p className="mb-0 mt-3 border border-amber-800/60 bg-amber-950/25 px-2.5 py-2 text-xs text-amber-100" role="status">
         {t('skinInstallNeedsReview')}
       </p>
-    )}
-    {entry.fingerprint?.origin === 'baseline' && (
-      <p className="mb-0 mt-1 text-[10px] leading-4 text-[#d4c782]">{t('skinBaselineBadge')}</p>
     )}
     <dl className="mb-0 mt-4 grid grid-cols-2 gap-3 border-t border-[#333a32] pt-3 text-xs">
       <AppTooltip content={entry.folderName}><div className="min-w-0"><dt className="flex items-center gap-1.5 text-[#90998a]"><FolderOpen size={13}/>{t('installedFolder')}</dt><dd className="mb-0 mt-1 truncate text-[#c5cbbb]">{entry.folderName}</dd></div></AppTooltip>

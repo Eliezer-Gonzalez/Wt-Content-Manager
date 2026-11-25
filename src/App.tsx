@@ -131,13 +131,13 @@ export default function App() {
   }
 
   if (!library.ready) {
-    return <div className={`${isTauriRuntime ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-wt-bg font-sans text-[#e3e4dc]`}>
+    return <div className="min-h-screen bg-wt-bg font-sans text-[#e3e4dc] min-[721px]:flex min-[721px]:h-dvh min-[721px]:min-h-0 min-[721px]:flex-col min-[721px]:overflow-hidden">
       {isTauriRuntime && <WindowTitleBar />}
-      <LocalLibraryStartupGate desktop={isTauriRuntime} error={library.loadError} onRetry={library.retryLibraryLoad} />
+      <LocalLibraryStartupGate error={library.loadError} onRetry={library.retryLibraryLoad} />
     </div>
   }
 
-  return <div className={`${isTauriRuntime ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-wt-bg font-sans text-[#e3e4dc]`} onContextMenu={event => event.preventDefault()}>
+  return <div className="min-h-screen bg-wt-bg font-sans text-[#e3e4dc] min-[721px]:flex min-[721px]:h-dvh min-[721px]:min-h-0 min-[721px]:flex-col min-[721px]:overflow-hidden" onContextMenu={event => event.preventDefault()}>
     {isTauriRuntime && <WindowTitleBar />}
     <NavigationSidebar
       active={active} hasCustomTitleBar={isTauriRuntime} mobileOpen={mobileMenuOpen}
@@ -146,7 +146,7 @@ export default function App() {
       onToggleMobile={() => setMobileMenuOpen(open => !open)} onCloseMobile={closeMobileMenu}
     />
 
-    <main ref={mainScrollRef} className={`ml-[246px] flex flex-col max-[1100px]:ml-[210px] max-[720px]:ml-0 ${isTauriRuntime ? 'h-[calc(100dvh-36px)] min-h-0 overflow-y-auto [overflow-anchor:none]' : 'min-h-screen'}`}>
+    <main ref={mainScrollRef} className="ml-[246px] flex min-h-screen flex-col max-[1100px]:ml-[210px] max-[720px]:ml-0 min-[721px]:min-h-0 min-[721px]:flex-1 min-[721px]:overflow-y-auto [overflow-anchor:none]">
       <AppHeader active={active} />
       {library.persistenceError && <div className="mx-6 mt-3 border border-amber-700/70 bg-amber-950/30 px-4 py-2 text-xs text-amber-100" role="alert">{t('localLibrarySaveFailed')}</div>}
 
@@ -228,7 +228,7 @@ export default function App() {
       <BackToTopButton
         key={active}
         enabled={active === 'camouflages' || active === 'downloads' || active === 'sounds'}
-        markerRef={searchInputRef} scrollContainerRef={isTauriRuntime ? mainScrollRef : null}
+        markerRef={searchInputRef} scrollContainerRef={mainScrollRef}
       />
       <AppFooter />
     </main>

@@ -1,10 +1,15 @@
 mod analysis;
 mod matching;
+mod persistence;
 mod task;
 mod types;
 use serde_json::Value;
 pub(crate) use analysis::analyze;
+#[cfg(test)]
 pub(crate) use matching::confirm_candidate;
+pub(crate) use persistence::{
+    confirm_repair_candidate, persist_import_result, persist_repair_result,
+};
 pub(crate) use task::{cancel_task, finish_task, register_task, RepairTaskControl};
 pub(crate) use types::{RepairCandidate, RepairProgress, RepairResult};
 

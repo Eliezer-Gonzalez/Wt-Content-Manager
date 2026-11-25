@@ -37,7 +37,7 @@ pub async fn repair_skin_links(
         if control.is_cancelled() { return Err(AppError::new("download_cancelled")); }
         control.begin_finalizing()?;
         let _ = on_progress.send(RepairProgress { phase: "finalizing", completed: 1, total: 1, current: String::new() });
-        let mut saved = crate::skins::install_journal::persist_repair_result(&path, &game_path, &base, &proposed.library)?;
+        let mut saved = crate::skins::repair::persist_repair_result(&path, &game_path, &base, &proposed.library)?;
         // Preserve automatic links and report their candidates from the same operation.
         let mut result = proposed;
         result.auto_linked = result.library.get("installedSkins").and_then(serde_json::Value::as_array).map(|proposed_skins| {
@@ -70,7 +70,7 @@ pub async fn confirm_skin_link_candidate(
 ) -> Result<Value, AppError> {
     let path = library_path(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        crate::skins::install_journal::confirm_repair_candidate(&path, &game_path, &candidate)
+        crate::skins::repair::confirm_repair_candidate(&path, &game_path, &candidate)
     })
     .await
     .map_err(|error| AppError::with_detail("skin_repair_failed", error.to_string()))?
@@ -94,7 +94,7 @@ pub async fn commit_imported_skin_links(
     let task_id_for_worker = task_id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let progress_channel = on_progress.clone();
-        crate::skins::install_journal::persist_import_result(&path, &game_path, &base, &proposed, &imported_skins, &control, |progress| { let _ = progress_channel.send(progress); })
+        crate::skins::repair::persist_import_result(&path, &game_path, &base, &proposed, &imported_skins, &control, |progress| { let _ = progress_channel.send(progress); })
     })
     .await
     .map_err(|error| AppError::with_detail("skin_repair_failed", error.to_string()));
